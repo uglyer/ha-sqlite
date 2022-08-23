@@ -21,8 +21,12 @@ func main() {
 		log.Fatalf("failed to parse command-line flags: %s", err.Error())
 	}
 	log.Println(config)
-	_, err = node.NewHaSqliteContext(config)
+	ctx, err := node.NewHaSqliteContext(config)
 	if err != nil {
 		log.Fatalf("failed to start HaSqliteContext: %v", err)
+	}
+	defer ctx.Sock.Close()
+	if err := ctx.GPpcServer.Serve(ctx.Sock); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

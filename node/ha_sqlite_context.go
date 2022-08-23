@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/Jille/raft-grpc-leader-rpc/leaderhealth"
 	"github.com/hashicorp/raft"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -14,10 +15,12 @@ import (
 
 type HaSqliteContext struct {
 	// Config 配置参数
-	Ctx    context.Context
-	Config *HaSqliteConfig
-	fsm    *db.HaSqliteRaftFSM
-	Raft   *raft.Raft
+	Ctx        context.Context
+	Config     *HaSqliteConfig
+	fsm        *db.HaSqliteRaftFSM
+	Raft       *raft.Raft
+	Sock       net.Listener
+	GPpcServer *grpc.Server
 }
 
 func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
@@ -26,17 +29,19 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	defer sock.Close()
 	fsm := &db.HaSqliteRaftFSM{}
 	r, tm, err := NewRaft(ctx, config, fsm)
 	if err != nil {
 		return nil, err
 	}
+	s := grpc.NewServer()
 	c := &HaSqliteContext{
-		Ctx:    ctx,
-		Config: config,
-		fsm:    fsm,
-		Raft:   r,
+		Ctx:        ctx,
+		Config:     config,
+		fsm:        fsm,
+		Raft:       r,
+		Sock:       sock,
+		GPpcServer: s,
 	}
 	if config.JoinAddress != "" {
 		log.Printf("start join %v", config.JoinAddress)
@@ -49,19 +54,14 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	} else {
 		log.Printf("with out JoinAddress, skip join")
 	}
-	s := grpc.NewServer()
 	tm.Register(s)
-	//leaderhealth.Setup(r, s, []string{"Example"})
+	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
 	reflection.Register(s)
-	if err := s.Serve(sock); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
 	proto.RegisterHaSqliteInternalServer(s, c)
 	return c, nil
 }
 
 func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*proto.JoinResponse, error) {
-	log.Printf("remote call Join:%v", req)
 	return &proto.JoinResponse{
 		Code:    proto.ResultCode_NOT_A_LEADER,
 		Message: proto.ResultCode_NOT_A_LEADER.String(),
