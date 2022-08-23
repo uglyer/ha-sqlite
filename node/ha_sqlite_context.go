@@ -15,7 +15,7 @@ import (
 type HaSqliteContext struct {
 	// Config 配置参数
 	Config *HaSqliteConfig
-	Node   *db.HaSqliteNode
+	fsm    *db.HaSqliteRaftFSM
 	Raft   *raft.Raft
 }
 
@@ -26,8 +26,8 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	defer sock.Close()
-	node := &db.HaSqliteNode{}
-	r, tm, err := NewRaft(ctx, config, node)
+	fsm := &db.HaSqliteRaftFSM{}
+	r, tm, err := NewRaft(ctx, config, fsm)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	}
 	return &HaSqliteContext{
 		Config: config,
-		Node:   node,
+		fsm:    fsm,
 		Raft:   r,
 	}, nil
 }
