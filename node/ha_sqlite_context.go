@@ -43,6 +43,10 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		Sock:       sock,
 		GPpcServer: s,
 	}
+	tm.Register(s)
+	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
+	reflection.Register(s)
+	proto.RegisterHaSqliteInternalServer(s, c)
 	if config.JoinAddress != "" {
 		log.Printf("start join %v", config.JoinAddress)
 		resp, err := c.CallRemoteJoin(config.JoinAddress)
@@ -54,10 +58,6 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	} else {
 		log.Printf("with out JoinAddress, skip join")
 	}
-	tm.Register(s)
-	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
-	reflection.Register(s)
-	proto.RegisterHaSqliteInternalServer(s, c)
 	return c, nil
 }
 
