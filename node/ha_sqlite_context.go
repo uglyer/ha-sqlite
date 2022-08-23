@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
+	"time"
 )
 
 type HaSqliteContext struct {
@@ -70,13 +71,23 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	if !ctx.IsLeader() {
 		// 如果不是 leader，转发到 leader 执行
 		leaderAddress, _ := ctx.Raft.LeaderWithID()
+		println("leaderAddress", leaderAddress)
 		return ctx.CallRemoteJoin(string(leaderAddress), req)
 	}
+	future := ctx.Raft.AddVoter(raft.ServerID(req.Id), raft.ServerAddress(req.Address), req.PreviousIndex, timeout(c))
+	err := future.Error()
+	if err != nil {
+		return &proto.JoinResponse{
+			Code:    proto.ResultCode_UNKNOWN_FAILED,
+			Message: err.Error(),
+			Index:   ctx.Raft.LastIndex(),
+		}, fmt.Errorf("Join error: %v", err)
+	}
 	return &proto.JoinResponse{
-		Code:    proto.ResultCode_NOT_A_LEADER,
-		Message: proto.ResultCode_NOT_A_LEADER.String(),
+		Code:    proto.ResultCode_SUCCESS,
+		Message: "",
 		Index:   ctx.Raft.LastIndex(),
-	}, fmt.Errorf("TODO impl Join")
+	}, nil
 }
 
 // CallRemoteJoinWithSelf 使用自身参数构建发起远程调用加入节点
@@ -99,4 +110,11 @@ func (ctx *HaSqliteContext) CallRemoteJoin(remoteAddress string, req *proto.Join
 	defer conn.Close()
 	client := proto.NewHaSqliteInternalClient(conn)
 	return client.Join(ctx.Ctx, req)
+}
+
+func timeout(ctx context.Context) time.Duration {
+	if dl, ok := ctx.Deadline(); ok {
+		return dl.Sub(time.Now())
+	}
+	return 0
 }
