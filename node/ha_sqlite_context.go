@@ -6,6 +6,7 @@ import (
 	"github.com/Jille/raft-grpc-leader-rpc/leaderhealth"
 	"github.com/hashicorp/raft"
 	"github.com/uglyer/ha-sqlite/db"
+	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log"
@@ -38,9 +39,15 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err := s.Serve(sock); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-	return &HaSqliteContext{
+	c := &HaSqliteContext{
 		Config: config,
 		fsm:    fsm,
 		Raft:   r,
-	}, nil
+	}
+	proto.RegisterHaSqliteInternalServer(s, c)
+	return c, nil
+}
+
+func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*proto.JoinResponse, error) {
+	return nil, fmt.Errorf("TODO impl Join")
 }
