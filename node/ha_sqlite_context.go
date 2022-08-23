@@ -49,7 +49,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	proto.RegisterHaSqliteInternalServer(s, c)
 	if config.JoinAddress != "" {
 		log.Printf("start join %v", config.JoinAddress)
-		resp, err := c.CallRemoteJoin(config.JoinAddress)
+		resp, err := c.CallRemoteJoinWithSelf(config.JoinAddress)
 		if err != nil {
 			c.Raft.Shutdown()
 			return nil, fmt.Errorf("failed to join: %v,%v", resp, err)
@@ -61,7 +61,17 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	return c, nil
 }
 
+// IsLeader 当前节点是否为 leader
+func (ctx *HaSqliteContext) IsLeader() bool {
+	return ctx.Raft.State() == raft.Leader
+}
+
 func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*proto.JoinResponse, error) {
+	if !ctx.IsLeader() {
+		// 如果不是 leader，转发到 leader 执行
+		leaderAddress, _ := ctx.Raft.LeaderWithID()
+		return ctx.CallRemoteJoin(string(leaderAddress), req)
+	}
 	return &proto.JoinResponse{
 		Code:    proto.ResultCode_NOT_A_LEADER,
 		Message: proto.ResultCode_NOT_A_LEADER.String(),
@@ -69,13 +79,18 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	}, fmt.Errorf("TODO impl Join")
 }
 
-func (ctx *HaSqliteContext) CallRemoteJoin(remoteAddress string) (*proto.JoinResponse, error) {
-	// TODO 远程调用存在问题
+// CallRemoteJoinWithSelf 使用自身参数构建发起远程调用加入节点
+func (ctx *HaSqliteContext) CallRemoteJoinWithSelf(remoteAddress string) (*proto.JoinResponse, error) {
 	req := &proto.JoinRequest{
 		Id:            ctx.Config.RaftId,
 		Address:       ctx.Config.Address,
 		PreviousIndex: ctx.Raft.LastIndex(),
 	}
+	return ctx.CallRemoteJoin(remoteAddress, req)
+}
+
+// CallRemoteJoin 发起远程调用加入节点
+func (ctx *HaSqliteContext) CallRemoteJoin(remoteAddress string, req *proto.JoinRequest) (*proto.JoinResponse, error) {
 	var o grpc.DialOption = grpc.EmptyDialOption{}
 	conn, err := grpc.Dial(remoteAddress, grpc.WithInsecure(), grpc.WithBlock(), o)
 	if err != nil {
