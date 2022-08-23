@@ -18,5 +18,8 @@ func ParseFlags() (*HaSqlitedConfig, error) {
 	flag.BoolVar(&config.RaftBootstrap, "raft_bootstrap", false, "Whether to bootstrap the Raft cluster")
 	flag.StringVar(&config.JoinAddress, "join_address", "", "auto join cluster")
 	flag.Parse()
+	if config.RaftId == "" {
+		return nil, fmt.Errorf("flag --raft_id is required")
+	}
 	return config, nil
 }
