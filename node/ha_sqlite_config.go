@@ -1,4 +1,4 @@
-package ha_sqlite_context
+package node
 
 type HaSqliteConfig struct {
 	// Address TCP host+port for this node
