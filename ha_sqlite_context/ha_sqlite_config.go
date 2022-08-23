@@ -1,8 +1,10 @@
-package main
+package ha_sqlite_context
 
-type HaSqlitedConfig struct {
+type HaSqliteConfig struct {
 	// Address TCP host+port for this node
 	Address string
+	// LocalPort TCP port for this node
+	LocalPort string
 	// RaftId Node id used by Raft
 	RaftId string
 	// DataPath is path to node data. Always set.

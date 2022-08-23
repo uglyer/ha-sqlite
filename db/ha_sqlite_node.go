@@ -11,7 +11,7 @@ type HaSqliteNode struct {
 	mtx sync.RWMutex
 }
 
-var _ raft.FSM = &HaSqliteNode{}
+//var _ raft.FSM = &HaSqliteNode{}
 
 func (h *HaSqliteNode) Apply(l *raft.Log) interface{} {
 	h.mtx.Lock()
