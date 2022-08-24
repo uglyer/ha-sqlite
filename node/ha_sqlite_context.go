@@ -22,7 +22,7 @@ type HaSqliteContext struct {
 	fsm        *db.HaSqliteRaftFSM
 	Raft       *raft.Raft
 	Sock       net.Listener
-	GPpcServer *grpc.Server
+	GrpcServer *grpc.Server
 }
 
 func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
@@ -43,7 +43,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		fsm:        fsm,
 		Raft:       r,
 		Sock:       sock,
-		GPpcServer: s,
+		GrpcServer: s,
 	}
 	tm.Register(s)
 	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})

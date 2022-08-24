@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("failed to start HaSqliteContext: %v", err)
 	}
 	defer ctx.Sock.Close()
-	if err := ctx.GPpcServer.Serve(ctx.Sock); err != nil {
+	if err := ctx.GrpcServer.Serve(ctx.Sock); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
