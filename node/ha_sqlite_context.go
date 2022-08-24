@@ -53,6 +53,11 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	}
 	proto.RegisterHaSqliteInternalServer(s, c)
 	if config.JoinAddress != "" {
+		needJoin := c.needRequestJoin()
+		if !needJoin {
+			log.Printf("already join skip")
+			return c, nil
+		}
 		log.Printf("start join %v", config.JoinAddress)
 		resp, err := c.CallRemoteJoinWithSelf(config.JoinAddress)
 		if err != nil {
@@ -71,11 +76,22 @@ func (ctx *HaSqliteContext) IsLeader() bool {
 	return ctx.Raft.State() == raft.Leader
 }
 
+// IsLeader 当前节点是否为 leader
+func (ctx *HaSqliteContext) needRequestJoin() bool {
+	config := ctx.Raft.GetConfiguration()
+	for _, v := range config.Configuration().Servers {
+		if v.ID == raft.ServerID(ctx.Config.RaftId) && v.Address == raft.ServerAddress(ctx.Config.Address) {
+			// 如果完全一致, 加入节点
+			return false
+		}
+	}
+	return true
+}
+
 func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*proto.JoinResponse, error) {
 	if !ctx.IsLeader() {
 		// 如果不是 leader，转发到 leader 执行
 		leaderAddress, _ := ctx.Raft.LeaderWithID()
-		println("leaderAddress", leaderAddress)
 		return ctx.CallRemoteJoin(string(leaderAddress), req)
 	}
 	config := ctx.Raft.GetConfiguration()
@@ -112,7 +128,7 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	}
 	return &proto.JoinResponse{
 		Code:    proto.ResultCode_SUCCESS,
-		Message: "",
+		Message: "success",
 		Index:   ctx.Raft.LastIndex(),
 	}, nil
 }
