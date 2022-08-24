@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Jille/raft-grpc-leader-rpc/leaderhealth"
+	"github.com/Jille/raftadmin"
 	"github.com/hashicorp/raft"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -47,6 +48,9 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	tm.Register(s)
 	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
 	reflection.Register(s)
+	if config.RaftAdmin {
+		raftadmin.Register(s, r)
+	}
 	proto.RegisterHaSqliteInternalServer(s, c)
 	if config.JoinAddress != "" {
 		log.Printf("start join %v", config.JoinAddress)

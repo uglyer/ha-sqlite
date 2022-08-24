@@ -11,6 +11,8 @@ type HaSqliteConfig struct {
 	DataPath string
 	// RaftBootstrap Whether to bootstrap the Raft cluster
 	RaftBootstrap bool
+	// RaftAdmin register raftAdmin grpc
+	RaftAdmin bool
 	// JoinAddress auto join cluster
 	JoinAddress string
 }

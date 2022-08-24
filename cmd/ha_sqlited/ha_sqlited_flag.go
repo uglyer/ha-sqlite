@@ -18,6 +18,7 @@ func ParseFlags() (*node.HaSqliteConfig, error) {
 
 	flag.StringVar(&config.DataPath, "data_path", "data/", "Raft data dir")
 	flag.BoolVar(&config.RaftBootstrap, "raft_bootstrap", false, "Whether to bootstrap the Raft cluster")
+	flag.BoolVar(&config.RaftAdmin, "raft_admin", false, "register raftAdmin grpc")
 	flag.StringVar(&config.JoinAddress, "join_address", "", "auto join cluster")
 	flag.Parse()
 	if config.RaftId == "" {
