@@ -78,6 +78,29 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 		println("leaderAddress", leaderAddress)
 		return ctx.CallRemoteJoin(string(leaderAddress), req)
 	}
+	config := ctx.Raft.GetConfiguration()
+	for _, v := range config.Configuration().Servers {
+		if v.ID == raft.ServerID(req.Id) && v.Address == raft.ServerAddress(req.Address) {
+			// 如果完全一致, 加入节点
+			return &proto.JoinResponse{
+				Code:    proto.ResultCode_SUCCESS,
+				Message: "same node info",
+				Index:   ctx.Raft.LastIndex(),
+			}, nil
+		} else if v.ID == raft.ServerID(req.Id) && v.Address != raft.ServerAddress(req.Address) {
+			// 节点id一致, 但地址不一致, 移除原有节点
+			future := ctx.Raft.RemoveServer(raft.ServerID(req.Id), req.PreviousIndex, timeout(c))
+			err := future.Error()
+			if err != nil {
+				return &proto.JoinResponse{
+					Code:    proto.ResultCode_UNKNOWN_FAILED,
+					Message: err.Error(),
+					Index:   ctx.Raft.LastIndex(),
+				}, fmt.Errorf("Join error: %v", err)
+			}
+			break
+		}
+	}
 	future := ctx.Raft.AddVoter(raft.ServerID(req.Id), raft.ServerAddress(req.Address), req.PreviousIndex, timeout(c))
 	err := future.Error()
 	if err != nil {
