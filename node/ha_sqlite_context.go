@@ -65,7 +65,11 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 			return c, nil
 		}
 		log.Printf("start join %v", config.JoinAddress)
-		resp, err := c.CallRemoteJoinWithSelf(config.JoinAddress)
+		resp, err := c.callRemoteJoin(config.JoinAddress, &proto.JoinRequest{
+			Id:            c.Config.RaftId,
+			Address:       c.Config.Address,
+			PreviousIndex: c.Raft.LastIndex(),
+		})
 		if err != nil {
 			c.Raft.Shutdown()
 			return nil, fmt.Errorf("failed to join: %v,%v", resp, err)
@@ -113,39 +117,27 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	if !ctx.IsLeader() {
 		// 如果不是 leader，转发到 leader 执行
 		leaderAddress, _ := ctx.Raft.LeaderWithID()
-		return ctx.CallRemoteJoin(string(leaderAddress), req)
+		return ctx.callRemoteJoin(string(leaderAddress), req)
 	}
 	config := ctx.Raft.GetConfiguration()
+	id := raft.ServerID(req.Id)
+	addr := raft.ServerAddress(req.Address)
 	for _, v := range config.Configuration().Servers {
-		if v.ID == raft.ServerID(req.Id) && v.Address == raft.ServerAddress(req.Address) {
-			// 如果完全一致, 加入节点
-			return &proto.JoinResponse{
-				Code:    proto.ResultCode_SUCCESS,
-				Message: "same node info",
-				Index:   ctx.Raft.LastIndex(),
-			}, nil
-		} else if v.ID == raft.ServerID(req.Id) && v.Address != raft.ServerAddress(req.Address) {
+		if v.ID == id && v.Address == addr {
+			// 如果完全一致, 曾经加入过节点
+			return nil, fmt.Errorf("cluster has same id(%s) and address(%s)", req.Id, req.Address)
+		} else if v.ID == id && v.Address != addr {
 			// 节点id一致, 但地址不一致, 移除原有节点
-			future := ctx.Raft.RemoveServer(raft.ServerID(req.Id), req.PreviousIndex, timeout(c))
-			err := future.Error()
-			if err != nil {
-				return &proto.JoinResponse{
-					Code:    proto.ResultCode_UNKNOWN_FAILED,
-					Message: err.Error(),
-					Index:   ctx.Raft.LastIndex(),
-				}, fmt.Errorf("Join error: %v", err)
+			if err := ctx.Raft.RemoveServer(id, req.PreviousIndex, timeout(c)).Error(); err != nil {
+				return nil, fmt.Errorf("Join error: %v", err)
 			}
 			break
 		}
 	}
-	future := ctx.Raft.AddVoter(raft.ServerID(req.Id), raft.ServerAddress(req.Address), req.PreviousIndex, timeout(c))
+	future := ctx.Raft.AddVoter(id, addr, req.PreviousIndex, timeout(c))
 	err := future.Error()
 	if err != nil {
-		return &proto.JoinResponse{
-			Code:    proto.ResultCode_UNKNOWN_FAILED,
-			Message: err.Error(),
-			Index:   ctx.Raft.LastIndex(),
-		}, fmt.Errorf("Join error: %v", err)
+		return nil, fmt.Errorf("Join error: %v", err)
 	}
 	return &proto.JoinResponse{
 		Code:    proto.ResultCode_SUCCESS,
@@ -154,18 +146,8 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	}, nil
 }
 
-// CallRemoteJoinWithSelf 使用自身参数构建发起远程调用加入节点
-func (ctx *HaSqliteContext) CallRemoteJoinWithSelf(remoteAddress string) (*proto.JoinResponse, error) {
-	req := &proto.JoinRequest{
-		Id:            ctx.Config.RaftId,
-		Address:       ctx.Config.Address,
-		PreviousIndex: ctx.Raft.LastIndex(),
-	}
-	return ctx.CallRemoteJoin(remoteAddress, req)
-}
-
-// CallRemoteJoin 发起远程调用加入节点
-func (ctx *HaSqliteContext) CallRemoteJoin(remoteAddress string, req *proto.JoinRequest) (*proto.JoinResponse, error) {
+// callRemoteJoin 发起远程调用加入节点
+func (ctx *HaSqliteContext) callRemoteJoin(remoteAddress string, req *proto.JoinRequest) (*proto.JoinResponse, error) {
 	conn, err := ctx.getRPCPollConn(remoteAddress)
 	if err != nil {
 		return nil, fmt.Errorf("CallRemoteJoin open conn error: %v", err)
