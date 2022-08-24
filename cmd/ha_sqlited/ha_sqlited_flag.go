@@ -24,6 +24,9 @@ func ParseFlags() (*node.HaSqliteConfig, error) {
 	if config.RaftId == "" {
 		return nil, fmt.Errorf("flag --raft_id is required")
 	}
+	if config.RaftBootstrap && config.JoinAddress != "" {
+		return nil, fmt.Errorf("--raft_bootstrap 与 --join_address 为互斥项")
+	}
 	_, port, err := net.SplitHostPort(config.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse local address (%q): %v", config.Address, err)
