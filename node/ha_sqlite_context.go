@@ -6,12 +6,14 @@ import (
 	"github.com/Jille/raft-grpc-leader-rpc/leaderhealth"
 	"github.com/Jille/raftadmin"
 	"github.com/hashicorp/raft"
+	"github.com/shimingyah/pool"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -23,6 +25,8 @@ type HaSqliteContext struct {
 	Raft       *raft.Raft
 	Sock       net.Listener
 	GrpcServer *grpc.Server
+	poolMtx    sync.RWMutex
+	poolMap    map[string]pool.Pool
 }
 
 func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
@@ -44,6 +48,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		Raft:       r,
 		Sock:       sock,
 		GrpcServer: s,
+		poolMap:    make(map[string]pool.Pool),
 	}
 	tm.Register(s)
 	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
@@ -70,6 +75,21 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		log.Printf("with out JoinAddress, skip join")
 	}
 	return c, nil
+}
+
+// getGrpcConn 获取rpc连接池
+func (ctx *HaSqliteContext) getRPCPollConn(addr string) (pool.Conn, error) {
+	ctx.poolMtx.Lock()
+	defer ctx.poolMtx.Unlock()
+	if p, ok := ctx.poolMap[addr]; ok {
+		return p.Get()
+	}
+	p, err := pool.New(addr, pool.DefaultOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to new pool: %v", err)
+	}
+	ctx.poolMap[addr] = p
+	return p.Get()
 }
 
 // IsLeader 当前节点是否为 leader
@@ -146,13 +166,12 @@ func (ctx *HaSqliteContext) CallRemoteJoinWithSelf(remoteAddress string) (*proto
 
 // CallRemoteJoin 发起远程调用加入节点
 func (ctx *HaSqliteContext) CallRemoteJoin(remoteAddress string, req *proto.JoinRequest) (*proto.JoinResponse, error) {
-	var o grpc.DialOption = grpc.EmptyDialOption{}
-	conn, err := grpc.Dial(remoteAddress, grpc.WithInsecure(), grpc.WithBlock(), o)
+	conn, err := ctx.getRPCPollConn(remoteAddress)
 	if err != nil {
 		return nil, fmt.Errorf("CallRemoteJoin open conn error: %v", err)
 	}
 	defer conn.Close()
-	client := proto.NewHaSqliteInternalClient(conn)
+	client := proto.NewHaSqliteInternalClient(conn.Value())
 	return client.Join(ctx.Ctx, req)
 }
 
