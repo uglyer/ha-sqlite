@@ -31,7 +31,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fsm := &db.HaSqliteRaftFSM{}
+	fsm := db.NewHaSqliteRaftFSM()
 	r, tm, err := NewRaft(ctx, config, fsm)
 	if err != nil {
 		return nil, err
@@ -52,6 +52,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		raftadmin.Register(s, r)
 	}
 	proto.RegisterHaSqliteInternalServer(s, c)
+	proto.RegisterDBServer(s, c)
 	if config.JoinAddress != "" {
 		needJoin := c.needRequestJoin()
 		if !needJoin {
@@ -160,4 +161,19 @@ func timeout(ctx context.Context) time.Duration {
 		return dl.Sub(time.Now())
 	}
 	return 0
+}
+
+// Open 打开数据库
+func (ctx *HaSqliteContext) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
+	return nil, fmt.Errorf("todo db open")
+}
+
+// Exec 执行数据库命令
+func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
+	return nil, fmt.Errorf("todo db Exec")
+}
+
+// Query 查询记录
+func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
+	return nil, fmt.Errorf("todo db Query")
 }
