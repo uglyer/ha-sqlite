@@ -1,6 +1,6 @@
 module github.com/uglyer/ha-sqlite
 
-go 1.18
+go 1.16
 
 require (
 	github.com/Jille/raft-grpc-leader-rpc v1.1.0
