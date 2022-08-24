@@ -8,6 +8,7 @@ import (
 	boltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/uglyer/ha-sqlite/tool"
 	"google.golang.org/grpc"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -46,19 +47,23 @@ func NewRaft(ctx context.Context, config *HaSqliteConfig, fsm raft.FSM) (*raft.R
 	}
 
 	if config.RaftBootstrap {
-		cfg := raft.Configuration{
-			Servers: []raft.Server{
-				{
-					Suffrage: raft.Voter,
-					ID:       raft.ServerID(config.RaftId),
-					Address:  raft.ServerAddress(config.Address),
+		if r.LastIndex() == 0 {
+			cfg := raft.Configuration{
+				Servers: []raft.Server{
+					{
+						Suffrage: raft.Voter,
+						ID:       raft.ServerID(config.RaftId),
+						Address:  raft.ServerAddress(config.Address),
+					},
 				},
-			},
-		}
-		f := r.BootstrapCluster(cfg)
-		if err := f.Error(); err != nil {
-			// 跳过错误
-			fmt.Errorf("raft.Raft.BootstrapCluster: %v", err)
+			}
+			f := r.BootstrapCluster(cfg)
+			if err := f.Error(); err != nil {
+				// 跳过错误
+				fmt.Errorf("raft.Raft.BootstrapCluster: %v", err)
+			}
+		} else {
+			log.Printf("last index is %v, skip bootstrap", r.LastIndex())
 		}
 	}
 
