@@ -29,6 +29,21 @@ type HaSqliteContext struct {
 	poolMap    map[string]pool.Pool
 }
 
+// StartHaSqliteBlockNonBlocking 启动服务非阻运行
+func StartHaSqliteBlockNonBlocking(config *HaSqliteConfig) (*HaSqliteContext, error) {
+	ctx, err := NewHaSqliteContext(config)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		defer ctx.Sock.Close()
+		if err := ctx.GrpcServer.Serve(ctx.Sock); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+	return ctx, err
+}
+
 func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	ctx := context.Background()
 	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", config.LocalPort))
