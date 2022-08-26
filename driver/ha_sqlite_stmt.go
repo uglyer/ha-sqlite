@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 )
@@ -10,7 +11,7 @@ type HaSqliteStmt struct {
 	query string
 }
 
-func NewHaSqliteStmt(query string) (*HaSqliteStmt, error) {
+func NewHaSqliteStmt(ctx context.Context, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
 		query: query,
 	}, nil

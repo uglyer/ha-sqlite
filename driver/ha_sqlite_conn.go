@@ -44,7 +44,14 @@ func (c *HaSqliteConn) Close() error {
 
 // Prepare returns a prepared statement, bound to this connection.
 func (c *HaSqliteConn) Prepare(query string) (driver.Stmt, error) {
-	return NewHaSqliteStmt(query)
+	return c.PrepareContext(context.Background(), query)
+}
+
+// PrepareContext returns a prepared statement, bound to this connection.
+// context is for the preparation of the statement, it must not store the
+// context within the statement itself.
+func (c *HaSqliteConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	return NewHaSqliteStmt(ctx, query)
 }
 
 // Begin starts and returns a new transaction.
