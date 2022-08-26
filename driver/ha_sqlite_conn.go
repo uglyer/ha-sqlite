@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
 )
 
@@ -12,18 +13,23 @@ type HaSqliteConn struct {
 	// Address 数据库链接地址
 	Address string
 	// conn 数据库连接对象
-	conn *grpc.ClientConn
+	conn   *grpc.ClientConn
+	Client proto.DBClient
 }
 
 func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
+	// todo 超时时间等参数处理
 	var o grpc.DialOption = grpc.EmptyDialOption{}
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), o)
 	if err != nil {
 		return nil, fmt.Errorf("NewHaSqliteConn open conn error: %v", err)
 	}
+	client := proto.NewDBClient(conn)
+	// todo 实现ping方法验证连接通畅
 	return &HaSqliteConn{
 		Address: address,
 		conn:    conn,
+		Client:  client,
 	}, nil
 }
 
@@ -51,7 +57,7 @@ func (c *HaSqliteConn) Prepare(query string) (driver.Stmt, error) {
 // context is for the preparation of the statement, it must not store the
 // context within the statement itself.
 func (c *HaSqliteConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	return NewHaSqliteStmt(ctx, query)
+	return NewHaSqliteStmt(ctx, c.Client, query)
 }
 
 // Begin starts and returns a new transaction.

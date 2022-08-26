@@ -4,16 +4,21 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"github.com/uglyer/ha-sqlite/proto"
 )
 
 type HaSqliteStmt struct {
 	driver.Stmt
-	query string
+	ctx    context.Context
+	query  string
+	client proto.DBClient
 }
 
-func NewHaSqliteStmt(ctx context.Context, query string) (*HaSqliteStmt, error) {
+func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
-		query: query,
+		ctx:    ctx,
+		query:  query,
+		client: client,
 	}, nil
 }
 
@@ -46,6 +51,7 @@ func (s *HaSqliteStmt) NumInput() int {
 //
 // Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
+	//s.client.Exec(s.ctx,)
 	return nil, fmt.Errorf("todo impl HaSqliteStmt Exec")
 }
 
