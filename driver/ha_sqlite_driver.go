@@ -19,3 +19,12 @@ func NewHaSqliteDriver() *HaSqliteDriver {
 func (d *HaSqliteDriver) Open(name string) (driver.Conn, error) {
 	return NewHaSqliteConn(name)
 }
+
+// OpenConnector must parse the name in the same format that Driver.Open
+// parses the name parameter.
+func (d *HaSqliteDriver) OpenConnector(name string) (driver.Connector, error) {
+	return &HaSqliteConnector{
+		address: name,
+		drive:   d,
+	}, nil
+}
