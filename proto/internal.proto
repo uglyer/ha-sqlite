@@ -6,12 +6,6 @@ service HaSqliteInternal {
   rpc Join(JoinRequest) returns (JoinResponse) {}
 }
 
-enum ResultCode {
-  SUCCESS = 0;
-  UNKNOWN_FAILED = 1;
-  NOT_A_LEADER = 2;
-}
-
 message JoinRequest {
   string id = 1;
   string address = 2;
@@ -19,7 +13,5 @@ message JoinRequest {
 }
 
 message JoinResponse {
-  ResultCode code = 1;
-  string message = 2;
-  uint64 index = 3;
+  uint64 index = 1;
 }

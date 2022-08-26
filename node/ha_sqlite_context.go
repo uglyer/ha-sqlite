@@ -154,11 +154,7 @@ func (ctx *HaSqliteContext) Join(c context.Context, req *proto.JoinRequest) (*pr
 	if err != nil {
 		return nil, fmt.Errorf("Join error: %v", err)
 	}
-	return &proto.JoinResponse{
-		Code:    proto.ResultCode_SUCCESS,
-		Message: "success",
-		Index:   ctx.Raft.LastIndex(),
-	}, nil
+	return &proto.JoinResponse{Index: ctx.Raft.LastIndex()}, nil
 }
 
 // callRemoteJoin 发起远程调用加入节点
