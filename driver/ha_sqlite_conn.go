@@ -4,19 +4,27 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"github.com/shimingyah/pool"
+	"google.golang.org/grpc"
 )
 
 type HaSqliteConn struct {
 	driver.Conn
 	// Address 数据库链接地址
 	Address string
-	// connPool 数据库连接池
-	connPool pool.Pool
+	// conn 数据库连接对象
+	conn *grpc.ClientConn
 }
 
 func NewHaSqliteConn(address string) (*HaSqliteConn, error) {
-	return nil, fmt.Errorf("todo impl NewHaSqliteConn")
+	var o grpc.DialOption = grpc.EmptyDialOption{}
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), o)
+	if err != nil {
+		return nil, fmt.Errorf("NewHaSqliteConn open conn error: %v", err)
+	}
+	return &HaSqliteConn{
+		Address: address,
+		conn:    conn,
+	}, nil
 }
 
 // Close invalidates and potentially stops any current
@@ -31,7 +39,7 @@ func NewHaSqliteConn(address string) (*HaSqliteConn, error) {
 // Drivers must ensure all network calls made by Close
 // do not block indefinitely (e.g. apply a timeout).
 func (c *HaSqliteConn) Close() error {
-	return fmt.Errorf("todo impl HaSqliteConn Close")
+	return c.conn.Close()
 }
 
 // Prepare returns a prepared statement, bound to this connection.
