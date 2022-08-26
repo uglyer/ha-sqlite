@@ -37,7 +37,7 @@ type HaSqliteConnector struct {
 // The returned connection is only used by one goroutine at a
 // time.
 func (c *HaSqliteConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	return NewHaSqliteConn(c.address)
+	return NewHaSqliteConn(ctx, c.address)
 }
 
 // Driver returns the underlying Driver of the Connector,

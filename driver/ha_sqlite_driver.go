@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"database/sql/driver"
 )
 
@@ -17,7 +18,11 @@ func NewHaSqliteDriver() *HaSqliteDriver {
 
 // Open 支持 multi:/// 或单个链接地址
 func (d *HaSqliteDriver) Open(name string) (driver.Conn, error) {
-	return NewHaSqliteConn(name)
+	connector, err := d.OpenConnector(name)
+	if err != nil {
+		return nil, err
+	}
+	return connector.Connect(context.Background())
 }
 
 // OpenConnector must parse the name in the same format that Driver.Open

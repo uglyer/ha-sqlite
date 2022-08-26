@@ -15,7 +15,7 @@ type HaSqliteConn struct {
 	conn *grpc.ClientConn
 }
 
-func NewHaSqliteConn(address string) (*HaSqliteConn, error) {
+func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
 	var o grpc.DialOption = grpc.EmptyDialOption{}
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), o)
 	if err != nil {
