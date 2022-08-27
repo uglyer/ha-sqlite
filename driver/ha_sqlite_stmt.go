@@ -52,7 +52,16 @@ func (s *HaSqliteStmt) NumInput() int {
 // Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
 	//s.client.Exec(s.ctx,)
-	return nil, fmt.Errorf("todo impl HaSqliteStmt Exec")
+	return s.ExecContext(s.ctx, valuesToNamedValues(args))
+}
+
+// ExecContext is an optional interface that may be implemented by a Conn.
+func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	//c.Client.Exec(ctx,)
+	if len(args) > MaxTupleParams {
+		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
+	}
+	return nil, fmt.Errorf("todo impl ExecContext")
 }
 
 // Query executes a query that may return rows, such as a
@@ -60,5 +69,13 @@ func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
 //
 // Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
 func (s *HaSqliteStmt) Query(args []driver.Value) (driver.Rows, error) {
-	return nil, fmt.Errorf("todo impl HaSqliteStmt Query")
+	return s.QueryContext(context.Background(), valuesToNamedValues(args))
+}
+
+// QueryContext is an optional interface that may be implemented by a Conn.
+func (c *HaSqliteStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	if len(args) > MaxTupleParams {
+		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
+	}
+	return nil, fmt.Errorf("todo impl QueryContext")
 }
