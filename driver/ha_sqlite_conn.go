@@ -15,6 +15,21 @@ type HaSqliteConn struct {
 	// conn 数据库连接对象
 	conn   *grpc.ClientConn
 	Client proto.DBClient
+	ctx    context.Context
+}
+
+const MaxTupleParams = 255
+
+// Convert a driver.Value slice into a driver.NamedValue slice.
+func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
+	namedValues := make([]driver.NamedValue, len(args))
+	for i, value := range args {
+		namedValues[i] = driver.NamedValue{
+			Ordinal: i + 1,
+			Value:   value,
+		}
+	}
+	return namedValues
 }
 
 func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
@@ -64,7 +79,7 @@ func (c *HaSqliteConn) PrepareContext(ctx context.Context, query string) (driver
 //
 // Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 func (c *HaSqliteConn) Begin() (driver.Tx, error) {
-	return NewHaSqliteTx()
+	return NewHaSqliteTx(context.Background(), driver.TxOptions{})
 }
 
 // BeginTx starts and returns a new transaction.  If the context is canceled by
@@ -80,5 +95,32 @@ func (c *HaSqliteConn) Begin() (driver.Tx, error) {
 // true to either set the read-only transaction property if supported or return
 // an error if it is not supported.
 func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	return NewHaSqliteTx()
+	return NewHaSqliteTx(ctx, opts)
+}
+
+// Exec is an optional interface that may be implemented by a Conn.
+func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+	return c.ExecContext(context.Background(), query, valuesToNamedValues(args))
+}
+
+// ExecContext is an optional interface that may be implemented by a Conn.
+func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	//c.Client.Exec(ctx,)
+	if len(args) > MaxTupleParams {
+		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
+	}
+	return nil, fmt.Errorf("todo impl ExecContext")
+}
+
+// Query is an optional interface that may be implemented by a Conn.
+func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	return c.QueryContext(context.Background(), query, valuesToNamedValues(args))
+}
+
+// QueryContext is an optional interface that may be implemented by a Conn.
+func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if len(args) > MaxTupleParams {
+		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
+	}
+	return nil, fmt.Errorf("todo impl QueryContext")
 }

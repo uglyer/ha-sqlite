@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 )
@@ -9,7 +10,7 @@ type HaSqliteTx struct {
 	driver.Tx
 }
 
-func NewHaSqliteTx() (*HaSqliteTx, error) {
+func NewHaSqliteTx(ctx context.Context, opts driver.TxOptions) (*HaSqliteTx, error) {
 	return &HaSqliteTx{}, nil
 }
 
