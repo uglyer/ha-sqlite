@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
+	"strings"
 	"sync"
 	"time"
 )
@@ -122,5 +123,84 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 
 // Query 查询记录
 func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	return nil, fmt.Errorf("todo db Query")
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	db, ok := d.dbMap[req.Request.DbId]
+	if !ok {
+		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
+	}
+	var allRows []*proto.QueryResult
+	for _, stmt := range req.Request.Statements {
+		sql := stmt.Sql
+		if sql == "" {
+			continue
+		}
+
+		rows := &proto.QueryResult{}
+		start := time.Now()
+
+		parameters, err := parametersToValues(stmt.Parameters)
+		if err != nil {
+			rows.Error = err.Error()
+			allRows = append(allRows, rows)
+			continue
+		}
+
+		rs, err := db.QueryContext(context.Background(), sql, parameters...)
+		if err != nil {
+			rows.Error = err.Error()
+			allRows = append(allRows, rows)
+			continue
+		}
+		defer rs.Close()
+
+		columns, err := rs.Columns()
+		if err != nil {
+			return nil, err
+		}
+
+		types, err := rs.ColumnTypes()
+		if err != nil {
+			return nil, err
+		}
+		xTypes := make([]string, len(types))
+		for i := range types {
+			xTypes[i] = strings.ToLower(types[i].DatabaseTypeName())
+		}
+
+		for rs.Next() {
+			dest := make([]interface{}, len(columns))
+			ptrs := make([]interface{}, len(dest))
+			for i := range ptrs {
+				ptrs[i] = &dest[i]
+			}
+			if err := rs.Scan(ptrs...); err != nil {
+				return nil, err
+			}
+			params, err := normalizeRowValues(dest, xTypes)
+			if err != nil {
+				return nil, err
+			}
+			rows.Values = append(rows.Values, &proto.QueryResult_Values{
+				Parameters: params,
+			})
+		}
+
+		// Check for errors from iterating over rows.
+		if err := rs.Err(); err != nil {
+			rows.Error = err.Error()
+			allRows = append(allRows, rows)
+			continue
+		}
+
+		if req.Timings {
+			rows.Time = time.Now().Sub(start).Seconds()
+		}
+
+		rows.Columns = columns
+		rows.Types = xTypes
+		allRows = append(allRows, rows)
+	}
+
+	return &proto.QueryResponse{Result: allRows}, nil
 }
