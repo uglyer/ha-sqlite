@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	"time"
 )
 
 type HaSqliteConn struct {
@@ -13,7 +14,9 @@ type HaSqliteConn struct {
 	// Address 数据库链接地址
 	Address string
 	// conn 数据库连接对象
-	conn   *grpc.ClientConn
+	conn *grpc.ClientConn
+	// 打开成功后返回的数据库id
+	dbId   uint64
 	Client proto.DBClient
 	ctx    context.Context
 }
@@ -32,18 +35,82 @@ func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
 	return namedValues
 }
 
+func driverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter, error) {
+	parameter := make([]*proto.Parameter, len(args))
+	for i, value := range args {
+		switch val := value.Value.(type) {
+		case int:
+		case int64:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_I{
+					I: val,
+				},
+			}
+		case float64:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_D{
+					D: val,
+				},
+			}
+		case bool:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_B{
+					B: val,
+				},
+			}
+		case string:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_S{
+					S: val,
+				},
+			}
+		case []byte:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_Y{
+					Y: val,
+				},
+			}
+		case time.Time:
+			rfc3339, err := val.MarshalText()
+			if err != nil {
+				return nil, err
+			}
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_S{
+					S: string(rfc3339),
+				},
+			}
+		case nil:
+			continue
+		default:
+			return nil, fmt.Errorf("unhandled column type: %T %v", val, val)
+		}
+	}
+	return parameter, nil
+}
+
 func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
 	// todo 超时时间等参数处理
 	var o grpc.DialOption = grpc.EmptyDialOption{}
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), o)
 	if err != nil {
-		return nil, fmt.Errorf("NewHaSqliteConn open conn error: %v", err)
+		return nil, fmt.Errorf("NewHaSqliteConn open conn error#1: %v", err)
 	}
 	client := proto.NewDBClient(conn)
-	// todo 实现ping方法验证连接通畅
+	resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: address})
+	if err != nil {
+		return nil, fmt.Errorf("NewHaSqliteConn open conn error#2: %v", err)
+	}
 	return &HaSqliteConn{
 		Address: address,
 		conn:    conn,
+		dbId:    resp.DbId,
 		Client:  client,
 	}, nil
 }
@@ -109,7 +176,36 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	return nil, fmt.Errorf("todo impl ExecContext")
+	parameters, err := driverNamedValueToParameters(args)
+	if err != nil {
+		return nil, fmt.Errorf("convert named value to parameters error %v", err)
+	}
+	statements := make([]*proto.Statement, 1)
+	statements[0] = &proto.Statement{Sql: query, Parameters: parameters}
+	resp, err := c.Client.Exec(ctx, &proto.ExecRequest{Request: &proto.Request{
+		DbId:       c.dbId,
+		Statements: statements,
+	}})
+	if resp == nil || len(resp.Result) == 0 {
+		return nil, fmt.Errorf("todo impl ExecContext")
+	}
+	return &execResult{
+		rowsAffected: resp.Result[0].RowsAffected,
+		lastInsertId: resp.Result[0].LastInsertId,
+	}, fmt.Errorf("todo impl ExecContext")
+}
+
+type execResult struct {
+	rowsAffected int64
+	lastInsertId int64
+}
+
+func (result *execResult) LastInsertId() (int64, error) {
+	return result.lastInsertId, nil
+}
+
+func (result *execResult) RowsAffected() (int64, error) {
+	return result.rowsAffected, nil
 }
 
 // Query is an optional interface that may be implemented by a Conn.
