@@ -146,7 +146,7 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 			continue
 		}
 
-		rs, err := db.QueryContext(context.Background(), sql, parameters...)
+		rs, err := db.QueryContext(c, sql, parameters...)
 		if err != nil {
 			rows.Error = err.Error()
 			allRows = append(allRows, rows)
