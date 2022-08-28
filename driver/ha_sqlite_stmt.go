@@ -52,7 +52,7 @@ func (s *HaSqliteStmt) NumInput() int {
 // Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
 	//s.client.Exec(s.ctx,)
-	return s.ExecContext(s.ctx, valuesToNamedValues(args))
+	return s.ExecContext(s.ctx, ValuesToNamedValues(args))
 }
 
 // ExecContext is an optional interface that may be implemented by a Conn.
@@ -69,7 +69,7 @@ func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 //
 // Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
 func (s *HaSqliteStmt) Query(args []driver.Value) (driver.Rows, error) {
-	return s.QueryContext(context.Background(), valuesToNamedValues(args))
+	return s.QueryContext(context.Background(), ValuesToNamedValues(args))
 }
 
 // QueryContext is an optional interface that may be implemented by a Conn.

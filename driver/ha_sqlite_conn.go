@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
-	"time"
 )
 
 type HaSqliteConn struct {
@@ -22,78 +21,6 @@ type HaSqliteConn struct {
 }
 
 const MaxTupleParams = 255
-
-// Convert a driver.Value slice into a driver.NamedValue slice.
-func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
-	namedValues := make([]driver.NamedValue, len(args))
-	for i, value := range args {
-		namedValues[i] = driver.NamedValue{
-			Ordinal: i + 1,
-			Value:   value,
-		}
-	}
-	return namedValues
-}
-
-func driverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter, error) {
-	parameter := make([]*proto.Parameter, len(args))
-	for i, value := range args {
-		switch val := value.Value.(type) {
-		case int:
-		case int64:
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_I{
-					I: val,
-				},
-			}
-		case float64:
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_D{
-					D: val,
-				},
-			}
-		case bool:
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_B{
-					B: val,
-				},
-			}
-		case string:
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_S{
-					S: val,
-				},
-			}
-		case []byte:
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_Y{
-					Y: val,
-				},
-			}
-		case time.Time:
-			rfc3339, err := val.MarshalText()
-			if err != nil {
-				return nil, err
-			}
-			parameter[i] = &proto.Parameter{
-				Name: value.Name,
-				Value: &proto.Parameter_S{
-					S: string(rfc3339),
-				},
-			}
-		case nil:
-			continue
-		default:
-			return nil, fmt.Errorf("unhandled column type: %T %v", val, val)
-		}
-	}
-	return parameter, nil
-}
 
 func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
 	// todo 超时时间等参数处理
@@ -167,7 +94,7 @@ func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 
 // Exec is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, error) {
-	return c.ExecContext(context.Background(), query, valuesToNamedValues(args))
+	return c.ExecContext(context.Background(), query, ValuesToNamedValues(args))
 }
 
 // ExecContext is an optional interface that may be implemented by a Conn.
@@ -176,7 +103,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	parameters, err := driverNamedValueToParameters(args)
+	parameters, err := DriverNamedValueToParameters(args)
 	if err != nil {
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
@@ -210,7 +137,7 @@ func (result *execResult) RowsAffected() (int64, error) {
 
 // Query is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, error) {
-	return c.QueryContext(context.Background(), query, valuesToNamedValues(args))
+	return c.QueryContext(context.Background(), query, ValuesToNamedValues(args))
 }
 
 // QueryContext is an optional interface that may be implemented by a Conn.
