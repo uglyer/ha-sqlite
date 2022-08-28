@@ -44,10 +44,21 @@ func normalizeRowValues(row []interface{}, types []string) ([]*proto.Parameter, 
 	for i, v := range row {
 		switch val := v.(type) {
 		case int:
+			values[i] = &proto.Parameter{
+				Value: &proto.Parameter_I{
+					I: int64(val),
+				},
+			}
 		case int64:
 			values[i] = &proto.Parameter{
 				Value: &proto.Parameter_I{
 					I: val,
+				},
+			}
+		case float32:
+			values[i] = &proto.Parameter{
+				Value: &proto.Parameter_D{
+					D: float64(val),
 				},
 			}
 		case float64:

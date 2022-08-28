@@ -23,22 +23,14 @@ func ValuesToNamedValues(args []driver.Value) []driver.NamedValue {
 func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter, error) {
 	parameter := make([]*proto.Parameter, len(args))
 	for i, value := range args {
-		log.Printf("xxx:%v", value.Value)
-		// TODO 类型匹配存在问题
-		//switch val := value.Value.(type) {
-		//case int:
-		//case int64:
-		//case uint:
-		//case uint64:
-		//case int8:
-		//case int16:
-		//	log.Printf("int")
-		//	break
-		//default:
-		//	log.Printf("xxxxxxx:%v", val)
-		//}
 		switch val := value.Value.(type) {
 		case int:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_I{
+					I: int64(val),
+				},
+			}
 		case int64:
 			log.Printf("int:%v", value.Value)
 			parameter[i] = &proto.Parameter{
@@ -47,8 +39,13 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					I: val,
 				},
 			}
-			break
 		case float32:
+			parameter[i] = &proto.Parameter{
+				Name: value.Name,
+				Value: &proto.Parameter_D{
+					D: float64(val),
+				},
+			}
 		case float64:
 			parameter[i] = &proto.Parameter{
 				Name: value.Name,
@@ -56,7 +53,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					D: val,
 				},
 			}
-			break
 		case bool:
 			parameter[i] = &proto.Parameter{
 				Name: value.Name,
@@ -64,7 +60,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					B: val,
 				},
 			}
-			break
 		case string:
 			parameter[i] = &proto.Parameter{
 				Name: value.Name,
@@ -72,7 +67,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					S: val,
 				},
 			}
-			break
 		case []byte:
 			parameter[i] = &proto.Parameter{
 				Name: value.Name,
@@ -80,7 +74,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					Y: val,
 				},
 			}
-			break
 		case time.Time:
 			rfc3339, err := val.MarshalText()
 			if err != nil {
@@ -92,7 +85,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 					S: string(rfc3339),
 				},
 			}
-			break
 		case nil:
 			log.Printf("nil:%v", value.Value)
 			continue
