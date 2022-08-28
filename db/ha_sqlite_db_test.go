@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
 	"github.com/uglyer/ha-sqlite/db"
 	ha_driver "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -28,6 +29,26 @@ func (store *Store) buildRequest(sql string, args ...driver.Value) (*proto.Reque
 	}, nil
 }
 
+func (store *Store) exec(sql string, args ...driver.Value) (*proto.ExecResponse, error) {
+	req, err := store.buildRequest(sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error buildRequest when exec:%v", err)
+	}
+	return store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+}
+
+func (store *Store) assertExec(t *testing.T, sql string, args ...driver.Value) {
+	resp, err := store.exec(sql, args...)
+	if err != nil {
+		t.Fatalf("Error exec:%v", err)
+	}
+	for i, res := range resp.Result {
+		if res.Error != "" {
+			t.Fatalf("Error exec #(%d):%s", i, res.Error)
+		}
+	}
+}
+
 func openDB() (*Store, error) {
 	store, err := db.NewHaSqliteDB()
 	if err != nil {
@@ -51,15 +72,10 @@ func Test_OpenDB(t *testing.T) {
 	log.Printf("openResp.DbId:%d", store.id)
 }
 
-func Test_ExecSingleCmd(t *testing.T) {
+func Test_ExecCreateTable(t *testing.T) {
 	store, err := openDB()
 	if err != nil {
 		t.Fatalf("Error NewHaSqliteDB:%v", err)
 	}
-	req, err := store.buildRequest("create table ", 1, 2)
-	if err != nil {
-		t.Fatalf("Error buildRequest:%v", err)
-	}
-	log.Printf("req:%v", req.Statements[0].Parameters[0])
-	//store.Exec(context.Background())
+	store.assertExec(t, "CREATE TABLE foo (id integer not null primary key, name text)")
 }
