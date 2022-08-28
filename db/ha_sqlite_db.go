@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3" // Go SQLite bindings
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
 	"strings"

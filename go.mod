@@ -12,4 +12,8 @@ require (
 	google.golang.org/grpc v1.40.0
 )
 
-require github.com/shimingyah/pool v1.0.0
+require (
+	github.com/mattn/go-sqlite3 v1.14.15
+	github.com/pkg/errors v0.8.1
+	github.com/shimingyah/pool v1.0.0
+)
