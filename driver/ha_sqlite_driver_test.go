@@ -112,3 +112,8 @@ func Test_Exec(t *testing.T) {
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
 		"DELETE from foo where id = ?", 3)
 }
+
+func Test_ExecPerformance(t *testing.T) {
+	db := openDB(t)
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+}
