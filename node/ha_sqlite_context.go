@@ -50,7 +50,10 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fsm := db.NewHaSqliteRaftFSM()
+	fsm, err := db.NewHaSqliteRaftFSM()
+	if err != nil {
+		return nil, err
+	}
 	r, tm, err := NewRaft(ctx, config, fsm)
 	if err != nil {
 		return nil, err
@@ -109,6 +112,12 @@ func (ctx *HaSqliteContext) getRPCPollConn(addr string) (pool.Conn, error) {
 	}
 	ctx.poolMap[addr] = p
 	return p.Get()
+}
+
+// getGrpcConn 获取rpc连接池
+func (ctx *HaSqliteContext) getLeaderConn() (pool.Conn, error) {
+	leaderAddress, _ := ctx.Raft.LeaderWithID()
+	return ctx.getRPCPollConn(string(leaderAddress))
 }
 
 // IsLeader 当前节点是否为 leader
@@ -177,15 +186,36 @@ func timeout(ctx context.Context) time.Duration {
 
 // Open 打开数据库
 func (ctx *HaSqliteContext) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
-	return nil, fmt.Errorf("todo db open")
+	if !ctx.IsLeader() {
+		// 如果不是 leader，转发到 leader 执行
+		conn, err := ctx.getLeaderConn()
+		if err != nil {
+			return nil, fmt.Errorf("open leader conn error: %v", err)
+		}
+		defer conn.Close()
+		client := proto.NewDBClient(conn.Value())
+		return client.Open(ctx.Ctx, req)
+	}
+	return ctx.fsm.Open(c, req)
 }
 
 // Exec 执行数据库命令
 func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	return nil, fmt.Errorf("todo db Exec")
+	if !ctx.IsLeader() {
+		// 如果不是 leader，转发到 leader 执行
+		conn, err := ctx.getLeaderConn()
+		if err != nil {
+			return nil, fmt.Errorf("open leader conn error: %v", err)
+		}
+		defer conn.Close()
+		client := proto.NewDBClient(conn.Value())
+		return client.Exec(ctx.Ctx, req)
+	}
+	return ctx.fsm.Exec(c, req)
 }
 
 // Query 查询记录
 func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	return nil, fmt.Errorf("todo db Query")
+	// 查询直接执行
+	return ctx.fsm.Query(c, req)
 }
