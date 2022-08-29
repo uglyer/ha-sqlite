@@ -128,7 +128,10 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 		return nil, fmt.Errorf("exec error: %v", err)
 	}
 	if resp == nil || len(resp.Result) == 0 {
-		return nil, fmt.Errorf("exec error")
+		return nil, fmt.Errorf("exec without resp")
+	}
+	if resp.Result[0].Error != "" {
+		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
 	}
 	return &execResult{
 		rowsAffected: resp.Result[0].RowsAffected,
