@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"testing"
+	"time"
 )
 
 type RPCStore struct {
@@ -113,7 +114,14 @@ func Test_Exec(t *testing.T) {
 		"DELETE from foo where id = ?", 3)
 }
 
-func Test_ExecPerformance(t *testing.T) {
+func Test_ExecPerformanceSync(t *testing.T) {
 	db := openDB(t)
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	count := 10000
+	start := time.Now()
+	for i := 0; i < count; i++ {
+		db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	}
+	elapsed := time.Since(start)
+	log.Printf("插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
