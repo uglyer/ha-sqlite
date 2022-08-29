@@ -58,6 +58,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		return nil, err
 	}
+	fsm.InitRaft(r)
 	s := grpc.NewServer()
 	c := &HaSqliteContext{
 		Ctx:        ctx,

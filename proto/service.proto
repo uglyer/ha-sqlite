@@ -8,6 +8,17 @@ service DB {
   rpc Query(QueryRequest) returns (QueryResponse) {}
 }
 
+message Command {
+  enum Type {
+    COMMAND_TYPE_UNKNOWN = 0;
+    COMMAND_TYPE_OPEN = 1;
+    COMMAND_TYPE_EXEC = 2;
+  }
+  Type type = 1;
+  bytes sub_command = 2;
+  bool compressed = 3;
+}
+
 message Parameter {
   oneof value {
     sint64 i = 1;
