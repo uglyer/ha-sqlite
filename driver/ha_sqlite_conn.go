@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	"strings"
 )
 
 type HaSqliteConn struct {
@@ -22,15 +23,21 @@ type HaSqliteConn struct {
 
 const MaxTupleParams = 255
 
-func NewHaSqliteConn(ctx context.Context, address string) (*HaSqliteConn, error) {
+func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	// todo 超时时间等参数处理
 	var o grpc.DialOption = grpc.EmptyDialOption{}
+	index := strings.LastIndex(dsn, "/")
+	if index < 0 {
+		return nil, fmt.Errorf("NewHaSqliteConn error dsn: %v, example: \"localhost:30051/db-name.db\"", dsn)
+	}
+	address := dsn[:index]
+	dbDSN := dsn[index+1:]
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), o)
 	if err != nil {
 		return nil, fmt.Errorf("NewHaSqliteConn open conn error#1: %v", err)
 	}
 	client := proto.NewDBClient(conn)
-	resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: address})
+	resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
 	if err != nil {
 		return nil, fmt.Errorf("NewHaSqliteConn open conn error#2: %v", err)
 	}
