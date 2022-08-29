@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -122,6 +123,27 @@ func Test_ExecPerformanceSync(t *testing.T) {
 	for i := 0; i < count; i++ {
 		db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	}
+	elapsed := time.Since(start)
+	log.Printf("插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
+
+func Test_ExecPerformanceAsync(t *testing.T) {
+	db := openDB(t)
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	count := 10000
+	start := time.Now()
+	ch := make(chan struct{}, 32)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		ch <- struct{}{}
+		go func() {
+			defer wg.Done()
+			db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+			<-ch
+		}()
+	}
+	wg.Wait()
 	elapsed := time.Since(start)
 	log.Printf("插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
