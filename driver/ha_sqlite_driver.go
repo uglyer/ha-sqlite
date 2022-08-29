@@ -2,12 +2,19 @@ package driver
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 )
 
 type HaSqliteDriver struct {
 	driver.Driver
 	DriverName string
+}
+
+// 注册驱动
+func init() {
+	d := NewHaSqliteDriver()
+	sql.Register(d.DriverName, d)
 }
 
 func NewHaSqliteDriver() *HaSqliteDriver {
