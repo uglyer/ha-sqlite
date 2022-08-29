@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -62,6 +63,8 @@ func openDB(t *testing.T) *HaDB {
 	if err != nil {
 		t.Fatalf("ha-sqlite open error:%v", err)
 	}
+	db.SetMaxIdleConns(runtime.NumCPU() * 2)
+	db.SetMaxOpenConns(runtime.NumCPU() * 2)
 	err = db.Ping()
 	if err != nil {
 		t.Fatalf("ha-sqlite ping error:%v", err)
@@ -132,7 +135,7 @@ func Test_ExecPerformanceAsync(t *testing.T) {
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 10000
 	start := time.Now()
-	ch := make(chan struct{}, 32)
+	ch := make(chan struct{}, runtime.NumCPU()*2)
 	var wg sync.WaitGroup
 	for i := 0; i < count; i++ {
 		wg.Add(1)
