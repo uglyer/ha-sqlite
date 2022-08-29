@@ -113,13 +113,16 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 		DbId:       c.dbId,
 		Statements: statements,
 	}})
+	if err != nil {
+		return nil, fmt.Errorf("exec error: %v", err)
+	}
 	if resp == nil || len(resp.Result) == 0 {
-		return nil, fmt.Errorf("todo impl ExecContext")
+		return nil, fmt.Errorf("exec error")
 	}
 	return &execResult{
 		rowsAffected: resp.Result[0].RowsAffected,
 		lastInsertId: resp.Result[0].LastInsertId,
-	}, fmt.Errorf("todo impl ExecContext")
+	}, nil
 }
 
 type execResult struct {
