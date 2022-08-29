@@ -51,7 +51,7 @@ func Test_OpenDB(t *testing.T) {
 	go func() {
 		store.Serve()
 	}()
-	db, err := sql.Open("ha-sqlite", ":30333/:memory:")
+	db, err := sql.Open("ha-sqlite", "multi:///localhost:30333/:memory:")
 	if err != nil {
 		t.Fatalf("ha-sqlite open error:%v", err)
 	}

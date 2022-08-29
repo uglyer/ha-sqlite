@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	// Allow dialing multiple nodes with multi:///.
+	_ "github.com/Jille/grpc-multi-resolver"
+	// Register health checker with gRPC.
+	_ "google.golang.org/grpc/health"
 	"strings"
 )
 
