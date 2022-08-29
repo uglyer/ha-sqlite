@@ -110,11 +110,32 @@ func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, e
 
 // ExecContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	stmt, err := c.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("build prepare error %v", err)
+	if len(args) > MaxTupleParams {
+		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	return stmt.ExecContext(ctx, args)
+	parameters, err := DriverNamedValueToParameters(args)
+	if err != nil {
+		return nil, fmt.Errorf("convert named value to parameters error %v", err)
+	}
+	statements := make([]*proto.Statement, 1)
+	statements[0] = &proto.Statement{Sql: query, Parameters: parameters}
+	resp, err := c.Client.Exec(ctx, &proto.ExecRequest{Request: &proto.Request{
+		DbId:       c.dbId,
+		Statements: statements,
+	}})
+	if err != nil {
+		return nil, fmt.Errorf("exec error: %v", err)
+	}
+	if resp == nil || len(resp.Result) == 0 {
+		return nil, fmt.Errorf("exec without resp")
+	}
+	if resp.Result[0].Error != "" {
+		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
+	}
+	return &execResult{
+		rowsAffected: resp.Result[0].RowsAffected,
+		lastInsertId: resp.Result[0].LastInsertId,
+	}, nil
 }
 
 type execResult struct {

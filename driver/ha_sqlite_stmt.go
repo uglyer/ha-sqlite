@@ -15,6 +15,7 @@ type HaSqliteStmt struct {
 	client proto.DBClient
 }
 
+// NewHaSqliteStmt TODO 实现真实的预编译动作
 func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
 		ctx:    ctx,
@@ -58,7 +59,6 @@ func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
 
 // ExecContext is an optional interface that may be implemented by a Conn.
 func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
-	//c.Client.Exec(ctx,)
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
