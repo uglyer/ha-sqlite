@@ -29,6 +29,17 @@ func (store *Store) buildRequest(sql string, args ...driver.Value) (*proto.Reque
 	}, nil
 }
 
+func (store *Store) buildRequestBatch(sql ...string) *proto.Request {
+	statements := make([]*proto.Statement, len(sql))
+	for i, s := range sql {
+		statements[i] = &proto.Statement{Sql: s}
+	}
+	return &proto.Request{
+		DbId:       store.id,
+		Statements: statements,
+	}
+}
+
 func (store *Store) exec(sql string, args ...driver.Value) (*proto.ExecResponse, error) {
 	req, err := store.buildRequest(sql, args...)
 	if err != nil {
@@ -37,8 +48,25 @@ func (store *Store) exec(sql string, args ...driver.Value) (*proto.ExecResponse,
 	return store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
 }
 
+func (store *Store) execBatch(sql ...string) (*proto.ExecResponse, error) {
+	req := store.buildRequestBatch(sql...)
+	return store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+}
+
 func (store *Store) assertExec(t *testing.T, sql string, args ...driver.Value) {
 	resp, err := store.exec(sql, args...)
+	if err != nil {
+		t.Fatalf("Error exec:%v", err)
+	}
+	for i, res := range resp.Result {
+		if res.Error != "" {
+			t.Fatalf("Error exec #(%d):%s", i, res.Error)
+		}
+	}
+}
+
+func (store *Store) assertExecBatch(t *testing.T, sql ...string) {
+	resp, err := store.execBatch(sql...)
 	if err != nil {
 		t.Fatalf("Error exec:%v", err)
 	}
@@ -107,4 +135,20 @@ func Test_Exec(t *testing.T) {
 		"UPDATE foo set name=? where id = ?", "update test1", 1)
 	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
 		"DELETE from foo where id = ?", 3)
+}
+
+func Test_ExecBatch(t *testing.T) {
+	store, err := openDB()
+	if err != nil {
+		t.Fatalf("Error NewHaSqliteDB:%v", err)
+	}
+	store.assertExec(t, "CREATE TABLE foo (id integer not null primary key, name text)")
+	store.assertExecBatch(
+		t,
+		"INSERT INTO foo(name) VALUES(\"data 1\")",
+		"INSERT INTO foo(name) VALUES(\"data 2\")",
+		"INSERT INTO foo(name) VALUES(\"data 3\")",
+		"INSERT INTO foo(name) VALUES(\"data 4\")",
+		"INSERT INTO foo(name) VALUES(\"data 5\")",
+	)
 }
