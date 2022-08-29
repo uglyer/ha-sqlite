@@ -11,13 +11,15 @@ type HaSqliteStmt struct {
 	driver.Stmt
 	ctx    context.Context
 	query  string
+	dbId   uint64
 	client proto.DBClient
 }
 
-func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, query string) (*HaSqliteStmt, error) {
+func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
 		ctx:    ctx,
 		query:  query,
+		dbId:   dbId,
 		client: client,
 	}, nil
 }
@@ -51,7 +53,6 @@ func (s *HaSqliteStmt) NumInput() int {
 //
 // Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
-	//s.client.Exec(s.ctx,)
 	return s.ExecContext(s.ctx, ValuesToNamedValues(args))
 }
 
@@ -61,7 +62,32 @@ func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	return nil, fmt.Errorf("todo impl ExecContext")
+	parameters, err := DriverNamedValueToParameters(args)
+	if err != nil {
+		return nil, fmt.Errorf("convert named value to parameters error %v", err)
+	}
+	statements := make([]*proto.Statement, 1)
+	statements[0] = &proto.Statement{Sql: s.query, Parameters: parameters}
+	execRequest := &proto.ExecRequest{
+		Request: &proto.Request{
+			DbId:       s.dbId,
+			Statements: statements,
+		},
+	}
+	resp, err := s.client.Exec(ctx, execRequest)
+	if err != nil {
+		return nil, fmt.Errorf("exec error: %v", err)
+	}
+	if resp == nil || len(resp.Result) == 0 {
+		return nil, fmt.Errorf("exec without resp")
+	}
+	if resp.Result[0].Error != "" {
+		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
+	}
+	return &execResult{
+		rowsAffected: resp.Result[0].RowsAffected,
+		lastInsertId: resp.Result[0].LastInsertId,
+	}, nil
 }
 
 // Query executes a query that may return rows, such as a
