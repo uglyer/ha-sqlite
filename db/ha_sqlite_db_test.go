@@ -49,6 +49,25 @@ func (store *Store) assertExec(t *testing.T, sql string, args ...driver.Value) {
 	}
 }
 
+func (store *Store) assertExecCheckEffect(t *testing.T, target *proto.ExecResult, sql string, args ...driver.Value) {
+	resp, err := store.exec(sql, args...)
+	if err != nil {
+		t.Fatalf("Error exec:%v", err)
+	}
+	for i, res := range resp.Result {
+		if res.Error != "" {
+			t.Fatalf("Error exec #(%d):%s,sql:%s", i, res.Error, sql)
+		}
+		if res.RowsAffected != target.RowsAffected {
+			t.Fatalf("预期的RowsAffected不一致，期望：%d,实际：%d，sql: %s", target.RowsAffected, res.RowsAffected, sql)
+		} else if res.LastInsertId != target.LastInsertId {
+			t.Fatalf("预期的LastInsertId不一致，期望：%d,实际：%d，sql: %s", target.LastInsertId, res.LastInsertId, sql)
+		} else {
+			log.Printf("sql:%s,exec coast:%f", sql, res.Time)
+		}
+	}
+}
+
 func openDB() (*Store, error) {
 	store, err := db.NewHaSqliteDB()
 	if err != nil {
@@ -72,10 +91,20 @@ func Test_OpenDB(t *testing.T) {
 	log.Printf("openResp.DbId:%d", store.id)
 }
 
-func Test_ExecCreateTable(t *testing.T) {
+func Test_Exec(t *testing.T) {
 	store, err := openDB()
 	if err != nil {
 		t.Fatalf("Error NewHaSqliteDB:%v", err)
 	}
 	store.assertExec(t, "CREATE TABLE foo (id integer not null primary key, name text)")
+	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
+		"INSERT INTO foo(name) VALUES(?)", "test1")
+	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 2},
+		"INSERT INTO foo(name) VALUES(?)", "test2")
+	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+		"INSERT INTO foo(name) VALUES(?)", "test3")
+	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+		"UPDATE foo set name=? where id = ?", "update test1", 1)
+	store.assertExecCheckEffect(t, &proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+		"DELETE from foo where id = ?", 3)
 }
