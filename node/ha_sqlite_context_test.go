@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 )
 
 type Node struct {
@@ -68,7 +67,7 @@ func openSingleNodeDB(t *testing.T, deleteLog bool) *HaDB {
 	go func() {
 		store.Serve()
 	}()
-	time.Sleep(time.Duration(2) * time.Second)
+	store.ctx.WaitHasLeader()
 	db, err := sql.Open("ha-sqlite", "multi:///localhost:30333/:memory:")
 	if err != nil {
 		t.Fatalf("ha-sqlite open error:%v", err)

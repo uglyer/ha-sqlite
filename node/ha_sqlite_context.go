@@ -27,6 +27,7 @@ type HaSqliteContext struct {
 	GrpcServer *grpc.Server
 	poolMtx    sync.RWMutex
 	poolMap    map[string]pool.Pool
+	notify     *HaSqliteLeaderNotify
 }
 
 // StartHaSqliteBlockNonBlocking 启动服务非阻运行
@@ -68,6 +69,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		Sock:       sock,
 		GrpcServer: s,
 		poolMap:    make(map[string]pool.Pool),
+		notify:     NewHaSqliteLeaderNotify(r),
 	}
 	tm.Register(s)
 	leaderhealth.Setup(r, s, []string{"HaSqliteInternal"})
@@ -98,6 +100,11 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 		log.Printf("with out JoinAddress, skip join")
 	}
 	return c, nil
+}
+
+// WaitHasLeader 等待选举 leader 完成
+func (ctx *HaSqliteContext) WaitHasLeader() {
+	ctx.notify.WaitHasLeader()
 }
 
 // getGrpcConn 获取rpc连接池
