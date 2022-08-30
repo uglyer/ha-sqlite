@@ -9,7 +9,6 @@ import (
 
 type HaSqliteStmt struct {
 	driver.Stmt
-	ctx    context.Context
 	query  string
 	dbId   uint64
 	client proto.DBClient
@@ -18,7 +17,6 @@ type HaSqliteStmt struct {
 // NewHaSqliteStmt TODO 实现真实的预编译动作
 func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
-		ctx:    ctx,
 		query:  query,
 		dbId:   dbId,
 		client: client,
@@ -54,7 +52,7 @@ func (s *HaSqliteStmt) NumInput() int {
 //
 // Deprecated: Drivers should implement StmtExecContext instead (or additionally).
 func (s *HaSqliteStmt) Exec(args []driver.Value) (driver.Result, error) {
-	return s.ExecContext(s.ctx, ValuesToNamedValues(args))
+	return s.ExecContext(context.Background(), ValuesToNamedValues(args))
 }
 
 // ExecContext is an optional interface that may be implemented by a Conn.

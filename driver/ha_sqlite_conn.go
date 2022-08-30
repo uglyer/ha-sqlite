@@ -22,7 +22,6 @@ type HaSqliteConn struct {
 	// 打开成功后返回的数据库id
 	dbId   uint64
 	Client proto.DBClient
-	ctx    context.Context
 }
 
 const MaxTupleParams = 255
@@ -70,7 +69,7 @@ func (c *HaSqliteConn) Close() error {
 
 // Prepare returns a prepared statement, bound to this connection.
 func (c *HaSqliteConn) Prepare(query string) (driver.Stmt, error) {
-	return NewHaSqliteStmt(c.ctx, c.Client, c.dbId, query)
+	return NewHaSqliteStmt(context.Background(), c.Client, c.dbId, query)
 }
 
 // PrepareContext returns a prepared statement, bound to this connection.
