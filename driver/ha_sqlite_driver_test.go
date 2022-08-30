@@ -1,8 +1,10 @@
 package driver_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	hadb "github.com/uglyer/ha-sqlite/db"
 	_ "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -21,22 +23,18 @@ type RPCStore struct {
 	grpcServer *grpc.Server
 }
 
-func NewRPCStore(port string) (*RPCStore, error) {
+func NewRPCStore(t *testing.T, port string) *RPCStore {
 	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
-	if err != nil {
-		return nil, err
-	}
+	assert.Nil(t, err)
 	store, err := hadb.NewHaSqliteDB()
-	if err != nil {
-		return nil, err
-	}
+	assert.Nil(t, err)
 	s := grpc.NewServer()
 	proto.RegisterDBServer(s, store)
 	return &RPCStore{
 		sock:       sock,
 		db:         store,
 		grpcServer: s,
-	}, nil
+	}
 }
 
 func (store *RPCStore) Serve() {
@@ -51,60 +49,53 @@ type HaDB struct {
 	t  *testing.T
 }
 
-func openDB(t *testing.T) *HaDB {
-	store, err := NewRPCStore("30333")
-	if err != nil {
-		t.Fatalf("启动rpc服务失败:%v", err)
-	}
+func openDB(t *testing.T, port string) *HaDB {
+	store := NewRPCStore(t, port)
 	go func() {
 		store.Serve()
 	}()
-	db, err := sql.Open("ha-sqlite", "multi:///localhost:30333/:memory:")
-	if err != nil {
-		t.Fatalf("ha-sqlite open error:%v", err)
-	}
+	url := fmt.Sprintf("multi:///localhost:%s/:memory:", port)
+	db, err := sql.Open("ha-sqlite", url)
+	assert.Nil(t, err)
 	db.SetMaxIdleConns(runtime.NumCPU() * 2)
 	db.SetMaxOpenConns(runtime.NumCPU() * 2)
-	err = db.Ping()
-	if err != nil {
-		t.Fatalf("ha-sqlite ping error:%v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*800)
+	defer cancel()
+	go func() {
+		err = db.PingContext(ctx)
+		assert.Nil(t, err)
+	}()
+	select {
+	case <-ctx.Done():
+		return &HaDB{db: db, t: t}
+	case <-time.After(time.Millisecond * 900):
+		t.Fatalf("connect %s timeout", url)
+		return &HaDB{db: db, t: t}
 	}
-	return &HaDB{db: db, t: t}
 }
 
 func (store *HaDB) assertExec(sql string, args ...interface{}) {
 	_, err := store.db.Exec(sql, args...)
-	if err != nil {
-		store.t.Fatalf("Error exec:%v", err)
-	}
+	assert.Nil(store.t, err)
 }
 
 func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, args ...interface{}) {
 	result, err := store.db.Exec(sql, args...)
-	if err != nil {
-		store.t.Fatalf("Error exec:%v", err)
-	}
+	assert.Nil(store.t, err)
 	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		store.t.Fatalf("fail get RowsAffected:%v", err)
-	}
+	assert.Nil(store.t, err)
 	lastInsertId, err := result.LastInsertId()
-	if err != nil {
-		store.t.Fatalf("fail get LastInsertId:%v", err)
-	}
-	if rowsAffected != target.RowsAffected {
-		store.t.Fatalf("预期的RowsAffected不一致，期望：%d,实际：%d，sql: %s", target.RowsAffected, rowsAffected, sql)
-	} else if lastInsertId != target.LastInsertId {
-		store.t.Fatalf("预期的LastInsertId不一致，期望：%d,实际：%d，sql: %s", target.LastInsertId, lastInsertId, sql)
-	}
+	assert.Nil(store.t, err)
+	assert.Equal(store.t, target.RowsAffected, rowsAffected)
+	assert.Equal(store.t, target.LastInsertId, lastInsertId)
 }
 
 func Test_OpenDB(t *testing.T) {
-	openDB(t)
+	openDB(t, "30330")
 }
 
 func Test_Exec(t *testing.T) {
-	db := openDB(t)
+	db := openDB(t, "30331")
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
 		"INSERT INTO foo(name) VALUES(?)", "test1")
@@ -119,9 +110,9 @@ func Test_Exec(t *testing.T) {
 }
 
 func Test_ExecPerformanceSync(t *testing.T) {
-	db := openDB(t)
+	db := openDB(t, "30332")
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
-	count := 10000
+	count := 1000
 	start := time.Now()
 	for i := 0; i < count; i++ {
 		db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
@@ -131,7 +122,7 @@ func Test_ExecPerformanceSync(t *testing.T) {
 }
 
 func Test_ExecPerformanceAsync(t *testing.T) {
-	db := openDB(t)
+	db := openDB(t, "30333")
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 10000
 	start := time.Now()
