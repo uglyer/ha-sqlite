@@ -19,6 +19,8 @@ type HaSqliteDB struct {
 	dbMap              map[uint64]*sql.DB
 }
 
+// TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
+
 func NewHaSqliteDB() (*HaSqliteDB, error) {
 	return &HaSqliteDB{
 		dbIndex:            0,
