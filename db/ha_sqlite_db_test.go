@@ -39,43 +39,44 @@ func (store *Store) buildRequestBatch(sql ...string) *proto.Request {
 	}
 }
 
-func (store *Store) exec(sql string, args ...driver.Value) (*proto.ExecResponse, error) {
+func (store *Store) exec(sql string, args ...driver.Value) *proto.ExecResponse {
 	req := store.buildRequest(sql, args...)
-	return store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+	resp, err := store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+	assert.Nil(store.t, err)
+	return resp
 }
 
-func (store *Store) execBatch(sql ...string) (*proto.ExecResponse, error) {
+func (store *Store) execBatch(sql ...string) *proto.ExecResponse {
 	req := store.buildRequestBatch(sql...)
-	return store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+	resp, err := store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+	assert.Nil(store.t, err)
+	return resp
 }
 
-func (store *Store) query(sql string, args ...driver.Value) (*proto.QueryResponse, error) {
+func (store *Store) query(sql string, args ...driver.Value) *proto.QueryResponse {
 	req := store.buildRequest(sql, args...)
-	return store.db.Query(context.Background(), &proto.QueryRequest{Request: req})
+	resp, err := store.db.Query(context.Background(), &proto.QueryRequest{Request: req})
+	assert.Nil(store.t, err)
+	return resp
 }
 
 func (store *Store) assertExec(sql string, args ...driver.Value) {
-	resp, err := store.exec(sql, args...)
+	resp := store.exec(sql, args...)
 
-	assert.Nil(store.t, err)
 	for i, res := range resp.Result {
 		assert.Emptyf(store.t, res.Error, "Error exec #(%d):%s,sql:%s", i, res.Error, sql)
 	}
 }
 
 func (store *Store) assertExecBatch(sql ...string) {
-	resp, err := store.execBatch(sql...)
-	assert.Nil(store.t, err)
+	resp := store.execBatch(sql...)
 	for i, res := range resp.Result {
 		assert.Emptyf(store.t, res.Error, "Error exec #(%d):%s,sql:%s", i, res.Error, sql)
 	}
 }
 
 func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, args ...driver.Value) {
-	resp, err := store.exec(sql, args...)
-	if err != nil {
-		store.t.Fatalf("Error exec:%v", err)
-	}
+	resp := store.exec(sql, args...)
 	for i, res := range resp.Result {
 		assert.Emptyf(store.t, res.Error, "Error exec #(%d):%s,sql:%s", i, res.Error, sql)
 		assert.Equal(store.t, target.RowsAffected, res.RowsAffected, "预期的RowsAffected不一致，期望：%d,实际：%d，sql: %s", target.RowsAffected, res.RowsAffected, sql)
@@ -138,7 +139,6 @@ func Test_Query(t *testing.T) {
 		"INSERT INTO foo(name) VALUES(\"data 4\")",
 		"INSERT INTO foo(name) VALUES(\"data 5\")",
 	)
-	resp, err := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
-	assert.Nilf(t, err, "查询数据库")
+	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
 	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
