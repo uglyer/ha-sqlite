@@ -67,18 +67,18 @@ func (fsm *HaSqliteRaftFSM) applyCommand(data []byte) interface{} {
 	}
 	switch c.Type {
 	case proto.Command_COMMAND_TYPE_OPEN:
-		var req *proto.OpenRequest
-		if err := gProto.Unmarshal(c.SubCommand, req); err != nil {
+		var req proto.OpenRequest
+		if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
 			panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
 		}
-		resp, err := fsm.store.Open(context.Background(), req)
+		resp, err := fsm.store.Open(context.Background(), &req)
 		return &fsmOpenResponse{resp: resp, err: err}
 	case proto.Command_COMMAND_TYPE_EXEC:
-		var req *proto.ExecRequest
-		if err := gProto.Unmarshal(c.SubCommand, req); err != nil {
+		var req proto.ExecRequest
+		if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
 			panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
 		}
-		resp, err := fsm.store.Exec(context.Background(), req)
+		resp, err := fsm.store.Exec(context.Background(), &req)
 		return &fsmExecResponse{resp: resp, err: err}
 	default:
 		return &fsmGenericResponse{}
