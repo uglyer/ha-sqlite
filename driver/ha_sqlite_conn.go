@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	"time"
 	// Allow dialing multiple nodes with multi:///.
 	_ "github.com/Jille/grpc-multi-resolver"
 	// Register health checker with gRPC.
@@ -27,7 +28,6 @@ type HaSqliteConn struct {
 const MaxTupleParams = 255
 
 func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
-	// todo 超时时间等参数处理
 	var o grpc.DialOption = grpc.EmptyDialOption{}
 	index := strings.LastIndex(dsn, "/")
 	if index < 0 {
@@ -40,16 +40,34 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 		return nil, fmt.Errorf("NewHaSqliteConn open conn error#1: %v", err)
 	}
 	client := proto.NewDBClient(conn)
-	resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
-	if err != nil {
-		return nil, fmt.Errorf("NewHaSqliteConn open conn error#2: %v", err)
+	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*4000)
+	defer cancel()
+	done := make(chan *proto.OpenResponse, 1)
+	errCh := make(chan error, 1)
+	defer close(done)
+	defer close(errCh)
+	go func() {
+		resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
+		if err != nil {
+			errCh <- err
+		}
+		done <- resp
+	}()
+	select {
+	case err := <-errCh:
+		return nil, err
+	case resp := <-done:
+		haConn := &HaSqliteConn{
+			Address: address,
+			conn:    conn,
+			Client:  client,
+			dbId:    resp.DbId,
+		}
+		return haConn, nil
+	case <-time.After(5000 * time.Millisecond):
+		fmt.Println("timeout!!!")
+		return nil, fmt.Errorf("connect time dsn:%s", dsn)
 	}
-	return &HaSqliteConn{
-		Address: address,
-		conn:    conn,
-		dbId:    resp.DbId,
-		Client:  client,
-	}, nil
 }
 
 // Close invalidates and potentially stops any current
