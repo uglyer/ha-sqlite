@@ -8,6 +8,8 @@ import (
 	"github.com/uglyer/ha-sqlite/proto"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -17,13 +19,13 @@ type Node struct {
 	ctx *node.HaSqliteContext
 }
 
-func NewNode(address string) (*Node, error) {
-	config := &node.HaSqliteConfig{
-		Address:       address,
-		RaftBootstrap: true,
-		RaftId:        "nodeTestA",
-		DataPath:      "data",
-		RaftAdmin:     true,
+func NewNode(config *node.HaSqliteConfig, deleteLog bool) (*Node, error) {
+	if deleteLog {
+		baseDir := filepath.Join(config.DataPath, config.RaftId)
+		err := os.RemoveAll(baseDir)
+		if err != nil {
+			log.Printf("RemoveAll failed:%v", err)
+		}
 	}
 	_, port, err := net.SplitHostPort(config.Address)
 	if err != nil {
@@ -52,8 +54,14 @@ type HaDB struct {
 	t  *testing.T
 }
 
-func openDB(t *testing.T) *HaDB {
-	store, err := NewNode("localhost:30333")
+func openSingleNodeDB(t *testing.T, deleteLog bool) *HaDB {
+	store, err := NewNode(&node.HaSqliteConfig{
+		Address:       "localhost:30333",
+		RaftBootstrap: true,
+		RaftId:        "nodeTestA",
+		DataPath:      "data",
+		RaftAdmin:     true,
+	}, deleteLog)
 	if err != nil {
 		t.Fatalf("启动rpc服务失败:%v", err)
 	}
@@ -102,11 +110,11 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 }
 
 func Test_OpenDB(t *testing.T) {
-	openDB(t)
+	openSingleNodeDB(t, true)
 }
 
 func Test_Exec(t *testing.T) {
-	db := openDB(t)
+	db := openSingleNodeDB(t, true)
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
 		"INSERT INTO foo(name) VALUES(?)", "test1")
