@@ -40,7 +40,6 @@ func (fsm *HaSqliteRaftFSM) InitRaft(r *raft.Raft) {
 }
 
 func (fsm *HaSqliteRaftFSM) Apply(l *raft.Log) interface{} {
-	log.Println("HaSqliteRaftFSM.Apply")
 	fsm.mtx.Lock()
 	defer fsm.mtx.Unlock()
 	return fsm.applyCommand(l.Data)

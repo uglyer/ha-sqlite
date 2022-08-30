@@ -32,7 +32,6 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*proto.Parameter,
 				},
 			}
 		case int64:
-			log.Printf("int:%v", value.Value)
 			parameter[i] = &proto.Parameter{
 				Name: value.Name,
 				Value: &proto.Parameter_I{
