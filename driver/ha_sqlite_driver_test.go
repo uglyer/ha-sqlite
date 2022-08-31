@@ -92,6 +92,22 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 	assert.Equal(store.t, target.LastInsertId, lastInsertId)
 }
 
+func (store *HaDB) assertQuery(sql string, args ...interface{}) *sql.Rows {
+	result, err := store.db.Query(sql, args...)
+	assert.Nil(store.t, err)
+	return result
+}
+
+func (store *HaDB) assertQueryColumns(targetColumns []string, sql string, args ...interface{}) {
+	rows := store.assertQuery(sql, args...)
+	columns, err := rows.Columns()
+	assert.Nil(store.t, err)
+	assert.Equal(store.t, len(targetColumns), len(columns))
+	for i, v := range columns {
+		assert.Equal(store.t, targetColumns[i], v)
+	}
+}
+
 func Test_OpenDB(t *testing.T) {
 	db := openDB(t, 30330)
 	defer db.Store.Close()
@@ -146,4 +162,18 @@ func Test_ExecPerformanceAsync(t *testing.T) {
 	wg.Wait()
 	elapsed := time.Since(start)
 	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
+
+func Test_Query(t *testing.T) {
+	db := openDB(t, 30330)
+	defer db.Store.Close()
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test1")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertQueryColumns([]string{"id", "name"}, "SELECT * FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"name"}, "SELECT name FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"NNN"}, "SELECT name as NNN FROM `foo` WHERE name = ?", "test")
 }
