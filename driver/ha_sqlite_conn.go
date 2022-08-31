@@ -122,7 +122,7 @@ func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 
 // Exec is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, error) {
-	return c.ExecContext(context.Background(), query, ValuesToNamedValues(args))
+	return c.ExecContext(context.Background(), query, proto.ValuesToNamedValues(args))
 }
 
 // ExecContext is an optional interface that may be implemented by a Conn.
@@ -130,7 +130,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	parameters, err := DriverNamedValueToParameters(args)
+	parameters, err := proto.DriverNamedValueToParameters(args)
 	if err != nil {
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
@@ -170,7 +170,7 @@ func (result *execResult) RowsAffected() (int64, error) {
 
 // Query is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, error) {
-	return c.QueryContext(context.Background(), query, ValuesToNamedValues(args))
+	return c.QueryContext(context.Background(), query, proto.ValuesToNamedValues(args))
 }
 
 // QueryContext is an optional interface that may be implemented by a Conn.

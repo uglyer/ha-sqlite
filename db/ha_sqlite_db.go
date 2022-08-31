@@ -76,7 +76,7 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		result := &proto.ExecResult{}
 		start := time.Now()
 
-		parameters, err := parametersToValues(stmt.Parameters)
+		parameters, err := proto.ParametersToValues(stmt.Parameters)
 		if err != nil {
 			if handleError(result, err) {
 				continue
@@ -142,7 +142,7 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 		rows := &proto.QueryResult{}
 		start := time.Now()
 
-		parameters, err := parametersToValues(stmt.Parameters)
+		parameters, err := proto.ParametersToValues(stmt.Parameters)
 		if err != nil {
 			rows.Error = err.Error()
 			allRows = append(allRows, rows)
@@ -180,7 +180,7 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 			if err := rs.Scan(ptrs...); err != nil {
 				return nil, err
 			}
-			params, err := normalizeRowValues(dest, xTypes)
+			params, err := proto.NormalizeRowValues(dest, xTypes)
 			if err != nil {
 				return nil, err
 			}

@@ -57,6 +57,8 @@ func (store *Store) query(sql string, args ...driver.Value) *proto.QueryResponse
 	req := store.buildRequest(sql, args...)
 	resp, err := store.db.Query(context.Background(), &proto.QueryRequest{Request: req})
 	assert.Nil(store.t, err)
+	assert.Equal(store.t, 1, len(resp.Result))
+	assert.Empty(store.t, resp.Result[0].Error)
 	return resp
 }
 
