@@ -23,8 +23,8 @@ type RPCStore struct {
 	grpcServer *grpc.Server
 }
 
-func NewRPCStore(t *testing.T, port string) *RPCStore {
-	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+func NewRPCStore(t *testing.T, port uint16) *RPCStore {
+	sock, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	assert.Nil(t, err)
 	store, err := hadb.NewHaSqliteDB()
 	assert.Nil(t, err)
@@ -38,23 +38,25 @@ func NewRPCStore(t *testing.T, port string) *RPCStore {
 }
 
 func (store *RPCStore) Serve() {
-	defer store.sock.Close()
-	if err := store.grpcServer.Serve(store.sock); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	store.grpcServer.Serve(store.sock)
+}
+
+func (store *RPCStore) Close() {
+	store.sock.Close()
 }
 
 type HaDB struct {
-	db *sql.DB
-	t  *testing.T
+	Store *RPCStore
+	db    *sql.DB
+	t     *testing.T
 }
 
-func openDB(t *testing.T, port string) *HaDB {
+func openDB(t *testing.T, port uint16) *HaDB {
 	store := NewRPCStore(t, port)
 	go func() {
 		store.Serve()
 	}()
-	url := fmt.Sprintf("multi:///localhost:%s/:memory:", port)
+	url := fmt.Sprintf("multi:///localhost:%d/:memory:", port)
 	db, err := sql.Open("ha-sqlite", url)
 	assert.Nil(t, err)
 	db.SetMaxIdleConns(runtime.NumCPU() * 2)
@@ -67,7 +69,7 @@ func openDB(t *testing.T, port string) *HaDB {
 	}()
 	select {
 	case <-ctx.Done():
-		return &HaDB{db: db, t: t}
+		return &HaDB{db: db, t: t, Store: store}
 	case <-time.After(time.Millisecond * 900):
 		t.Fatalf("connect %s timeout", url)
 		return &HaDB{db: db, t: t}
@@ -91,11 +93,13 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 }
 
 func Test_OpenDB(t *testing.T) {
-	openDB(t, "30330")
+	db := openDB(t, 30330)
+	defer db.Store.Close()
 }
 
 func Test_Exec(t *testing.T) {
-	db := openDB(t, "30331")
+	db := openDB(t, 30330)
+	defer db.Store.Close()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
 		"INSERT INTO foo(name) VALUES(?)", "test1")
@@ -110,7 +114,8 @@ func Test_Exec(t *testing.T) {
 }
 
 func Test_ExecPerformanceSync(t *testing.T) {
-	db := openDB(t, "30332")
+	db := openDB(t, 30330)
+	defer db.Store.Close()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 1000
 	start := time.Now()
@@ -118,11 +123,12 @@ func Test_ExecPerformanceSync(t *testing.T) {
 		db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	}
 	elapsed := time.Since(start)
-	log.Printf("插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+	log.Printf("顺序插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
 
 func Test_ExecPerformanceAsync(t *testing.T) {
-	db := openDB(t, "30333")
+	db := openDB(t, 30330)
+	defer db.Store.Close()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 10000
 	start := time.Now()
@@ -139,5 +145,5 @@ func Test_ExecPerformanceAsync(t *testing.T) {
 	}
 	wg.Wait()
 	elapsed := time.Since(start)
-	log.Printf("插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
