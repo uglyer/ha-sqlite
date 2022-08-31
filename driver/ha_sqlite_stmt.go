@@ -31,7 +31,7 @@ func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, qu
 // Drivers must ensure all network calls made by Close
 // do not block indefinitely (e.g. apply a timeout).
 func (s *HaSqliteStmt) Close() error {
-	return fmt.Errorf("todo impl HaSqliteStmt Close")
+	return nil
 }
 
 // NumInput returns the number of placeholder parameters.
@@ -44,7 +44,7 @@ func (s *HaSqliteStmt) Close() error {
 // its number of placeholders. In that case, the sql package
 // will not sanity check Exec or Query argument counts.
 func (s *HaSqliteStmt) NumInput() int {
-	return 0
+	return -1
 }
 
 // Exec executes a query that doesn't return rows, such
@@ -64,8 +64,8 @@ func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 	if err != nil {
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
-	statements := make([]*proto.Statement, 1)
-	statements[0] = &proto.Statement{Sql: s.query, Parameters: parameters}
+
+	statements := []*proto.Statement{{Sql: s.query, Parameters: parameters}}
 	execRequest := &proto.ExecRequest{
 		Request: &proto.Request{
 			DbId:       s.dbId,
@@ -97,9 +97,27 @@ func (s *HaSqliteStmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 // QueryContext is an optional interface that may be implemented by a Conn.
-func (c *HaSqliteStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+func (s *HaSqliteStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
-	return nil, fmt.Errorf("todo impl QueryContext")
+	parameters, err := proto.DriverNamedValueToParameters(args)
+	if err != nil {
+		return nil, fmt.Errorf("convert named value to parameters error %v", err)
+	}
+	statements := []*proto.Statement{{Sql: s.query, Parameters: parameters}}
+	resp, err := s.client.Query(ctx, &proto.QueryRequest{Request: &proto.Request{
+		DbId:       s.dbId,
+		Statements: statements,
+	}})
+	if err != nil {
+		return nil, fmt.Errorf("exec error: %v", err)
+	}
+	if resp == nil || len(resp.Result) == 0 {
+		return nil, fmt.Errorf("exec without resp")
+	}
+	if resp.Result[0].Error != "" {
+		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
+	}
+	return NewHaSqliteRowsFromSingleQueryResult(resp.Result[0]), nil
 }

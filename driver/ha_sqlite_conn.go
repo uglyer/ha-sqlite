@@ -134,8 +134,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	if err != nil {
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
-	statements := make([]*proto.Statement, 1)
-	statements[0] = &proto.Statement{Sql: query, Parameters: parameters}
+	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	resp, err := c.Client.Exec(ctx, &proto.ExecRequest{Request: &proto.Request{
 		DbId:       c.dbId,
 		Statements: statements,
@@ -182,8 +181,7 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 	if err != nil {
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
-	statements := make([]*proto.Statement, 1)
-	statements[0] = &proto.Statement{Sql: query, Parameters: parameters}
+	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	resp, err := c.Client.Query(ctx, &proto.QueryRequest{Request: &proto.Request{
 		DbId:       c.dbId,
 		Statements: statements,

@@ -105,7 +105,7 @@ sqlite 为库级锁，通常单场景的同时写入并发不会太大，一个�
 - [x] Exec
 - [x] Query
 - [x] Driver
-- [ ] Prepare
+- [x] Prepare
 - [ ] Transaction
 - [ ] Snapshot
 - [ ] Restore
