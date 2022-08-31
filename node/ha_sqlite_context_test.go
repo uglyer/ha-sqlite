@@ -105,6 +105,43 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 	assert.Equal(store.t, target.LastInsertId, lastInsertId)
 }
 
+func (store *HaDB) assertQuery(sql string, args ...interface{}) *sql.Rows {
+	result, err := store.db.Query(sql, args...)
+	assert.Nil(store.t, err)
+	return result
+}
+
+func (store *HaDB) assertQueryColumns(targetColumns []string, sql string, args ...interface{}) {
+	rows := store.assertQuery(sql, args...)
+	defer rows.Close()
+	columns, err := rows.Columns()
+	assert.Nil(store.t, err)
+	assert.Equal(store.t, len(targetColumns), len(columns))
+	for i, v := range columns {
+		assert.Equal(store.t, targetColumns[i], v)
+	}
+}
+
+func (store *HaDB) assertQueryCount(count int, rows *sql.Rows, args ...interface{}) {
+	i := 0
+	for rows.Next() {
+		err := rows.Scan(args...)
+		assert.Nil(store.t, err)
+		i++
+	}
+	assert.Equal(store.t, count, i)
+}
+
+func (store *HaDB) assertQueryValues(handler func(int), rows *sql.Rows, args ...interface{}) {
+	i := 0
+	for rows.Next() {
+		err := rows.Scan(args...)
+		assert.Nil(store.t, err)
+		handler(i)
+		i++
+	}
+}
+
 func Test_SingleNodOpenDB(t *testing.T) {
 	db := openSingleNodeDB(t, 31300, "Test_OpenDB", true)
 	defer db.Store.Stop()
@@ -124,4 +161,31 @@ func Test_SingleNodExec(t *testing.T) {
 		"UPDATE foo set name=? where id = ?", "update test1", 1)
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
 		"DELETE from foo where id = ?", 3)
+}
+
+func Test_SingleNodQuery(t *testing.T) {
+	db := openSingleNodeDB(t, 31300, "Test_Query", true)
+	defer db.Store.Stop()
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test1")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	db.assertQueryColumns([]string{"id", "name"}, "SELECT * FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"id", "name"}, "SELECT id,name FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"name"}, "SELECT name FROM `foo` WHERE name = ?", "test")
+	db.assertQueryColumns([]string{"NNN"}, "SELECT name as NNN FROM `foo` WHERE name = ?", "test")
+	var id int
+	var name string
+	db.assertQueryCount(3, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	db.assertQueryValues(func(i int) {
+		assert.Equal(t, i+2, id)
+		assert.Equal(t, "test", name)
+	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+	db.assertQueryValues(func(i int) {
+		assert.Equal(t, 1, id)
+		assert.Equal(t, "test1", name)
+	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
 }
