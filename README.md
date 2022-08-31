@@ -99,6 +99,14 @@ sqlite 为库级锁，通常单场景的同时写入并发不会太大，一个�
 
 所以，这个轮子就诞生了
 
-## TODO
+## 进度
 
-实现它。
+- [x] Open
+- [x] Exec
+- [x] Query
+- [ ] Prepare
+- [ ] Transaction
+- [ ] Snapshot
+- [ ] Restore
+- [ ] S3
+- [ ] Trigger
