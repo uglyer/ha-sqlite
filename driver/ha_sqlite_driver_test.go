@@ -205,4 +205,9 @@ func Test_Query(t *testing.T) {
 		assert.Equal(t, i+2, id)
 		assert.Equal(t, "test", name)
 	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+	db.assertQueryValues(func(i int) {
+		assert.Equal(t, 1, id)
+		assert.Equal(t, "test1", name)
+	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
 }
