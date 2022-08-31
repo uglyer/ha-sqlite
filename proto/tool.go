@@ -36,8 +36,8 @@ func ParametersToValues(parameters []*Parameter) ([]interface{}, error) {
 	return values, nil
 }
 
-// ParametersCopyToValues maps values in the proto params to SQL driver values.
-func ParametersCopyToValues(values []driver.Value, parameters []*Parameter) error {
+// ParametersCopyToDriverValues maps values in the proto params to SQL driver values.
+func ParametersCopyToDriverValues(values []driver.Value, parameters []*Parameter) error {
 	if parameters == nil {
 		return nil
 	}
@@ -45,15 +45,15 @@ func ParametersCopyToValues(values []driver.Value, parameters []*Parameter) erro
 	for i := range parameters {
 		switch w := parameters[i].GetValue().(type) {
 		case *Parameter_I:
-			values[i] = sql.Named(parameters[i].GetName(), w.I)
+			values[i] = w.I
 		case *Parameter_D:
-			values[i] = sql.Named(parameters[i].GetName(), w.D)
+			values[i] = w.D
 		case *Parameter_B:
-			values[i] = sql.Named(parameters[i].GetName(), w.B)
+			values[i] = w.B
 		case *Parameter_Y:
-			values[i] = sql.Named(parameters[i].GetName(), w.Y)
+			values[i] = w.Y
 		case *Parameter_S:
-			values[i] = sql.Named(parameters[i].GetName(), w.S)
+			values[i] = w.S
 		default:
 			return fmt.Errorf("unsupported type: %T", w)
 		}

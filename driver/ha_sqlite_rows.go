@@ -46,7 +46,7 @@ func (r *HaSqliteRows) Next(dest []driver.Value) error {
 	if r.index >= r.len {
 		return io.EOF
 	}
-	err := proto.ParametersCopyToValues(dest, r.r.Values[r.index].Parameters)
+	err := proto.ParametersCopyToDriverValues(dest, r.r.Values[r.index].Parameters)
 	if err != nil {
 		return err
 	}
