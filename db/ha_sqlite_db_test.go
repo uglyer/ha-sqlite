@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/db"
-	ha_driver "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
 	"log"
 	"testing"
@@ -19,7 +18,7 @@ type Store struct {
 
 func (store *Store) buildRequest(sql string, args ...driver.Value) *proto.Request {
 	statements := make([]*proto.Statement, 1)
-	parameters, err := ha_driver.ValuesToParameters(args)
+	parameters, err := proto.ValuesToParameters(args)
 	assert.Nil(store.t, err)
 	statements[0] = &proto.Statement{Sql: sql, Parameters: parameters}
 	return &proto.Request{
