@@ -109,17 +109,24 @@ func (store *HaDB) assertQueryColumns(targetColumns []string, sql string, args .
 	}
 }
 
-func (store *HaDB) assertQueryCountIDName(count int, sql string, args ...interface{}) {
-	rows := store.assertQuery(sql, args...)
+func (store *HaDB) assertQueryCount(count int, rows *sql.Rows, args ...interface{}) {
 	i := 0
-	var id int
-	var name string
 	for rows.Next() {
-		err := rows.Scan(&id, &name)
+		err := rows.Scan(args...)
 		assert.Nil(store.t, err)
 		i++
 	}
 	assert.Equal(store.t, count, i)
+}
+
+func (store *HaDB) assertQueryValues(handler func(int), rows *sql.Rows, args ...interface{}) {
+	i := 0
+	for rows.Next() {
+		err := rows.Scan(args...)
+		assert.Nil(store.t, err)
+		handler(i)
+		i++
+	}
 }
 
 func Test_OpenDB(t *testing.T) {
@@ -191,5 +198,11 @@ func Test_Query(t *testing.T) {
 	db.assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
 	db.assertQueryColumns([]string{"name"}, "SELECT name FROM `foo` WHERE name = ?", "test")
 	db.assertQueryColumns([]string{"NNN"}, "SELECT name as NNN FROM `foo` WHERE name = ?", "test")
-	db.assertQueryCountIDName(3, "SELECT id,name FROM `foo` WHERE name = ?", "test")
+	var id int
+	var name string
+	db.assertQueryCount(3, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	db.assertQueryValues(func(i int) {
+		assert.Equal(t, i+2, id)
+		assert.Equal(t, "test", name)
+	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
 }
