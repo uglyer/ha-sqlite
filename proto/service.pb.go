@@ -73,53 +73,114 @@ func (Command_Type) EnumDescriptor() ([]byte, []int) {
 	return file_service_proto_rawDescGZIP(), []int{0, 0}
 }
 
-type TxRequest_Type int32
+type BeginTxRequest_Type int32
 
 const (
-	TxRequest_TX_TYPE_BEGIN    TxRequest_Type = 0
-	TxRequest_TX_TYPE_COMMIT   TxRequest_Type = 1
-	TxRequest_TX_TYPE_ROLLBACK TxRequest_Type = 2
+	BeginTxRequest_TX_TYPE_BEGIN_LevelDefault         BeginTxRequest_Type = 0
+	BeginTxRequest_TX_TYPE_BEGIN_LevelReadUncommitted BeginTxRequest_Type = 1
+	BeginTxRequest_TX_TYPE_BEGIN_LevelReadCommitted   BeginTxRequest_Type = 2
+	BeginTxRequest_TX_TYPE_BEGIN_LevelWriteCommitted  BeginTxRequest_Type = 3
+	BeginTxRequest_TX_TYPE_BEGIN_LevelRepeatableRead  BeginTxRequest_Type = 4
+	BeginTxRequest_TX_TYPE_BEGIN_LevelSnapshot        BeginTxRequest_Type = 5
+	BeginTxRequest_TX_TYPE_BEGIN_LevelSerializable    BeginTxRequest_Type = 6
+	BeginTxRequest_TX_TYPE_BEGIN_LevelLinearizable    BeginTxRequest_Type = 7
 )
 
-// Enum value maps for TxRequest_Type.
+// Enum value maps for BeginTxRequest_Type.
 var (
-	TxRequest_Type_name = map[int32]string{
-		0: "TX_TYPE_BEGIN",
-		1: "TX_TYPE_COMMIT",
-		2: "TX_TYPE_ROLLBACK",
+	BeginTxRequest_Type_name = map[int32]string{
+		0: "TX_TYPE_BEGIN_LevelDefault",
+		1: "TX_TYPE_BEGIN_LevelReadUncommitted",
+		2: "TX_TYPE_BEGIN_LevelReadCommitted",
+		3: "TX_TYPE_BEGIN_LevelWriteCommitted",
+		4: "TX_TYPE_BEGIN_LevelRepeatableRead",
+		5: "TX_TYPE_BEGIN_LevelSnapshot",
+		6: "TX_TYPE_BEGIN_LevelSerializable",
+		7: "TX_TYPE_BEGIN_LevelLinearizable",
 	}
-	TxRequest_Type_value = map[string]int32{
-		"TX_TYPE_BEGIN":    0,
-		"TX_TYPE_COMMIT":   1,
-		"TX_TYPE_ROLLBACK": 2,
+	BeginTxRequest_Type_value = map[string]int32{
+		"TX_TYPE_BEGIN_LevelDefault":         0,
+		"TX_TYPE_BEGIN_LevelReadUncommitted": 1,
+		"TX_TYPE_BEGIN_LevelReadCommitted":   2,
+		"TX_TYPE_BEGIN_LevelWriteCommitted":  3,
+		"TX_TYPE_BEGIN_LevelRepeatableRead":  4,
+		"TX_TYPE_BEGIN_LevelSnapshot":        5,
+		"TX_TYPE_BEGIN_LevelSerializable":    6,
+		"TX_TYPE_BEGIN_LevelLinearizable":    7,
 	}
 )
 
-func (x TxRequest_Type) Enum() *TxRequest_Type {
-	p := new(TxRequest_Type)
+func (x BeginTxRequest_Type) Enum() *BeginTxRequest_Type {
+	p := new(BeginTxRequest_Type)
 	*p = x
 	return p
 }
 
-func (x TxRequest_Type) String() string {
+func (x BeginTxRequest_Type) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (TxRequest_Type) Descriptor() protoreflect.EnumDescriptor {
+func (BeginTxRequest_Type) Descriptor() protoreflect.EnumDescriptor {
 	return file_service_proto_enumTypes[1].Descriptor()
 }
 
-func (TxRequest_Type) Type() protoreflect.EnumType {
+func (BeginTxRequest_Type) Type() protoreflect.EnumType {
 	return &file_service_proto_enumTypes[1]
 }
 
-func (x TxRequest_Type) Number() protoreflect.EnumNumber {
+func (x BeginTxRequest_Type) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use TxRequest_Type.Descriptor instead.
-func (TxRequest_Type) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use BeginTxRequest_Type.Descriptor instead.
+func (BeginTxRequest_Type) EnumDescriptor() ([]byte, []int) {
 	return file_service_proto_rawDescGZIP(), []int{12, 0}
+}
+
+type FinishTxRequest_Type int32
+
+const (
+	FinishTxRequest_TX_TYPE_COMMIT   FinishTxRequest_Type = 0
+	FinishTxRequest_TX_TYPE_ROLLBACK FinishTxRequest_Type = 1
+)
+
+// Enum value maps for FinishTxRequest_Type.
+var (
+	FinishTxRequest_Type_name = map[int32]string{
+		0: "TX_TYPE_COMMIT",
+		1: "TX_TYPE_ROLLBACK",
+	}
+	FinishTxRequest_Type_value = map[string]int32{
+		"TX_TYPE_COMMIT":   0,
+		"TX_TYPE_ROLLBACK": 1,
+	}
+)
+
+func (x FinishTxRequest_Type) Enum() *FinishTxRequest_Type {
+	p := new(FinishTxRequest_Type)
+	*p = x
+	return p
+}
+
+func (x FinishTxRequest_Type) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FinishTxRequest_Type) Descriptor() protoreflect.EnumDescriptor {
+	return file_service_proto_enumTypes[2].Descriptor()
+}
+
+func (FinishTxRequest_Type) Type() protoreflect.EnumType {
+	return &file_service_proto_enumTypes[2]
+}
+
+func (x FinishTxRequest_Type) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FinishTxRequest_Type.Descriptor instead.
+func (FinishTxRequest_Type) EnumDescriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{14, 0}
 }
 
 type Command struct {
@@ -881,17 +942,19 @@ func (x *QueryResponse) GetResult() []*QueryResult {
 	return nil
 }
 
-type TxRequest struct {
+type BeginTxRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Type    TxRequest_Type `protobuf:"varint,1,opt,name=type,proto3,enum=TxRequest_Type" json:"type,omitempty"`
-	TxToken string         `protobuf:"bytes,2,opt,name=tx_token,json=txToken,proto3" json:"tx_token,omitempty"`
+	Type     BeginTxRequest_Type `protobuf:"varint,1,opt,name=type,proto3,enum=BeginTxRequest_Type" json:"type,omitempty"`
+	Readonly bool                `protobuf:"varint,2,opt,name=readonly,proto3" json:"readonly,omitempty"`
+	TxToken  string              `protobuf:"bytes,3,opt,name=tx_token,json=txToken,proto3" json:"tx_token,omitempty"`
+	DbId     uint64              `protobuf:"varint,4,opt,name=db_id,json=dbId,proto3" json:"db_id,omitempty"`
 }
 
-func (x *TxRequest) Reset() {
-	*x = TxRequest{}
+func (x *BeginTxRequest) Reset() {
+	*x = BeginTxRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_service_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -899,13 +962,13 @@ func (x *TxRequest) Reset() {
 	}
 }
 
-func (x *TxRequest) String() string {
+func (x *BeginTxRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TxRequest) ProtoMessage() {}
+func (*BeginTxRequest) ProtoMessage() {}
 
-func (x *TxRequest) ProtoReflect() protoreflect.Message {
+func (x *BeginTxRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_service_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -917,26 +980,40 @@ func (x *TxRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TxRequest.ProtoReflect.Descriptor instead.
-func (*TxRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use BeginTxRequest.ProtoReflect.Descriptor instead.
+func (*BeginTxRequest) Descriptor() ([]byte, []int) {
 	return file_service_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *TxRequest) GetType() TxRequest_Type {
+func (x *BeginTxRequest) GetType() BeginTxRequest_Type {
 	if x != nil {
 		return x.Type
 	}
-	return TxRequest_TX_TYPE_BEGIN
+	return BeginTxRequest_TX_TYPE_BEGIN_LevelDefault
 }
 
-func (x *TxRequest) GetTxToken() string {
+func (x *BeginTxRequest) GetReadonly() bool {
+	if x != nil {
+		return x.Readonly
+	}
+	return false
+}
+
+func (x *BeginTxRequest) GetTxToken() string {
 	if x != nil {
 		return x.TxToken
 	}
 	return ""
 }
 
-type TxResponse struct {
+func (x *BeginTxRequest) GetDbId() uint64 {
+	if x != nil {
+		return x.DbId
+	}
+	return 0
+}
+
+type BeginTxResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -944,8 +1021,8 @@ type TxResponse struct {
 	TxToken string `protobuf:"bytes,1,opt,name=tx_token,json=txToken,proto3" json:"tx_token,omitempty"`
 }
 
-func (x *TxResponse) Reset() {
-	*x = TxResponse{}
+func (x *BeginTxResponse) Reset() {
+	*x = BeginTxResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_service_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -953,13 +1030,13 @@ func (x *TxResponse) Reset() {
 	}
 }
 
-func (x *TxResponse) String() string {
+func (x *BeginTxResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TxResponse) ProtoMessage() {}
+func (*BeginTxResponse) ProtoMessage() {}
 
-func (x *TxResponse) ProtoReflect() protoreflect.Message {
+func (x *BeginTxResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_service_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -971,16 +1048,118 @@ func (x *TxResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TxResponse.ProtoReflect.Descriptor instead.
-func (*TxResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use BeginTxResponse.ProtoReflect.Descriptor instead.
+func (*BeginTxResponse) Descriptor() ([]byte, []int) {
 	return file_service_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *TxResponse) GetTxToken() string {
+func (x *BeginTxResponse) GetTxToken() string {
 	if x != nil {
 		return x.TxToken
 	}
 	return ""
+}
+
+type FinishTxRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Type    FinishTxRequest_Type `protobuf:"varint,1,opt,name=type,proto3,enum=FinishTxRequest_Type" json:"type,omitempty"`
+	TxToken string               `protobuf:"bytes,3,opt,name=tx_token,json=txToken,proto3" json:"tx_token,omitempty"`
+}
+
+func (x *FinishTxRequest) Reset() {
+	*x = FinishTxRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *FinishTxRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishTxRequest) ProtoMessage() {}
+
+func (x *FinishTxRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishTxRequest.ProtoReflect.Descriptor instead.
+func (*FinishTxRequest) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *FinishTxRequest) GetType() FinishTxRequest_Type {
+	if x != nil {
+		return x.Type
+	}
+	return FinishTxRequest_TX_TYPE_COMMIT
+}
+
+func (x *FinishTxRequest) GetTxToken() string {
+	if x != nil {
+		return x.TxToken
+	}
+	return ""
+}
+
+type FinishTxResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Result []*ExecResult `protobuf:"bytes,1,rep,name=result,proto3" json:"result,omitempty"`
+}
+
+func (x *FinishTxResponse) Reset() {
+	*x = FinishTxResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *FinishTxResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishTxResponse) ProtoMessage() {}
+
+func (x *FinishTxResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishTxResponse.ProtoReflect.Descriptor instead.
+func (*FinishTxResponse) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *FinishTxResponse) GetResult() []*ExecResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
 }
 
 type QueryResult_Values struct {
@@ -994,7 +1173,7 @@ type QueryResult_Values struct {
 func (x *QueryResult_Values) Reset() {
 	*x = QueryResult_Values{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_service_proto_msgTypes[14]
+		mi := &file_service_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1007,7 +1186,7 @@ func (x *QueryResult_Values) String() string {
 func (*QueryResult_Values) ProtoMessage() {}
 
 func (x *QueryResult_Values) ProtoReflect() protoreflect.Message {
-	mi := &file_service_proto_msgTypes[14]
+	mi := &file_service_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1106,19 +1285,50 @@ var file_service_proto_rawDesc = []byte{
 	0x73, 0x22, 0x35, 0x0a, 0x0d, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x12, 0x24, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x03,
 	0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74,
-	0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0x90, 0x01, 0x0a, 0x09, 0x54, 0x78, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x23, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x0e, 0x32, 0x0f, 0x2e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x2e, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x74,
-	0x78, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x74,
-	0x78, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0x43, 0x0a, 0x04, 0x54, 0x79, 0x70, 0x65, 0x12, 0x11,
-	0x0a, 0x0d, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x10,
-	0x00, 0x12, 0x12, 0x0a, 0x0e, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x43, 0x4f, 0x4d,
-	0x4d, 0x49, 0x54, 0x10, 0x01, 0x12, 0x14, 0x0a, 0x10, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45,
-	0x5f, 0x52, 0x4f, 0x4c, 0x4c, 0x42, 0x41, 0x43, 0x4b, 0x10, 0x02, 0x22, 0x27, 0x0a, 0x0a, 0x54,
-	0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x74, 0x78, 0x5f,
-	0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x74, 0x78, 0x54,
-	0x6f, 0x6b, 0x65, 0x6e, 0x32, 0x9d, 0x01, 0x0a, 0x02, 0x44, 0x42, 0x12, 0x25, 0x0a, 0x04, 0x4f,
+	0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0xb6, 0x03, 0x0a, 0x0e, 0x42, 0x65, 0x67,
+	0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x28, 0x0a, 0x04, 0x74,
+	0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x14, 0x2e, 0x42, 0x65, 0x67, 0x69,
+	0x6e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x54, 0x79, 0x70, 0x65, 0x52,
+	0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x72, 0x65, 0x61, 0x64, 0x6f, 0x6e, 0x6c,
+	0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08, 0x72, 0x65, 0x61, 0x64, 0x6f, 0x6e, 0x6c,
+	0x79, 0x12, 0x19, 0x0a, 0x08, 0x74, 0x78, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x07, 0x74, 0x78, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x12, 0x13, 0x0a, 0x05,
+	0x64, 0x62, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x64, 0x62, 0x49,
+	0x64, 0x22, 0xad, 0x02, 0x0a, 0x04, 0x54, 0x79, 0x70, 0x65, 0x12, 0x1e, 0x0a, 0x1a, 0x54, 0x58,
+	0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65,
+	0x6c, 0x44, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x10, 0x00, 0x12, 0x26, 0x0a, 0x22, 0x54, 0x58,
+	0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65,
+	0x6c, 0x52, 0x65, 0x61, 0x64, 0x55, 0x6e, 0x63, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64,
+	0x10, 0x01, 0x12, 0x24, 0x0a, 0x20, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45,
+	0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x52, 0x65, 0x61, 0x64, 0x43, 0x6f, 0x6d,
+	0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x10, 0x02, 0x12, 0x25, 0x0a, 0x21, 0x54, 0x58, 0x5f, 0x54,
+	0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x57,
+	0x72, 0x69, 0x74, 0x65, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x64, 0x10, 0x03, 0x12,
+	0x25, 0x0a, 0x21, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e,
+	0x5f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x52, 0x65, 0x70, 0x65, 0x61, 0x74, 0x61, 0x62, 0x6c, 0x65,
+	0x52, 0x65, 0x61, 0x64, 0x10, 0x04, 0x12, 0x1f, 0x0a, 0x1b, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50,
+	0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x53, 0x6e, 0x61,
+	0x70, 0x73, 0x68, 0x6f, 0x74, 0x10, 0x05, 0x12, 0x23, 0x0a, 0x1f, 0x54, 0x58, 0x5f, 0x54, 0x59,
+	0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x53, 0x65,
+	0x72, 0x69, 0x61, 0x6c, 0x69, 0x7a, 0x61, 0x62, 0x6c, 0x65, 0x10, 0x06, 0x12, 0x23, 0x0a, 0x1f,
+	0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x5f, 0x4c, 0x65,
+	0x76, 0x65, 0x6c, 0x4c, 0x69, 0x6e, 0x65, 0x61, 0x72, 0x69, 0x7a, 0x61, 0x62, 0x6c, 0x65, 0x10,
+	0x07, 0x22, 0x2c, 0x0a, 0x0f, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x74, 0x78, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x74, 0x78, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22,
+	0x89, 0x01, 0x0a, 0x0f, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x29, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0e, 0x32, 0x15, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x2e, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x19,
+	0x0a, 0x08, 0x74, 0x78, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x07, 0x74, 0x78, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0x30, 0x0a, 0x04, 0x54, 0x79, 0x70,
+	0x65, 0x12, 0x12, 0x0a, 0x0e, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x43, 0x4f, 0x4d,
+	0x4d, 0x49, 0x54, 0x10, 0x00, 0x12, 0x14, 0x0a, 0x10, 0x54, 0x58, 0x5f, 0x54, 0x59, 0x50, 0x45,
+	0x5f, 0x52, 0x4f, 0x4c, 0x4c, 0x42, 0x41, 0x43, 0x4b, 0x10, 0x01, 0x22, 0x37, 0x0a, 0x10, 0x46,
+	0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x23, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x0b, 0x2e, 0x45, 0x78, 0x65, 0x63, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x52, 0x06, 0x72, 0x65,
+	0x73, 0x75, 0x6c, 0x74, 0x32, 0xdf, 0x01, 0x0a, 0x02, 0x44, 0x42, 0x12, 0x25, 0x0a, 0x04, 0x4f,
 	0x70, 0x65, 0x6e, 0x12, 0x0c, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x1a, 0x0d, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
 	0x22, 0x00, 0x12, 0x25, 0x0a, 0x04, 0x45, 0x78, 0x65, 0x63, 0x12, 0x0c, 0x2e, 0x45, 0x78, 0x65,
@@ -1126,12 +1336,16 @@ var file_service_proto_rawDesc = []byte{
 	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x28, 0x0a, 0x05, 0x51, 0x75, 0x65,
 	0x72, 0x79, 0x12, 0x0d, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x1a, 0x0e, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x00, 0x12, 0x1f, 0x0a, 0x02, 0x54, 0x78, 0x12, 0x0a, 0x2e, 0x54, 0x78, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0b, 0x2e, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x22, 0x00, 0x42, 0x23, 0x5a, 0x21, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
-	0x6f, 0x6d, 0x2f, 0x75, 0x67, 0x6c, 0x79, 0x65, 0x72, 0x2f, 0x68, 0x61, 0x2d, 0x73, 0x71, 0x6c,
-	0x69, 0x74, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x65, 0x22, 0x00, 0x12, 0x2e, 0x0a, 0x07, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x12, 0x0f,
+	0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
+	0x10, 0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x08, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x12,
+	0x10, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x11, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x23, 0x5a, 0x21, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x75, 0x67, 0x6c, 0x79, 0x65, 0x72, 0x2f, 0x68, 0x61, 0x2d, 0x73,
+	0x71, 0x6c, 0x69, 0x74, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1146,51 +1360,58 @@ func file_service_proto_rawDescGZIP() []byte {
 	return file_service_proto_rawDescData
 }
 
-var file_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_service_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_service_proto_goTypes = []interface{}{
 	(Command_Type)(0),          // 0: Command.Type
-	(TxRequest_Type)(0),        // 1: TxRequest.Type
-	(*Command)(nil),            // 2: Command
-	(*Parameter)(nil),          // 3: Parameter
-	(*Statement)(nil),          // 4: Statement
-	(*Request)(nil),            // 5: Request
-	(*OpenRequest)(nil),        // 6: OpenRequest
-	(*OpenResponse)(nil),       // 7: OpenResponse
-	(*ExecRequest)(nil),        // 8: ExecRequest
-	(*ExecResult)(nil),         // 9: ExecResult
-	(*ExecResponse)(nil),       // 10: ExecResponse
-	(*QueryRequest)(nil),       // 11: QueryRequest
-	(*QueryResult)(nil),        // 12: QueryResult
-	(*QueryResponse)(nil),      // 13: QueryResponse
-	(*TxRequest)(nil),          // 14: TxRequest
-	(*TxResponse)(nil),         // 15: TxResponse
-	(*QueryResult_Values)(nil), // 16: QueryResult.Values
+	(BeginTxRequest_Type)(0),   // 1: BeginTxRequest.Type
+	(FinishTxRequest_Type)(0),  // 2: FinishTxRequest.Type
+	(*Command)(nil),            // 3: Command
+	(*Parameter)(nil),          // 4: Parameter
+	(*Statement)(nil),          // 5: Statement
+	(*Request)(nil),            // 6: Request
+	(*OpenRequest)(nil),        // 7: OpenRequest
+	(*OpenResponse)(nil),       // 8: OpenResponse
+	(*ExecRequest)(nil),        // 9: ExecRequest
+	(*ExecResult)(nil),         // 10: ExecResult
+	(*ExecResponse)(nil),       // 11: ExecResponse
+	(*QueryRequest)(nil),       // 12: QueryRequest
+	(*QueryResult)(nil),        // 13: QueryResult
+	(*QueryResponse)(nil),      // 14: QueryResponse
+	(*BeginTxRequest)(nil),     // 15: BeginTxRequest
+	(*BeginTxResponse)(nil),    // 16: BeginTxResponse
+	(*FinishTxRequest)(nil),    // 17: FinishTxRequest
+	(*FinishTxResponse)(nil),   // 18: FinishTxResponse
+	(*QueryResult_Values)(nil), // 19: QueryResult.Values
 }
 var file_service_proto_depIdxs = []int32{
 	0,  // 0: Command.type:type_name -> Command.Type
-	3,  // 1: Statement.parameters:type_name -> Parameter
-	4,  // 2: Request.statements:type_name -> Statement
-	5,  // 3: ExecRequest.request:type_name -> Request
-	9,  // 4: ExecResponse.result:type_name -> ExecResult
-	5,  // 5: QueryRequest.request:type_name -> Request
-	16, // 6: QueryResult.values:type_name -> QueryResult.Values
-	12, // 7: QueryResponse.result:type_name -> QueryResult
-	1,  // 8: TxRequest.type:type_name -> TxRequest.Type
-	3,  // 9: QueryResult.Values.parameters:type_name -> Parameter
-	6,  // 10: DB.Open:input_type -> OpenRequest
-	8,  // 11: DB.Exec:input_type -> ExecRequest
-	11, // 12: DB.Query:input_type -> QueryRequest
-	14, // 13: DB.Tx:input_type -> TxRequest
-	7,  // 14: DB.Open:output_type -> OpenResponse
-	10, // 15: DB.Exec:output_type -> ExecResponse
-	13, // 16: DB.Query:output_type -> QueryResponse
-	15, // 17: DB.Tx:output_type -> TxResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	4,  // 1: Statement.parameters:type_name -> Parameter
+	5,  // 2: Request.statements:type_name -> Statement
+	6,  // 3: ExecRequest.request:type_name -> Request
+	10, // 4: ExecResponse.result:type_name -> ExecResult
+	6,  // 5: QueryRequest.request:type_name -> Request
+	19, // 6: QueryResult.values:type_name -> QueryResult.Values
+	13, // 7: QueryResponse.result:type_name -> QueryResult
+	1,  // 8: BeginTxRequest.type:type_name -> BeginTxRequest.Type
+	2,  // 9: FinishTxRequest.type:type_name -> FinishTxRequest.Type
+	10, // 10: FinishTxResponse.result:type_name -> ExecResult
+	4,  // 11: QueryResult.Values.parameters:type_name -> Parameter
+	7,  // 12: DB.Open:input_type -> OpenRequest
+	9,  // 13: DB.Exec:input_type -> ExecRequest
+	12, // 14: DB.Query:input_type -> QueryRequest
+	15, // 15: DB.BeginTx:input_type -> BeginTxRequest
+	17, // 16: DB.FinishTx:input_type -> FinishTxRequest
+	8,  // 17: DB.Open:output_type -> OpenResponse
+	11, // 18: DB.Exec:output_type -> ExecResponse
+	14, // 19: DB.Query:output_type -> QueryResponse
+	16, // 20: DB.BeginTx:output_type -> BeginTxResponse
+	18, // 21: DB.FinishTx:output_type -> FinishTxResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_service_proto_init() }
@@ -1344,7 +1565,7 @@ func file_service_proto_init() {
 			}
 		}
 		file_service_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxRequest); i {
+			switch v := v.(*BeginTxRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1356,7 +1577,7 @@ func file_service_proto_init() {
 			}
 		}
 		file_service_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TxResponse); i {
+			switch v := v.(*BeginTxResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1368,6 +1589,30 @@ func file_service_proto_init() {
 			}
 		}
 		file_service_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FinishTxRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FinishTxResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueryResult_Values); i {
 			case 0:
 				return &v.state
@@ -1392,8 +1637,8 @@ func file_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_service_proto_rawDesc,
-			NumEnums:      2,
-			NumMessages:   15,
+			NumEnums:      3,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -1423,7 +1668,8 @@ type DBClient interface {
 	Open(ctx context.Context, in *OpenRequest, opts ...grpc.CallOption) (*OpenResponse, error)
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
-	Tx(ctx context.Context, in *TxRequest, opts ...grpc.CallOption) (*TxResponse, error)
+	BeginTx(ctx context.Context, in *BeginTxRequest, opts ...grpc.CallOption) (*BeginTxResponse, error)
+	FinishTx(ctx context.Context, in *FinishTxRequest, opts ...grpc.CallOption) (*FinishTxResponse, error)
 }
 
 type dBClient struct {
@@ -1461,9 +1707,18 @@ func (c *dBClient) Query(ctx context.Context, in *QueryRequest, opts ...grpc.Cal
 	return out, nil
 }
 
-func (c *dBClient) Tx(ctx context.Context, in *TxRequest, opts ...grpc.CallOption) (*TxResponse, error) {
-	out := new(TxResponse)
-	err := c.cc.Invoke(ctx, "/DB/Tx", in, out, opts...)
+func (c *dBClient) BeginTx(ctx context.Context, in *BeginTxRequest, opts ...grpc.CallOption) (*BeginTxResponse, error) {
+	out := new(BeginTxResponse)
+	err := c.cc.Invoke(ctx, "/DB/BeginTx", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dBClient) FinishTx(ctx context.Context, in *FinishTxRequest, opts ...grpc.CallOption) (*FinishTxResponse, error) {
+	out := new(FinishTxResponse)
+	err := c.cc.Invoke(ctx, "/DB/FinishTx", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1475,7 +1730,8 @@ type DBServer interface {
 	Open(context.Context, *OpenRequest) (*OpenResponse, error)
 	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
-	Tx(context.Context, *TxRequest) (*TxResponse, error)
+	BeginTx(context.Context, *BeginTxRequest) (*BeginTxResponse, error)
+	FinishTx(context.Context, *FinishTxRequest) (*FinishTxResponse, error)
 }
 
 // UnimplementedDBServer can be embedded to have forward compatible implementations.
@@ -1491,8 +1747,11 @@ func (*UnimplementedDBServer) Exec(context.Context, *ExecRequest) (*ExecResponse
 func (*UnimplementedDBServer) Query(context.Context, *QueryRequest) (*QueryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Query not implemented")
 }
-func (*UnimplementedDBServer) Tx(context.Context, *TxRequest) (*TxResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Tx not implemented")
+func (*UnimplementedDBServer) BeginTx(context.Context, *BeginTxRequest) (*BeginTxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BeginTx not implemented")
+}
+func (*UnimplementedDBServer) FinishTx(context.Context, *FinishTxRequest) (*FinishTxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinishTx not implemented")
 }
 
 func RegisterDBServer(s *grpc.Server, srv DBServer) {
@@ -1553,20 +1812,38 @@ func _DB_Query_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DB_Tx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TxRequest)
+func _DB_BeginTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BeginTxRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DBServer).Tx(ctx, in)
+		return srv.(DBServer).BeginTx(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/DB/Tx",
+		FullMethod: "/DB/BeginTx",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DBServer).Tx(ctx, req.(*TxRequest))
+		return srv.(DBServer).BeginTx(ctx, req.(*BeginTxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DB_FinishTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinishTxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBServer).FinishTx(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DB/FinishTx",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBServer).FinishTx(ctx, req.(*FinishTxRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1588,8 +1865,12 @@ var _DB_serviceDesc = grpc.ServiceDesc{
 			Handler:    _DB_Query_Handler,
 		},
 		{
-			MethodName: "Tx",
-			Handler:    _DB_Tx_Handler,
+			MethodName: "BeginTx",
+			Handler:    _DB_BeginTx_Handler,
+		},
+		{
+			MethodName: "FinishTx",
+			Handler:    _DB_FinishTx_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -6,7 +6,8 @@ service DB {
   rpc Open(OpenRequest) returns (OpenResponse) {}
   rpc Exec(ExecRequest) returns (ExecResponse) {}
   rpc Query(QueryRequest) returns (QueryResponse) {}
-  rpc Tx(TxRequest) returns (TxResponse) {}
+  rpc BeginTx(BeginTxRequest) returns (BeginTxResponse) {}
+  rpc FinishTx(FinishTxRequest) returns (FinishTxResponse) {}
 }
 
 message Command {
@@ -86,16 +87,36 @@ message QueryResponse {
   repeated QueryResult result = 1;
 }
 
-message TxRequest {
+message BeginTxRequest {
   enum Type {
-    TX_TYPE_BEGIN = 0;
-    TX_TYPE_COMMIT = 1;
-    TX_TYPE_ROLLBACK = 2;
+    TX_TYPE_BEGIN_LevelDefault = 0;
+    TX_TYPE_BEGIN_LevelReadUncommitted = 1;
+    TX_TYPE_BEGIN_LevelReadCommitted = 2;
+    TX_TYPE_BEGIN_LevelWriteCommitted = 3;
+    TX_TYPE_BEGIN_LevelRepeatableRead = 4;
+    TX_TYPE_BEGIN_LevelSnapshot = 5;
+    TX_TYPE_BEGIN_LevelSerializable = 6;
+    TX_TYPE_BEGIN_LevelLinearizable = 7;
   }
   Type type = 1;
-  string tx_token = 2;
+  bool readonly = 2;
+  string tx_token = 3;
+  uint64 db_id = 4;
 }
 
-message TxResponse {
+message BeginTxResponse {
   string tx_token = 1;
+}
+
+message FinishTxRequest {
+  enum Type {
+    TX_TYPE_COMMIT = 0;
+    TX_TYPE_ROLLBACK = 1;
+  }
+  Type type = 1;
+  string tx_token = 3;
+}
+
+message FinishTxResponse {
+  repeated ExecResult result = 1;
 }

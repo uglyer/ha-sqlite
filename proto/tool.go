@@ -252,3 +252,30 @@ func DriverNamedValueToParameters(args []driver.NamedValue) ([]*Parameter, error
 func ValuesToParameters(args []driver.Value) ([]*Parameter, error) {
 	return DriverNamedValueToParameters(ValuesToNamedValues(args))
 }
+
+func (b *BeginTxRequest) TxOptions() *sql.TxOptions {
+	return &sql.TxOptions{
+		Isolation: b.IsolationLevel(),
+		ReadOnly:  b.Readonly,
+	}
+}
+func (b *BeginTxRequest) IsolationLevel() sql.IsolationLevel {
+	if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelDefault {
+		return sql.LevelDefault
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelReadUncommitted {
+		return sql.LevelReadUncommitted
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelReadCommitted {
+		return sql.LevelReadCommitted
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelWriteCommitted {
+		return sql.LevelWriteCommitted
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelRepeatableRead {
+		return sql.LevelRepeatableRead
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelSnapshot {
+		return sql.LevelSnapshot
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelSerializable {
+		return sql.LevelSerializable
+	} else if b.Type == BeginTxRequest_TX_TYPE_BEGIN_LevelLinearizable {
+		return sql.LevelLinearizable
+	}
+	return sql.LevelDefault
+}
