@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3" // Go SQLite bindings
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -17,6 +18,13 @@ type HaSqliteDB struct {
 	dbIndex            uint64
 	dbFilenameTokenMap map[string]uint64
 	dbMap              map[uint64]*sql.DB
+	txMap              map[uint64]*txInfo
+}
+
+type txInfo struct {
+	tx    *sql.Tx
+	mtx   sync.Mutex
+	token string
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
@@ -51,10 +59,15 @@ func (d *HaSqliteDB) Open(c context.Context, req *proto.OpenRequest) (*proto.Ope
 // Exec 执行数据库命令
 func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	db, ok := d.dbMap[req.Request.DbId]
-	if !ok {
+	tx, txok := d.txMap[req.Request.DbId]
+	db, dbok := d.dbMap[req.Request.DbId]
+	if !txok && !dbok {
+		d.mtx.Unlock()
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
+	}
+	if txok && tx.token != req.Request.TxToken {
+		d.mtx.Unlock()
+		return nil, fmt.Errorf("tx token error")
 	}
 	var allResults []*proto.ExecResult
 
@@ -83,13 +96,19 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 			}
 			break
 		}
-
-		r, err := db.ExecContext(c, ss, parameters...)
-		if err != nil {
-			if handleError(result, err) {
+		var r sql.Result
+		if txok {
+			r, err = tx.tx.ExecContext(c, ss, parameters...)
+			if err != nil {
+				handleError(result, err)
 				continue
 			}
-			break
+		} else {
+			r, err = db.ExecContext(c, ss, parameters...)
+			if err != nil {
+				handleError(result, err)
+				continue
+			}
 		}
 
 		if r == nil {
@@ -127,15 +146,20 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 // Query 查询记录
 func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	db, ok := d.dbMap[req.Request.DbId]
-	if !ok {
+	tx, txok := d.txMap[req.Request.DbId]
+	db, dbok := d.dbMap[req.Request.DbId]
+	if !txok && !dbok {
+		d.mtx.Unlock()
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
+	}
+	if txok && tx.token != req.Request.TxToken {
+		d.mtx.Unlock()
+		return nil, fmt.Errorf("tx token error")
 	}
 	var allRows []*proto.QueryResult
 	for _, stmt := range req.Request.Statements {
-		sql := stmt.Sql
-		if sql == "" {
+		query := stmt.Sql
+		if query == "" {
 			continue
 		}
 
@@ -148,12 +172,21 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 			allRows = append(allRows, rows)
 			continue
 		}
-
-		rs, err := db.QueryContext(c, sql, parameters...)
-		if err != nil {
-			rows.Error = err.Error()
-			allRows = append(allRows, rows)
-			continue
+		var rs *sql.Rows
+		if txok {
+			rs, err = tx.tx.QueryContext(c, query, parameters...)
+			if err != nil {
+				rows.Error = err.Error()
+				allRows = append(allRows, rows)
+				continue
+			}
+		} else {
+			rs, err = db.QueryContext(c, query, parameters...)
+			if err != nil {
+				rows.Error = err.Error()
+				allRows = append(allRows, rows)
+				continue
+			}
 		}
 		defer rs.Close()
 
@@ -216,11 +249,15 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	// TODO sqlite3 不支持多种级别的事务, 需要自行实现
-	_, err := db.BeginTx(c, req.TxOptions())
+	beforeTx, ok := d.txMap[req.DbId]
+	if ok {
+		beforeTx.mtx.Lock()
+		defer beforeTx.mtx.Unlock()
+	}
+	tx, err := db.BeginTx(c, req.TxOptions())
 	if err != nil {
 		return nil, err
 	}
-	//tx.Query()
+	d.txMap[req.DbId] = &txInfo{tx: tx, token: uuid.New().String()}
 	return nil, fmt.Errorf("todo impl begin tx")
 }
