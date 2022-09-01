@@ -6,6 +6,7 @@ service DB {
   rpc Open(OpenRequest) returns (OpenResponse) {}
   rpc Exec(ExecRequest) returns (ExecResponse) {}
   rpc Query(QueryRequest) returns (QueryResponse) {}
+  rpc Tx(TxRequest) returns (TxResponse) {}
 }
 
 message Command {
@@ -37,7 +38,7 @@ message Statement {
 
 message Request {
   uint64 db_id = 1;
-  uint64 transaction_token = 2;
+  string tx_token = 2;
   repeated Statement statements = 3;
 }
 
@@ -83,4 +84,18 @@ message QueryResult {
 
 message QueryResponse {
   repeated QueryResult result = 1;
+}
+
+message TxRequest {
+  enum Type {
+    TX_TYPE_BEGIN = 0;
+    TX_TYPE_COMMIT = 1;
+    TX_TYPE_ROLLBACK = 2;
+  }
+  Type type = 1;
+  string tx_token = 2;
+}
+
+message TxResponse {
+  string tx_token = 1;
 }
