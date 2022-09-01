@@ -207,3 +207,20 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 
 	return &proto.QueryResponse{Result: allRows}, nil
 }
+
+// BeginTx 开始事务执行
+func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	db, ok := d.dbMap[req.DbId]
+	if !ok {
+		return nil, fmt.Errorf("get db error : %d", req.DbId)
+	}
+	// TODO sqlite3 不支持多种级别的事务, 需要自行实现
+	_, err := db.BeginTx(c, req.TxOptions())
+	if err != nil {
+		return nil, err
+	}
+	//tx.Query()
+	return nil, fmt.Errorf("todo impl begin tx")
+}
