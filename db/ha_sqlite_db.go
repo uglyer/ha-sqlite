@@ -15,6 +15,7 @@ import (
 
 type HaSqliteDB struct {
 	mtx                sync.RWMutex
+	txMtx              sync.RWMutex
 	dbIndex            uint64
 	dbFilenameTokenMap map[string]uint64
 	dbMap              map[uint64]*sql.DB
@@ -23,7 +24,8 @@ type HaSqliteDB struct {
 
 type txInfo struct {
 	tx    *sql.Tx
-	mtx   sync.Mutex
+	ch    chan struct{}
+	wg    sync.WaitGroup
 	token string
 }
 
@@ -59,7 +61,7 @@ func (d *HaSqliteDB) Open(c context.Context, req *proto.OpenRequest) (*proto.Ope
 // Exec 执行数据库命令
 func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
 	d.mtx.Lock()
-	tx, txok := d.txMap[req.Request.DbId]
+	tx, txok := d.getTx(req.Request.DbId)
 	db, dbok := d.dbMap[req.Request.DbId]
 	if !txok && !dbok {
 		d.mtx.Unlock()
@@ -69,6 +71,7 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("tx token error")
 	}
+	defer d.mtx.Unlock()
 	var allResults []*proto.ExecResult
 
 	// handleError sets the error field on the given result. It returns
@@ -146,7 +149,7 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 // Query 查询记录
 func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
 	d.mtx.Lock()
-	tx, txok := d.txMap[req.Request.DbId]
+	tx, txok := d.getTx(req.Request.DbId)
 	db, dbok := d.dbMap[req.Request.DbId]
 	if !txok && !dbok {
 		d.mtx.Unlock()
@@ -156,6 +159,7 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("tx token error")
 	}
+	defer d.mtx.Unlock()
 	var allRows []*proto.QueryResult
 	for _, stmt := range req.Request.Statements {
 		query := stmt.Sql
@@ -241,23 +245,62 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 	return &proto.QueryResponse{Result: allRows}, nil
 }
 
+func (d *HaSqliteDB) getTx(dbId uint64) (*txInfo, bool) {
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	tx, ok := d.txMap[dbId]
+	return tx, ok
+}
+
+func (d *HaSqliteDB) setTx(dbId uint64, tx *txInfo) {
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	beforeTx, ok := d.txMap[dbId]
+	if ok {
+		beforeTx.wg.Wait()
+	}
+	d.txMap[dbId] = tx
+}
+
 // BeginTx 开始事务执行
 func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
 	d.mtx.Lock()
-	defer d.mtx.Unlock()
 	db, ok := d.dbMap[req.DbId]
+	d.mtx.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	beforeTx, ok := d.txMap[req.DbId]
-	if ok {
-		beforeTx.mtx.Lock()
-		defer beforeTx.mtx.Unlock()
-	}
+	// TODO 实现 dbId 的等待队列，避免多个事务抢占执行
+	//beforeTx, ok := d.getTx(req.DbId)
+	//if ok {
+	//	<-beforeTx.ch
+	//}
 	tx, err := db.BeginTx(c, req.TxOptions())
 	if err != nil {
 		return nil, err
 	}
-	d.txMap[req.DbId] = &txInfo{tx: tx, token: uuid.New().String()}
+	token := uuid.New().String()
+	d.setTx(req.DbId, &txInfo{tx: tx, token: token, ch: make(chan struct{}, 1)})
 	return nil, fmt.Errorf("todo impl begin tx")
+}
+
+// FinishTx 开始事务执行
+func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+	d.mtx.Lock()
+	//db, ok := d.dbMap[req.DbId]
+	//d.mtx.Unlock()
+	//if !ok {
+	//	return nil, fmt.Errorf("get db error : %d", req.DbId)
+	//}
+	//beforeTx, ok := d.getTx(req.DbId)
+	//if ok {
+	//	beforeTx.mtx.Lock()
+	//	defer beforeTx.mtx.Unlock()
+	//}
+	//tx, err := db.BeginTx(c, req.TxOptions())
+	//if err != nil {
+	//	return nil, err
+	//}
+	//d.txMap[req.DbId] = &txInfo{tx: tx, token: uuid.New().String()}
+	return nil, fmt.Errorf("todo impl finish tx")
 }

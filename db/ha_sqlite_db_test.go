@@ -143,3 +143,18 @@ func Test_Query(t *testing.T) {
 	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
 	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
+
+func Test_Tx(t *testing.T) {
+	store, err := openDB(t)
+	assert.Nilf(t, err, "打开数据库")
+	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	store.assertExecBatch(
+		"INSERT INTO foo(name) VALUES(\"data 1\")",
+		"INSERT INTO foo(name) VALUES(\"data 2\")",
+		"INSERT INTO foo(name) VALUES(\"data 3\")",
+		"INSERT INTO foo(name) VALUES(\"data 4\")",
+		"INSERT INTO foo(name) VALUES(\"data 5\")",
+	)
+	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+}

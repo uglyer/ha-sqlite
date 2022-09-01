@@ -114,7 +114,8 @@ message FinishTxRequest {
     TX_TYPE_ROLLBACK = 1;
   }
   Type type = 1;
-  string tx_token = 3;
+  string tx_token = 2;
+  uint64 db_id = 3;
 }
 
 message FinishTxResponse {
