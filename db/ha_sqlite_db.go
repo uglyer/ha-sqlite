@@ -10,12 +10,13 @@ import (
 	"github.com/uglyer/ha-sqlite/proto"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type HaSqliteDB struct {
-	mtx                sync.RWMutex
-	txMtx              sync.RWMutex
+	mtx                sync.Mutex
+	txMtx              sync.Mutex
 	dbIndex            uint64
 	dbFilenameTokenMap map[string]uint64
 	dbMap              map[uint64]*sql.DB
@@ -23,10 +24,30 @@ type HaSqliteDB struct {
 }
 
 type txInfo struct {
-	tx    *sql.Tx
-	ch    chan struct{}
-	wg    sync.WaitGroup
-	token string
+	tx        *sql.Tx
+	ch        chan struct{}
+	token     string
+	waitCount uint64
+	mtx       sync.Mutex
+	wg        *sync.WaitGroup
+}
+
+func (tx *txInfo) callNext() {
+	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
+	atomic.AddUint64(&tx.waitCount, -1)
+	if tx.waitCount == 0 {
+		close(tx.ch)
+		return
+	}
+	tx.ch <- struct{}{}
+}
+
+func (tx *txInfo) wait() {
+	tx.mtx.Lock()
+	atomic.AddUint64(&tx.waitCount, 1)
+	tx.mtx.Unlock()
+	<-tx.ch
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
@@ -67,7 +88,16 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
-	if txok && tx.token != req.Request.TxToken {
+	if txok && req.Request.TxToken == "" {
+		// 如果不含 tx token 的事件, 等待事务结束后执行
+		// 先解锁, 避免全局死锁
+		d.mtx.Unlock()
+		tx.wg.Wait()
+		d.mtx.Lock()
+		// 置空, 此请求非事务操作
+		tx = nil
+		txok = false
+	} else if txok && tx.token != req.Request.TxToken {
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("tx token error")
 	}
@@ -155,7 +185,16 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
-	if txok && tx.token != req.Request.TxToken {
+	if txok && req.Request.TxToken == "" {
+		// 如果不含 tx token 的事件, 等待事务结束后执行
+		// 先解锁, 避免全局死锁
+		d.mtx.Unlock()
+		tx.wg.Wait()
+		d.mtx.Lock()
+		// 置空, 此请求非事务操作
+		tx = nil
+		txok = false
+	} else if txok && tx.token != req.Request.TxToken {
 		d.mtx.Unlock()
 		return nil, fmt.Errorf("tx token error")
 	}
@@ -255,11 +294,13 @@ func (d *HaSqliteDB) getTx(dbId uint64) (*txInfo, bool) {
 func (d *HaSqliteDB) setTx(dbId uint64, tx *txInfo) {
 	d.txMtx.Lock()
 	defer d.txMtx.Unlock()
-	beforeTx, ok := d.txMap[dbId]
-	if ok {
-		beforeTx.wg.Wait()
-	}
 	d.txMap[dbId] = tx
+}
+
+func (d *HaSqliteDB) deleteTx(dbId uint64) {
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	delete(d.txMap, dbId)
 }
 
 // BeginTx 开始事务执行
@@ -271,36 +312,63 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
 	// TODO 实现 dbId 的等待队列，避免多个事务抢占执行
-	//beforeTx, ok := d.getTx(req.DbId)
-	//if ok {
-	//	<-beforeTx.ch
-	//}
+	beforeTx, ok := d.getTx(req.DbId)
+	token := uuid.New().String()
+	if ok {
+		// 等待上一个的结束事务事件
+		beforeTx.wait()
+	}
 	tx, err := db.BeginTx(c, req.TxOptions())
 	if err != nil {
 		return nil, err
 	}
-	token := uuid.New().String()
-	d.setTx(req.DbId, &txInfo{tx: tx, token: token, ch: make(chan struct{}, 1)})
+	nextTxInfo := &txInfo{tx: tx, token: token}
+	if ok {
+		// 复用同一个管道和waitGroup, 确保处理同时发起2个以上的事务执行能正确接收事件
+		nextTxInfo.ch = beforeTx.ch
+		nextTxInfo.wg = beforeTx.wg
+	} else {
+		nextTxInfo.ch = make(chan struct{}, 1)
+		nextTxInfo.wg = &sync.WaitGroup{}
+	}
+	d.setTx(req.DbId, nextTxInfo)
+	nextTxInfo.wg.Add(1)
 	return nil, fmt.Errorf("todo impl begin tx")
 }
 
 // FinishTx 开始事务执行
 func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
 	d.mtx.Lock()
-	//db, ok := d.dbMap[req.DbId]
-	//d.mtx.Unlock()
-	//if !ok {
-	//	return nil, fmt.Errorf("get db error : %d", req.DbId)
-	//}
-	//beforeTx, ok := d.getTx(req.DbId)
-	//if ok {
-	//	beforeTx.mtx.Lock()
-	//	defer beforeTx.mtx.Unlock()
-	//}
-	//tx, err := db.BeginTx(c, req.TxOptions())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//d.txMap[req.DbId] = &txInfo{tx: tx, token: uuid.New().String()}
-	return nil, fmt.Errorf("todo impl finish tx")
+	_, ok := d.dbMap[req.DbId]
+	d.mtx.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("get db error : %d", req.DbId)
+	}
+	beforeTx, ok := d.getTx(req.DbId)
+	if !ok {
+		return nil, fmt.Errorf("get tx error : %d", req.DbId)
+	}
+	if beforeTx.token != req.TxToken {
+		return nil, fmt.Errorf("tx token error")
+	}
+	defer func() {
+		// 结束后删除tx,并且通知下一个
+		d.deleteTx(req.DbId)
+		beforeTx.callNext()
+		beforeTx.wg.Done()
+	}()
+	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
+		err := beforeTx.tx.Commit()
+		if err != nil {
+			return nil, fmt.Errorf("tx commit error : %v", err)
+		}
+		return &proto.FinishTxResponse{}, nil
+	} else if req.Type == proto.FinishTxRequest_TX_TYPE_ROLLBACK {
+		err := beforeTx.tx.Rollback()
+		if err != nil {
+			return nil, fmt.Errorf("tx rollback error : %v", err)
+		}
+		return &proto.FinishTxResponse{}, nil
+	}
+	panic(fmt.Sprintf("unknow tx type :%s", req.Type.String()))
 }
