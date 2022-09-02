@@ -14,8 +14,10 @@ require (
 
 require (
 	github.com/Jille/grpc-multi-resolver v1.1.0
+	github.com/google/uuid v1.1.2
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/pkg/errors v0.8.1
 	github.com/shimingyah/pool v1.0.0
+	github.com/stretchr/testify v1.7.0
 	google.golang.org/protobuf v1.27.1
 )
