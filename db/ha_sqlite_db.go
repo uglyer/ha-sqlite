@@ -57,6 +57,7 @@ func NewHaSqliteDB() (*HaSqliteDB, error) {
 		dbIndex:            0,
 		dbFilenameTokenMap: make(map[string]uint64),
 		dbMap:              make(map[uint64]*sql.DB),
+		txMap:              make(map[uint64]*txInfo),
 	}, nil
 }
 
@@ -311,7 +312,6 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	// TODO 实现 dbId 的等待队列，避免多个事务抢占执行
 	beforeTx, ok := d.getTx(req.DbId)
 	token := uuid.New().String()
 	if ok {
@@ -335,7 +335,7 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 	}
 	d.setTx(req.DbId, nextTxInfo)
 	nextTxInfo.wg.Add(1)
-	return nil, fmt.Errorf("todo impl begin tx")
+	return &proto.BeginTxResponse{TxToken: token}, nil
 }
 
 // FinishTx 开始事务执行

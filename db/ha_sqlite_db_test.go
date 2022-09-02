@@ -11,9 +11,10 @@ import (
 )
 
 type Store struct {
-	db *db.HaSqliteDB
-	id uint64
-	t  *testing.T
+	db      *db.HaSqliteDB
+	id      uint64
+	t       *testing.T
+	txToken string
 }
 
 func (store *Store) buildRequest(sql string, args ...driver.Value) *proto.Request {
@@ -22,6 +23,7 @@ func (store *Store) buildRequest(sql string, args ...driver.Value) *proto.Reques
 	assert.Nil(store.t, err)
 	statements[0] = &proto.Statement{Sql: sql, Parameters: parameters}
 	return &proto.Request{
+		TxToken:    store.txToken,
 		DbId:       store.id,
 		Statements: statements,
 	}
@@ -33,6 +35,7 @@ func (store *Store) buildRequestBatch(sql ...string) *proto.Request {
 		statements[i] = &proto.Statement{Sql: s}
 	}
 	return &proto.Request{
+		TxToken:    store.txToken,
 		DbId:       store.id,
 		Statements: statements,
 	}
@@ -59,6 +62,30 @@ func (store *Store) query(sql string, args ...driver.Value) *proto.QueryResponse
 	assert.Equal(store.t, 1, len(resp.Result))
 	assert.Empty(store.t, resp.Result[0].Error)
 	return resp
+}
+
+func (store *Store) beginTx() {
+	resp, err := store.db.BeginTx(context.Background(),
+		&proto.BeginTxRequest{
+			Type: proto.BeginTxRequest_TX_TYPE_BEGIN_LevelDefault,
+			DbId: store.id,
+		},
+	)
+	assert.Nil(store.t, err)
+	assert.NotEmpty(store.t, resp.TxToken)
+	store.txToken = resp.TxToken
+}
+
+func (store *Store) finishTx(txType proto.FinishTxRequest_Type) {
+	_, err := store.db.FinishTx(context.Background(),
+		&proto.FinishTxRequest{
+			Type:    txType,
+			DbId:    store.id,
+			TxToken: store.txToken,
+		},
+	)
+	assert.Nil(store.t, err)
+	store.txToken = ""
 }
 
 func (store *Store) assertExec(sql string, args ...driver.Value) {
@@ -148,6 +175,7 @@ func Test_Tx(t *testing.T) {
 	store, err := openDB(t)
 	assert.Nilf(t, err, "打开数据库")
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	store.beginTx()
 	store.assertExecBatch(
 		"INSERT INTO foo(name) VALUES(\"data 1\")",
 		"INSERT INTO foo(name) VALUES(\"data 2\")",
@@ -156,5 +184,21 @@ func Test_Tx(t *testing.T) {
 		"INSERT INTO foo(name) VALUES(\"data 5\")",
 	)
 	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+	store.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+	resp = store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 0, len(resp.Result[0].Values))
+	store.beginTx()
+	store.assertExecBatch(
+		"INSERT INTO foo(name) VALUES(\"data 1\")",
+		"INSERT INTO foo(name) VALUES(\"data 2\")",
+		"INSERT INTO foo(name) VALUES(\"data 3\")",
+		"INSERT INTO foo(name) VALUES(\"data 4\")",
+		"INSERT INTO foo(name) VALUES(\"data 5\")",
+	)
+	resp = store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+	store.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
+	resp = store.query("SELECT * FROM foo WHERE name = ?", "data 1")
 	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
