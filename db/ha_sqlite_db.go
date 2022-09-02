@@ -27,7 +27,7 @@ type txInfo struct {
 	tx        *sql.Tx
 	ch        chan struct{}
 	token     string
-	waitCount uint64
+	waitCount int32
 	mtx       sync.Mutex
 	wg        *sync.WaitGroup
 }
@@ -35,7 +35,7 @@ type txInfo struct {
 func (tx *txInfo) callNext() {
 	tx.mtx.Lock()
 	defer tx.mtx.Unlock()
-	atomic.AddUint64(&tx.waitCount, -1)
+	atomic.AddInt32(&tx.waitCount, -1)
 	if tx.waitCount == 0 {
 		close(tx.ch)
 		return
@@ -45,7 +45,7 @@ func (tx *txInfo) callNext() {
 
 func (tx *txInfo) wait() {
 	tx.mtx.Lock()
-	atomic.AddUint64(&tx.waitCount, 1)
+	atomic.AddInt32(&tx.waitCount, 1)
 	tx.mtx.Unlock()
 	<-tx.ch
 }
@@ -327,9 +327,11 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 		// 复用同一个管道和waitGroup, 确保处理同时发起2个以上的事务执行能正确接收事件
 		nextTxInfo.ch = beforeTx.ch
 		nextTxInfo.wg = beforeTx.wg
+		nextTxInfo.waitCount = beforeTx.waitCount
 	} else {
 		nextTxInfo.ch = make(chan struct{}, 1)
 		nextTxInfo.wg = &sync.WaitGroup{}
+		nextTxInfo.waitCount = 0
 	}
 	d.setTx(req.DbId, nextTxInfo)
 	nextTxInfo.wg.Add(1)
