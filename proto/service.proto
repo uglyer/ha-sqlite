@@ -119,5 +119,5 @@ message FinishTxRequest {
 }
 
 message FinishTxResponse {
-  repeated ExecResult result = 1;
+
 }
