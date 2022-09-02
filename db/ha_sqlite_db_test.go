@@ -7,6 +7,7 @@ import (
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
 	"log"
+	"sync"
 	"testing"
 )
 
@@ -39,6 +40,10 @@ func (store *Store) buildRequestBatch(sql ...string) *proto.Request {
 		DbId:       store.id,
 		Statements: statements,
 	}
+}
+
+func (store *Store) cloneConn() *Store {
+	return &Store{db: store.db, id: store.id, t: store.t}
 }
 
 func (store *Store) exec(sql string, args ...driver.Value) *proto.ExecResponse {
@@ -112,24 +117,22 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 	}
 }
 
-func openDB(t *testing.T) (*Store, error) {
+func openDB(t *testing.T) *Store {
 	store, err := db.NewHaSqliteDB()
 	assert.Nilf(t, err, "NewHaSqliteDB")
 	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: ":memory:"})
 	assert.Nilf(t, err, "store.Open")
-	return &Store{db: store, id: openResp.DbId, t: t}, nil
+	return &Store{db: store, id: openResp.DbId, t: t}
 }
 
 func Test_OpenDB(t *testing.T) {
-	store, err := openDB(t)
-	assert.Nilf(t, err, "打开数据库")
+	store := openDB(t)
 	assert.NotEqual(t, 0, store.id)
 	log.Printf("openResp.DbId:%d", store.id)
 }
 
 func Test_Exec(t *testing.T) {
-	store, err := openDB(t)
-	assert.Nilf(t, err, "打开数据库")
+	store := openDB(t)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
 		"INSERT INTO foo(name) VALUES(?)", "test1")
@@ -144,8 +147,7 @@ func Test_Exec(t *testing.T) {
 }
 
 func Test_ExecBatch(t *testing.T) {
-	store, err := openDB(t)
-	assert.Nilf(t, err, "打开数据库")
+	store := openDB(t)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	store.assertExecBatch(
 		"INSERT INTO foo(name) VALUES(\"data 1\")",
@@ -157,8 +159,7 @@ func Test_ExecBatch(t *testing.T) {
 }
 
 func Test_Query(t *testing.T) {
-	store, err := openDB(t)
-	assert.Nilf(t, err, "打开数据库")
+	store := openDB(t)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	store.assertExecBatch(
 		"INSERT INTO foo(name) VALUES(\"data 1\")",
@@ -172,8 +173,7 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Tx(t *testing.T) {
-	store, err := openDB(t)
-	assert.Nilf(t, err, "打开数据库")
+	store := openDB(t)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	store.beginTx()
 	store.assertExecBatch(
@@ -201,4 +201,42 @@ func Test_Tx(t *testing.T) {
 	store.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
 	resp = store.query("SELECT * FROM foo WHERE name = ?", "data 1")
 	assert.Equal(t, 1, len(resp.Result[0].Values))
+}
+
+func Test_TxMixOtherQuery(t *testing.T) {
+	store := openDB(t)
+	store2 := store.cloneConn()
+	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	store.beginTx()
+	store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		resp := store2.query("SELECT * FROM foo WHERE name = ?", "data 1")
+		assert.Equal(t, 0, len(resp.Result[0].Values))
+		wg.Done()
+	}()
+	go func() {
+		resp := store2.query("SELECT * FROM foo WHERE name = ?", "data 1")
+		assert.Equal(t, 0, len(resp.Result[0].Values))
+		wg.Done()
+	}()
+	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+	store.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+
+	wg.Wait()
+	store2.beginTx()
+	wg.Add(1)
+	go func() {
+		store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
+		resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+		assert.Equal(t, 2, len(resp.Result[0].Values))
+		wg.Done()
+	}()
+	store2.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	resp = store2.query("SELECT * FROM foo WHERE name = ?", "data 1")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+	store2.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
+	wg.Wait()
 }
