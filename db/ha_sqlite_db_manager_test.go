@@ -119,8 +119,8 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 }
 
 func openDB(t *testing.T) *Store {
-	store, err := db.NewHaSqliteDB()
-	assert.Nilf(t, err, "NewHaSqliteDB")
+	store, err := db.NewHaSqliteDBManager()
+	assert.Nilf(t, err, "NewHaSqliteDBManager")
 	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: ":memory:"})
 	assert.Nilf(t, err, "store.Open")
 	return &Store{db: store, id: openResp.DbId, t: t}

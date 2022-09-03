@@ -26,7 +26,7 @@ type HaSqliteRaftFSM struct {
 //var _ raft.FSM = &HaSqliteRaftFSM{}
 
 func NewHaSqliteRaftFSM() (*HaSqliteRaftFSM, error) {
-	store, err := NewHaSqliteDB()
+	store, err := NewHaSqliteDBManager()
 	if err != nil {
 		return nil, err
 	}

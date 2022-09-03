@@ -26,7 +26,7 @@ type RPCStore struct {
 func NewRPCStore(t *testing.T, port uint16) *RPCStore {
 	sock, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	assert.Nil(t, err)
-	store, err := hadb.NewHaSqliteDB()
+	store, err := hadb.NewHaSqliteDBManager()
 	assert.Nil(t, err)
 	s := grpc.NewServer()
 	proto.RegisterDBServer(s, store)
