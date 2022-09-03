@@ -100,8 +100,7 @@ message BeginTxRequest {
   }
   Type type = 1;
   bool readonly = 2;
-  string tx_token = 3;
-  uint64 db_id = 4;
+  uint64 db_id = 3;
 }
 
 message BeginTxResponse {
