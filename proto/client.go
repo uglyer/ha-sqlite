@@ -36,3 +36,17 @@ func DBClientExecCheckResult(client DBClient, ctx context.Context, in *ExecReque
 		lastInsertId: resp.Result[0].LastInsertId,
 	}, nil
 }
+
+func DBClientQueryCheckResult(client DBClient, ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (driver.Rows, error) {
+	resp, err := client.Query(ctx, in, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("exec error: %v", err)
+	}
+	if resp == nil || len(resp.Result) == 0 {
+		return nil, fmt.Errorf("exec without resp")
+	}
+	if resp.Result[0].Error != "" {
+		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
+	}
+	return NewHaSqliteRowsFromSingleQueryResult(resp.Result[0]), nil
+}

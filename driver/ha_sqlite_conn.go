@@ -164,18 +164,9 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
-	resp, err := c.Client.Query(ctx, &proto.QueryRequest{Request: &proto.Request{
+	req := &proto.QueryRequest{Request: &proto.Request{
 		DbId:       c.dbId,
 		Statements: statements,
-	}})
-	if err != nil {
-		return nil, fmt.Errorf("exec error: %v", err)
-	}
-	if resp == nil || len(resp.Result) == 0 {
-		return nil, fmt.Errorf("exec without resp")
-	}
-	if resp.Result[0].Error != "" {
-		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
-	}
-	return NewHaSqliteRowsFromSingleQueryResult(resp.Result[0]), nil
+	}}
+	return proto.DBClientQueryCheckResult(c.Client, ctx, req)
 }

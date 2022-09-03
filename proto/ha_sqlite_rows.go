@@ -1,18 +1,17 @@
-package driver
+package proto
 
 import (
 	"database/sql/driver"
-	"github.com/uglyer/ha-sqlite/proto"
 	"io"
 )
 
 type HaSqliteRows struct {
-	r     *proto.QueryResult
+	r     *QueryResult
 	index int
 	len   int
 }
 
-func NewHaSqliteRowsFromSingleQueryResult(r *proto.QueryResult) *HaSqliteRows {
+func NewHaSqliteRowsFromSingleQueryResult(r *QueryResult) *HaSqliteRows {
 	return &HaSqliteRows{
 		r:     r,
 		index: 0,
@@ -46,7 +45,7 @@ func (r *HaSqliteRows) Next(dest []driver.Value) error {
 	if r.index >= r.len {
 		return io.EOF
 	}
-	err := proto.ParametersCopyToDriverValues(dest, r.r.Values[r.index].Parameters)
+	err := ParametersCopyToDriverValues(dest, r.r.Values[r.index].Parameters)
 	if err != nil {
 		return err
 	}
