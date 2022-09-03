@@ -46,8 +46,10 @@ func (store *RPCStore) Close() {
 }
 
 type HaDB struct {
+	mtx   sync.Mutex
 	Store *RPCStore
 	db    *sql.DB
+	tx    *sql.Tx
 	t     *testing.T
 }
 
@@ -77,8 +79,15 @@ func openDB(t *testing.T, port uint16) *HaDB {
 }
 
 func (store *HaDB) assertExec(sql string, args ...interface{}) {
-	_, err := store.db.Exec(sql, args...)
-	assert.Nil(store.t, err)
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	if store.tx != nil {
+		_, err := store.tx.Exec(sql, args...)
+		assert.Nil(store.t, err)
+	} else {
+		_, err := store.db.Exec(sql, args...)
+		assert.Nil(store.t, err)
+	}
 }
 
 func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, args ...interface{}) {
@@ -92,8 +101,16 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 	assert.Equal(store.t, target.LastInsertId, lastInsertId)
 }
 
-func (store *HaDB) assertQuery(sql string, args ...interface{}) *sql.Rows {
-	result, err := store.db.Query(sql, args...)
+func (store *HaDB) assertQuery(query string, args ...interface{}) *sql.Rows {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	var result *sql.Rows
+	var err error
+	if store.tx != nil {
+		result, err = store.tx.Query(query, args...)
+	} else {
+		result, err = store.db.Query(query, args...)
+	}
 	assert.Nil(store.t, err)
 	return result
 }
@@ -127,6 +144,29 @@ func (store *HaDB) assertQueryValues(handler func(int), rows *sql.Rows, args ...
 		handler(i)
 		i++
 	}
+}
+
+func (store *HaDB) beginTx() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	assert.Nil(store.t, store.tx)
+	tx, err := store.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelLinearizable, ReadOnly: false})
+	assert.Nil(store.t, err)
+	store.tx = tx
+}
+
+func (store *HaDB) finishTx(t proto.FinishTxRequest_Type) {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+	assert.NotNil(store.t, store.tx)
+	if t == proto.FinishTxRequest_TX_TYPE_COMMIT {
+		err := store.tx.Commit()
+		assert.Nil(store.t, err)
+	} else if t == proto.FinishTxRequest_TX_TYPE_ROLLBACK {
+		err := store.tx.Rollback()
+		assert.Nil(store.t, err)
+	}
+	store.tx = nil
 }
 
 func Test_OpenDB(t *testing.T) {
@@ -210,4 +250,26 @@ func Test_Query(t *testing.T) {
 		assert.Equal(t, 1, id)
 		assert.Equal(t, "test1", name)
 	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+}
+
+func Test_Tx(t *testing.T) {
+	// TODO 存在死锁
+	var id int
+	var name string
+	db := openDB(t, 30330)
+	log.Println("openDB")
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	log.Println("assertExec")
+	db.beginTx()
+	log.Println("beginTx")
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	log.Println("assertExec")
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
+	db.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+	db.assertQueryCount(0, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
+	db.beginTx()
+	db.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
+	db.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
 }
