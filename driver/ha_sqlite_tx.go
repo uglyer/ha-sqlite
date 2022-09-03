@@ -65,9 +65,19 @@ func (tx *HaSqliteTx) QueryContext(ctx context.Context, query string, args ...dr
 }
 
 func (tx *HaSqliteTx) Commit() error {
-	return fmt.Errorf("todo impl HaSqliteTx Commit")
+	return tx.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
 }
 
 func (tx *HaSqliteTx) Rollback() error {
-	return fmt.Errorf("todo impl HaSqliteTx Rollback")
+	return tx.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+}
+
+func (tx *HaSqliteTx) finishTx(finishType proto.FinishTxRequest_Type) error {
+	req := &proto.FinishTxRequest{
+		Type:    finishType,
+		TxToken: tx.txToken,
+		DbId:    tx.dbId,
+	}
+	_, err := tx.client.FinishTx(context.Background(), req)
+	return err
 }
