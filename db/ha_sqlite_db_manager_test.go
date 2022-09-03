@@ -13,7 +13,7 @@ import (
 )
 
 type Store struct {
-	db      *db.HaSqliteDB
+	db      *db.HaSqliteDBManager
 	id      uint64
 	t       *testing.T
 	txToken string
@@ -276,5 +276,5 @@ func Test_TxBatch(t *testing.T) {
 	wg.Wait()
 	store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
 	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
-	assert.Equal(t, 1, len(resp.Result[0].Values))
+	assert.Equal(t, 2, len(resp.Result[0].Values))
 }

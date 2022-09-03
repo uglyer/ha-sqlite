@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type HaSqliteDB struct {
+type HaSqliteDBManager struct {
 	mtx                sync.Mutex
 	txMtx              sync.RWMutex
 	dbIndex            uint64
@@ -56,8 +56,8 @@ func (tx *txInfo) wait() {
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
 
-func NewHaSqliteDB() (*HaSqliteDB, error) {
-	return &HaSqliteDB{
+func NewHaSqliteDB() (*HaSqliteDBManager, error) {
+	return &HaSqliteDBManager{
 		dbIndex:            0,
 		dbFilenameTokenMap: make(map[string]uint64),
 		dbMap:              make(map[uint64]*sql.DB),
@@ -66,7 +66,7 @@ func NewHaSqliteDB() (*HaSqliteDB, error) {
 }
 
 // Open 打开数据库
-func (d *HaSqliteDB) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
+func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if token, ok := d.dbFilenameTokenMap[req.Dsn]; ok {
@@ -85,7 +85,7 @@ func (d *HaSqliteDB) Open(c context.Context, req *proto.OpenRequest) (*proto.Ope
 }
 
 // Exec 执行数据库命令
-func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
+func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
 	d.mtx.Lock()
 	fmt.Println("Exec get tx")
 	tx, txok := d.getTx(req.Request.DbId)
@@ -188,7 +188,7 @@ func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 }
 
 // Query 查询记录
-func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
+func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
 	d.mtx.Lock()
 	tx, txok := d.getTx(req.Request.DbId)
 	db, dbok := d.dbMap[req.Request.DbId]
@@ -295,21 +295,21 @@ func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.Q
 	return &proto.QueryResponse{Result: allRows}, nil
 }
 
-func (d *HaSqliteDB) getTx(dbId uint64) (*txInfo, bool) {
+func (d *HaSqliteDBManager) getTx(dbId uint64) (*txInfo, bool) {
 	d.txMtx.Lock()
 	defer d.txMtx.Unlock()
 	tx, ok := d.txMap[dbId]
 	return tx, ok
 }
 
-func (d *HaSqliteDB) deleteTx(dbId uint64) {
+func (d *HaSqliteDBManager) deleteTx(dbId uint64) {
 	d.txMtx.Lock()
 	defer d.txMtx.Unlock()
 	delete(d.txMap, dbId)
 }
 
 // BeginTx 开始事务执行
-func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
 	d.mtx.Lock()
 	db, ok := d.dbMap[req.DbId]
 	d.mtx.Unlock()
@@ -355,7 +355,7 @@ func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 }
 
 // FinishTx 开始事务执行
-func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
 	d.mtx.Lock()
 	_, ok := d.dbMap[req.DbId]
 	d.mtx.Unlock()

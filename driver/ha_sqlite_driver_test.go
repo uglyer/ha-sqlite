@@ -19,7 +19,7 @@ import (
 
 type RPCStore struct {
 	sock       net.Listener
-	db         *hadb.HaSqliteDB
+	db         *hadb.HaSqliteDBManager
 	grpcServer *grpc.Server
 }
 

@@ -19,7 +19,7 @@ const (
 // HaSqliteRaftFSM Raft 生命周期相关接口实现
 type HaSqliteRaftFSM struct {
 	mtx   sync.RWMutex
-	store *HaSqliteDB
+	store *HaSqliteDBManager
 	raft  *raft.Raft
 }
 
