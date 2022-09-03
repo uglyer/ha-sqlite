@@ -21,7 +21,7 @@ func (result *DBExecResult) RowsAffected() (int64, error) {
 }
 
 func DBClientExecCheckResult(client DBClient, ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (driver.Result, error) {
-	resp, err := client.Exec(ctx, in)
+	resp, err := client.Exec(ctx, in, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("exec error: %v", err)
 	}
