@@ -21,8 +21,6 @@ func NewHaSqliteLeaderNotify(raft *raft.Raft) *HaSqliteLeaderNotify {
 	return notify
 }
 
-// TODO 实现等待成功选举领导接口
-
 func (n *HaSqliteLeaderNotify) observeLeader() {
 	ch := make(chan raft.Observation, 1)
 	n.raft.RegisterObserver(raft.NewObserver(ch, true, func(o *raft.Observation) bool {
@@ -38,7 +36,7 @@ func (n *HaSqliteLeaderNotify) observeLeader() {
 			defer n.mtx.Unlock()
 			for {
 				if n.notifyList.Len() == 0 {
-					continue
+					break
 				}
 				it := n.notifyList.Front()
 				n.notifyList.Remove(it)
