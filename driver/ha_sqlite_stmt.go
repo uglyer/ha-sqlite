@@ -66,26 +66,13 @@ func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 	}
 
 	statements := []*proto.Statement{{Sql: s.query, Parameters: parameters}}
-	execRequest := &proto.ExecRequest{
+	req := &proto.ExecRequest{
 		Request: &proto.Request{
 			DbId:       s.dbId,
 			Statements: statements,
 		},
 	}
-	resp, err := s.client.Exec(ctx, execRequest)
-	if err != nil {
-		return nil, fmt.Errorf("exec error: %v", err)
-	}
-	if resp == nil || len(resp.Result) == 0 {
-		return nil, fmt.Errorf("exec without resp")
-	}
-	if resp.Result[0].Error != "" {
-		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
-	}
-	return &execResult{
-		rowsAffected: resp.Result[0].RowsAffected,
-		lastInsertId: resp.Result[0].LastInsertId,
-	}, nil
+	return proto.DBClientExecCheckResult(s.client, ctx, req)
 }
 
 // Query executes a query that may return rows, such as a

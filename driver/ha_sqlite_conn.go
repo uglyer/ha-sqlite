@@ -101,7 +101,7 @@ func (c *HaSqliteConn) PrepareContext(ctx context.Context, query string) (driver
 //
 // Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 func (c *HaSqliteConn) Begin() (driver.Tx, error) {
-	return NewHaSqliteTx(context.Background(), driver.TxOptions{})
+	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 
 // BeginTx starts and returns a new transaction.  If the context is canceled by
@@ -117,7 +117,14 @@ func (c *HaSqliteConn) Begin() (driver.Tx, error) {
 // true to either set the read-only transaction property if supported or return
 // an error if it is not supported.
 func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	return NewHaSqliteTx(ctx, opts)
+	resp, err := c.Client.BeginTx(ctx, &proto.BeginTxRequest{
+		Type: proto.BeginTxRequest_TX_TYPE_BEGIN_LevelLinearizable,
+		DbId: c.dbId,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("BeginTx error: %v", err)
+	}
+	return NewHaSqliteTx(c.Client, resp.TxToken, c.dbId)
 }
 
 // Exec is an optional interface that may be implemented by a Conn.
@@ -135,36 +142,11 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
-	resp, err := c.Client.Exec(ctx, &proto.ExecRequest{Request: &proto.Request{
+	req := &proto.ExecRequest{Request: &proto.Request{
 		DbId:       c.dbId,
 		Statements: statements,
-	}})
-	if err != nil {
-		return nil, fmt.Errorf("exec error: %v", err)
-	}
-	if resp == nil || len(resp.Result) == 0 {
-		return nil, fmt.Errorf("exec without resp")
-	}
-	if resp.Result[0].Error != "" {
-		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
-	}
-	return &execResult{
-		rowsAffected: resp.Result[0].RowsAffected,
-		lastInsertId: resp.Result[0].LastInsertId,
-	}, nil
-}
-
-type execResult struct {
-	rowsAffected int64
-	lastInsertId int64
-}
-
-func (result *execResult) LastInsertId() (int64, error) {
-	return result.lastInsertId, nil
-}
-
-func (result *execResult) RowsAffected() (int64, error) {
-	return result.rowsAffected, nil
+	}}
+	return proto.DBClientExecCheckResult(c.Client, ctx, req)
 }
 
 // Query is an optional interface that may be implemented by a Conn.
