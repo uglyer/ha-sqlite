@@ -247,7 +247,16 @@ func Test_TxBatch(t *testing.T) {
 	count := 10
 	wg.Add(count)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	insertCount := 0
 	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			store.exec("INSERT INTO foo(name) VALUES(?)", "data not tx")
+			insertCount++
+			resp := store.query("SELECT * FROM foo WHERE name = ?", "data not tx")
+			assert.Equal(t, insertCount, len(resp.Result[0].Values))
+			wg.Done()
+		}()
 		go func() {
 			next := store.cloneConn()
 			next.beginTx()
@@ -258,12 +267,6 @@ func Test_TxBatch(t *testing.T) {
 			wg.Done()
 			resp = next.query("SELECT * FROM foo WHERE name = ?", "data 1")
 			assert.Equal(t, 0, len(resp.Result[0].Values))
-		}()
-		wg.Add(1)
-		go func() {
-			resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
-			assert.Equal(t, 0, len(resp.Result[0].Values))
-			wg.Done()
 		}()
 	}
 	wg.Wait()
