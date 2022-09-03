@@ -83,7 +83,7 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	result, err := db.ApplyCmd(c, cmdTypeBeginTx, req, req.TxToken)
+	result, err := db.ApplyCmd(c, cmdTypeBeginTx, req, "")
 	if err != nil {
 		return nil, err
 	}
