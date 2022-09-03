@@ -72,7 +72,31 @@ func (d *HaSqliteDB) ApplyCmd(c context.Context, t cmdType, req interface{}, txT
 	d.cmdListMtx.Unlock()
 	go d.runCmd()
 	result := <-ch
+	if t == cmdTypeFinishTx {
+		// 事务结束触发重新执行任务
+		go d.runCmd()
+	}
 	return result.resp, result.err
+}
+
+func (d *HaSqliteDB) getNextCmd(it *list.Element) *cmdReq {
+	if it == nil {
+		return nil
+	}
+	cmd := it.Value.(*cmdReq)
+	d.dbMtx.Lock()
+	hasTx := d.tx != nil
+	d.dbMtx.Unlock()
+	if hasTx && cmd.txToken == "" {
+		// 跳过当前任务执行
+		return d.getNextCmd(it.Next())
+	} else if hasTx && cmd.txToken != d.txToken {
+		d.cmdList.Remove(it)
+		cmd.respCh <- &cmdResp{err: errors.New("tx token error")}
+		return d.getNextCmd(it.Next())
+	}
+	d.cmdList.Remove(it)
+	return cmd
 }
 
 func (d *HaSqliteDB) runCmd() {
@@ -83,8 +107,10 @@ func (d *HaSqliteDB) runCmd() {
 			break
 		}
 		it := d.cmdList.Front()
-		d.cmdList.Remove(it)
-		cmd := it.Value.(*cmdReq)
+		cmd := d.getNextCmd(it)
+		if cmd == nil {
+			return
+		}
 		result := &cmdResp{}
 		switch cmd.t {
 		case cmdTypeExec:
@@ -142,9 +168,7 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		}
 		var r sql.Result
 		if d.tx != nil {
-			fmt.Println("Exec get tx ok@3")
 			r, err = d.tx.ExecContext(c, ss, parameters...)
-			fmt.Println("Exec get tx ok@4")
 			if err != nil {
 				handleError(result, err)
 				continue
@@ -303,6 +327,10 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	if d.txToken != req.TxToken {
 		return nil, fmt.Errorf("tx token is error")
 	}
+	defer func() {
+		d.tx = nil
+		d.txToken = ""
+	}()
 	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
 		err := d.tx.Commit()
 		if err != nil {

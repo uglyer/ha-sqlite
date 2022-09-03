@@ -3,7 +3,6 @@ package db_test
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -249,32 +248,26 @@ func Test_TxBatch(t *testing.T) {
 	wg.Add(count)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	for i := 0; i < count; i++ {
-		index := i
 		go func() {
 			next := store.cloneConn()
-			fmt.Printf("beginTx:%d\n", index)
 			next.beginTx()
-			fmt.Printf("exec:%d\n", index)
 			next.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
-			fmt.Printf("query:%d\n", index)
 			resp := next.query("SELECT * FROM foo WHERE name = ?", "data 1")
 			assert.Equal(t, 1, len(resp.Result[0].Values))
-			fmt.Printf("发送事务结束:%d\n", index)
 			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
 			wg.Done()
 			resp = next.query("SELECT * FROM foo WHERE name = ?", "data 1")
 			assert.Equal(t, 0, len(resp.Result[0].Values))
 		}()
+		wg.Add(1)
+		go func() {
+			resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
+			assert.Equal(t, 0, len(resp.Result[0].Values))
+			wg.Done()
+		}()
 	}
-	wg.Add(1)
-	go func() {
-		store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
-		resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
-		assert.Equal(t, 1, len(resp.Result[0].Values))
-		wg.Done()
-	}()
 	wg.Wait()
 	store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
 	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
-	assert.Equal(t, 2, len(resp.Result[0].Values))
+	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
