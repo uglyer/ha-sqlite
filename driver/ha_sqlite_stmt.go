@@ -9,17 +9,19 @@ import (
 
 type HaSqliteStmt struct {
 	driver.Stmt
-	query  string
-	dbId   uint64
-	client proto.DBClient
+	query   string
+	txToken string
+	dbId    uint64
+	client  proto.DBClient
 }
 
 // NewHaSqliteStmt TODO 实现真实的预编译动作
-func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, query string) (*HaSqliteStmt, error) {
+func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, txToken string, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
-		query:  query,
-		dbId:   dbId,
-		client: client,
+		query:   query,
+		dbId:    dbId,
+		txToken: txToken,
+		client:  client,
 	}, nil
 }
 
@@ -68,6 +70,7 @@ func (s *HaSqliteStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 	statements := []*proto.Statement{{Sql: s.query, Parameters: parameters}}
 	req := &proto.ExecRequest{
 		Request: &proto.Request{
+			TxToken:    s.txToken,
 			DbId:       s.dbId,
 			Statements: statements,
 		},
@@ -94,6 +97,7 @@ func (s *HaSqliteStmt) QueryContext(ctx context.Context, args []driver.NamedValu
 	}
 	statements := []*proto.Statement{{Sql: s.query, Parameters: parameters}}
 	req := &proto.QueryRequest{Request: &proto.Request{
+		TxToken:    s.txToken,
 		DbId:       s.dbId,
 		Statements: statements,
 	}}

@@ -23,6 +23,8 @@ type HaSqliteConn struct {
 	// 打开成功后返回的数据库id
 	dbId   uint64
 	Client proto.DBClient
+	// 事务
+	txToken string
 }
 
 const MaxTupleParams = 255
@@ -87,14 +89,14 @@ func (c *HaSqliteConn) Close() error {
 
 // Prepare returns a prepared statement, bound to this connection.
 func (c *HaSqliteConn) Prepare(query string) (driver.Stmt, error) {
-	return NewHaSqliteStmt(context.Background(), c.Client, c.dbId, query)
+	return NewHaSqliteStmt(context.Background(), c.Client, c.dbId, c.txToken, query)
 }
 
 // PrepareContext returns a prepared statement, bound to this connection.
 // context is for the preparation of the statement, it must not store the
 // context within the statement itself.
 func (c *HaSqliteConn) PrepareContext(ctx context.Context, query string) (driver.StmtExecContext, error) {
-	return NewHaSqliteStmt(ctx, c.Client, c.dbId, query)
+	return NewHaSqliteStmt(ctx, c.Client, c.dbId, c.txToken, query)
 }
 
 // Begin starts and returns a new transaction.
@@ -124,7 +126,20 @@ func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 	if err != nil {
 		return nil, fmt.Errorf("BeginTx error: %v", err)
 	}
-	return NewHaSqliteTx(c.Client, resp.TxToken, c.dbId)
+	c.txToken = resp.TxToken
+	return NewHaSqliteTx(c)
+}
+func (tx *HaSqliteConn) finishTx(finishType proto.FinishTxRequest_Type) error {
+	defer func() {
+		tx.txToken = ""
+	}()
+	req := &proto.FinishTxRequest{
+		Type:    finishType,
+		TxToken: tx.txToken,
+		DbId:    tx.dbId,
+	}
+	_, err := tx.Client.FinishTx(context.Background(), req)
+	return err
 }
 
 // Exec is an optional interface that may be implemented by a Conn.
@@ -143,6 +158,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	req := &proto.ExecRequest{Request: &proto.Request{
+		TxToken:    c.txToken,
 		DbId:       c.dbId,
 		Statements: statements,
 	}}
@@ -165,6 +181,7 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	req := &proto.QueryRequest{Request: &proto.Request{
+		TxToken:    c.txToken,
 		DbId:       c.dbId,
 		Statements: statements,
 	}}

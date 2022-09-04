@@ -253,17 +253,12 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Tx(t *testing.T) {
-	// TODO 存在死锁
 	var id int
 	var name string
 	db := openDB(t, 30330)
-	log.Println("openDB")
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
-	log.Println("assertExec")
 	db.beginTx()
-	log.Println("beginTx")
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
-	log.Println("assertExec")
 	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
 	db.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
 	db.assertQueryCount(0, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)

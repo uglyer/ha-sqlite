@@ -9,6 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Go SQLite bindings
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -168,8 +169,9 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		}
 		var r sql.Result
 		if d.tx != nil {
-			r, err = d.tx.ExecContext(c, ss, parameters...)
+			r, err = d.tx.Exec(ss, parameters...)
 			if err != nil {
+				log.Printf("handleError:%v", err)
 				handleError(result, err)
 				continue
 			}
@@ -308,7 +310,7 @@ func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 	d.dbMtx.Lock()
 	defer d.dbMtx.Unlock()
 	token := uuid.New().String()
-	tx, err := d.db.BeginTx(c, req.TxOptions())
+	tx, err := d.db.Begin()
 	if err != nil {
 		return nil, err
 	}
