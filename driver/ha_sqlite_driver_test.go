@@ -80,9 +80,10 @@ func openDB(t *testing.T, port uint16) *HaDB {
 
 func (store *HaDB) assertExec(sql string, args ...interface{}) {
 	store.mtx.Lock()
-	defer store.mtx.Unlock()
-	if store.tx != nil {
-		_, err := store.tx.Exec(sql, args...)
+	tx := store.tx
+	store.mtx.Unlock()
+	if tx != nil {
+		_, err := tx.Exec(sql, args...)
 		assert.Nil(store.t, err)
 	} else {
 		_, err := store.db.Exec(sql, args...)
@@ -103,11 +104,12 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 
 func (store *HaDB) assertQuery(query string, args ...interface{}) *sql.Rows {
 	store.mtx.Lock()
-	defer store.mtx.Unlock()
+	tx := store.tx
+	store.mtx.Unlock()
 	var result *sql.Rows
 	var err error
-	if store.tx != nil {
-		result, err = store.tx.Query(query, args...)
+	if tx != nil {
+		result, err = tx.Query(query, args...)
 	} else {
 		result, err = store.db.Query(query, args...)
 	}
