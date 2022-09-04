@@ -52,6 +52,14 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
 	db.SetMaxOpenConns(1)
+	_, err = db.Exec("PRAGMA synchronous = OFF")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB synchronous off")
+	}
+	_, err = db.Exec("PRAGMA journal_mode = MEMORY")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB journal_mode MEMORY")
+	}
 	return &HaSqliteDB{
 		db: db,
 	}, nil
