@@ -294,22 +294,17 @@ func Test_TxBatch(t *testing.T) {
 		go func() {
 			store.assertExec("INSERT INTO foo(name) VALUES(?)", "data not tx")
 			insertCount++
-			store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data not tx"), &id, &name)
+			store.assertQueryCount(insertCount, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data not tx"), &id, &name)
 			wg.Done()
 		}()
 		go func() {
 			next := store.cloneConn()
-			log.Printf("beginTx")
 			next.beginTx()
-			log.Printf("tx assertExec")
 			next.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
-			log.Printf("tx assertQueryCount")
-			store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
-			log.Printf("tx FinishTxRequest_TX_TYPE_ROLLBACK")
+			next.assertQueryCount(1, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
 			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
 			wg.Done()
-			log.Printf("assertQueryCount")
-			store.assertQueryCount(0, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+			next.assertQueryCount(0, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
 		}()
 	}
 	wg.Wait()
