@@ -51,6 +51,7 @@ type HaDB struct {
 	db    *sql.DB
 	tx    *sql.Tx
 	t     *testing.T
+	url   string
 }
 
 func openDB(t *testing.T, port uint16) *HaDB {
@@ -71,11 +72,19 @@ func openDB(t *testing.T, port uint16) *HaDB {
 	}()
 	select {
 	case <-ctx.Done():
-		return &HaDB{db: db, t: t, Store: store}
+		return &HaDB{db: db, t: t, Store: store, url: url}
 	case <-time.After(time.Millisecond * 900):
 		t.Fatalf("connect %s timeout", url)
-		return &HaDB{db: db, t: t}
+		return &HaDB{db: db, t: t, url: url}
 	}
+}
+
+func (store *HaDB) cloneConn() *HaDB {
+	db, err := sql.Open("ha-sqlite", store.url)
+	assert.Nil(store.t, err)
+	db.SetMaxIdleConns(runtime.NumCPU() * 2)
+	db.SetMaxOpenConns(runtime.NumCPU() * 2)
+	return &HaDB{db: db, t: store.t, Store: store.Store}
 }
 
 func (store *HaDB) assertExec(sql string, args ...interface{}) {
@@ -269,4 +278,41 @@ func Test_Tx(t *testing.T) {
 	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
 	db.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
 	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
+}
+
+func Test_TxBatch(t *testing.T) {
+	var id int
+	var name string
+	store := openDB(t, 30330)
+	var wg sync.WaitGroup
+	count := 10
+	wg.Add(count)
+	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	insertCount := 0
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			store.assertExec("INSERT INTO foo(name) VALUES(?)", "data not tx")
+			insertCount++
+			store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data not tx"), &id, &name)
+			wg.Done()
+		}()
+		go func() {
+			next := store.cloneConn()
+			log.Printf("beginTx")
+			next.beginTx()
+			log.Printf("tx assertExec")
+			next.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+			log.Printf("tx assertQueryCount")
+			store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+			log.Printf("tx FinishTxRequest_TX_TYPE_ROLLBACK")
+			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+			wg.Done()
+			log.Printf("assertQueryCount")
+			store.assertQueryCount(0, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+		}()
+	}
+	wg.Wait()
+	store.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
 }
