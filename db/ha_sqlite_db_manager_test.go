@@ -252,22 +252,22 @@ func Test_TxBatch(t *testing.T) {
 	for i := 0; i < count; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			insertCheckLock.Lock()
 			defer insertCheckLock.Unlock()
 			store.exec("INSERT INTO foo(name) VALUES(?)", "data not tx")
 			insertCount++
 			resp := store.query("SELECT * FROM foo WHERE name = ?", "data not tx")
 			assert.Equal(t, insertCount, len(resp.Result[0].Values))
-			wg.Done()
 		}()
 		go func() {
+			defer wg.Done()
 			next := store.cloneConn()
 			next.beginTx()
 			next.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
 			resp := next.query("SELECT * FROM foo WHERE name = ?", "data 1")
 			assert.Equal(t, 1, len(resp.Result[0].Values))
 			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
-			wg.Done()
 			resp = next.query("SELECT * FROM foo WHERE name = ?", "data 1")
 			assert.Equal(t, 0, len(resp.Result[0].Values))
 		}()
