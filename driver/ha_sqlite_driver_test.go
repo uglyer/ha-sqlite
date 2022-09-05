@@ -285,13 +285,16 @@ func Test_TxBatch(t *testing.T) {
 	var name string
 	store := openDB(t, 30330)
 	var wg sync.WaitGroup
-	count := 10
+	count := 100
 	wg.Add(count)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	insertCount := 0
+	var insertCheckLock sync.Mutex
 	for i := 0; i < count; i++ {
 		wg.Add(1)
 		go func() {
+			insertCheckLock.Lock()
+			defer insertCheckLock.Unlock()
 			store.assertExec("INSERT INTO foo(name) VALUES(?)", "data not tx")
 			insertCount++
 			store.assertQueryCount(insertCount, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data not tx"), &id, &name)

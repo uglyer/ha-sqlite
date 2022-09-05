@@ -244,13 +244,16 @@ func Test_TxMixOtherQuery(t *testing.T) {
 func Test_TxBatch(t *testing.T) {
 	store := openDB(t)
 	var wg sync.WaitGroup
-	count := 10
+	count := 100
 	wg.Add(count)
 	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	insertCount := 0
+	var insertCheckLock sync.Mutex
 	for i := 0; i < count; i++ {
 		wg.Add(1)
 		go func() {
+			insertCheckLock.Lock()
+			defer insertCheckLock.Unlock()
 			store.exec("INSERT INTO foo(name) VALUES(?)", "data not tx")
 			insertCount++
 			resp := store.query("SELECT * FROM foo WHERE name = ?", "data not tx")
