@@ -19,7 +19,6 @@ import (
 
 type HaSqliteContext struct {
 	// Config 配置参数
-	Ctx        context.Context
 	Config     *HaSqliteConfig
 	fsm        *db.HaSqliteRaftFSM
 	Raft       *raft.Raft
@@ -62,7 +61,6 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	fsm.InitRaft(r)
 	s := grpc.NewServer()
 	c := &HaSqliteContext{
-		Ctx:        ctx,
 		Config:     config,
 		fsm:        fsm,
 		Raft:       r,
@@ -182,7 +180,7 @@ func (ctx *HaSqliteContext) callRemoteJoin(remoteAddress string, req *proto.Join
 	}
 	defer conn.Close()
 	client := proto.NewHaSqliteInternalClient(conn.Value())
-	return client.Join(ctx.Ctx, req)
+	return client.Join(context.Background(), req)
 }
 
 func timeout(ctx context.Context) time.Duration {
@@ -202,7 +200,7 @@ func (ctx *HaSqliteContext) Open(c context.Context, req *proto.OpenRequest) (*pr
 		}
 		defer conn.Close()
 		client := proto.NewDBClient(conn.Value())
-		return client.Open(ctx.Ctx, req)
+		return client.Open(context.Background(), req)
 	}
 	return ctx.fsm.Open(c, req)
 }
@@ -217,7 +215,7 @@ func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*pr
 		}
 		defer conn.Close()
 		client := proto.NewDBClient(conn.Value())
-		return client.Exec(ctx.Ctx, req)
+		return client.Exec(context.Background(), req)
 	}
 	return ctx.fsm.Exec(c, req)
 }
