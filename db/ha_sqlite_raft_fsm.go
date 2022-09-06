@@ -19,23 +19,19 @@ const (
 // HaSqliteRaftFSM Raft 生命周期相关接口实现
 type HaSqliteRaftFSM struct {
 	mtx   sync.RWMutex
-	store *HaSqliteDBManager
+	store *HaSqliteRaftDBManager
 	raft  *raft.Raft
 }
 
 //var _ raft.FSM = &HaSqliteRaftFSM{}
 
 func NewHaSqliteRaftFSM() (*HaSqliteRaftFSM, error) {
-	store, err := NewHaSqliteDBManager()
-	if err != nil {
-		return nil, err
-	}
-	return &HaSqliteRaftFSM{
-		store: store,
-	}, nil
+	return &HaSqliteRaftFSM{}, nil
 }
 
 func (fsm *HaSqliteRaftFSM) InitRaft(r *raft.Raft) {
+	store := NewHaSqliteRaftDBManager(r)
+	fsm.store = store
 	fsm.raft = r
 }
 
@@ -142,11 +138,11 @@ func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	if err != nil {
 		return nil, err
 	}
-	af := fsm.raft.Apply(b, applyTimeout).(raft.ApplyFuture)
-	if af.Error() != nil {
-		return nil, af.Error()
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, b, req.Request.DbId, req.Request.TxToken)
+	if err != nil {
+		return nil, fmt.Errorf("exec queue error:%v", err)
 	}
-	r := af.Response().(*fsmExecResponse)
+	r := resp.(*fsmExecResponse)
 	return r.resp, r.err
 }
 
@@ -161,11 +157,11 @@ func (fsm *HaSqliteRaftFSM) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if err != nil {
 		return nil, err
 	}
-	af := fsm.raft.Apply(b, applyTimeout).(raft.ApplyFuture)
-	if af.Error() != nil {
-		return nil, af.Error()
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeBeginTx, b, req.DbId, "")
+	if err != nil {
+		return nil, fmt.Errorf("exec queue error:%v", err)
 	}
-	r := af.Response().(*fsmBeginTxResponse)
+	r := resp.(*fsmBeginTxResponse)
 	return r.resp, r.err
 }
 
@@ -175,10 +171,10 @@ func (fsm *HaSqliteRaftFSM) FinishTx(c context.Context, req *proto.FinishTxReque
 	if err != nil {
 		return nil, err
 	}
-	af := fsm.raft.Apply(b, applyTimeout).(raft.ApplyFuture)
-	if af.Error() != nil {
-		return nil, af.Error()
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeFinishTx, b, req.DbId, "")
+	if err != nil {
+		return nil, fmt.Errorf("exec queue error:%v", err)
 	}
-	r := af.Response().(*fsmFinishTxResponse)
+	r := resp.(*fsmFinishTxResponse)
 	return r.resp, r.err
 }

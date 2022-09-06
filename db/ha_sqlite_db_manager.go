@@ -10,7 +10,6 @@ import (
 
 type HaSqliteDBManager struct {
 	mtx                sync.Mutex
-	txMtx              sync.RWMutex
 	dbIndex            uint64
 	dbFilenameTokenMap map[string]uint64
 	dbMap              map[uint64]*HaSqliteDB
