@@ -305,3 +305,11 @@ func (req *ExecRequest) ToCommandBytes() ([]byte, error) {
 func (req *OpenRequest) ToCommandBytes() ([]byte, error) {
 	return toCommandBytes(Command_COMMAND_TYPE_OPEN, req)
 }
+
+func (req *BeginTxRequest) ToCommandBytes() ([]byte, error) {
+	return toCommandBytes(Command_COMMAND_TYPE_BEGIN_TX, req)
+}
+
+func (req *FinishTxRequest) ToCommandBytes() ([]byte, error) {
+	return toCommandBytes(Command_COMMAND_TYPE_FINISH_TX, req)
+}
