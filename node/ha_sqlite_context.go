@@ -225,3 +225,13 @@ func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*
 	// 查询直接执行
 	return ctx.fsm.Query(c, req)
 }
+
+// BeginTx 开始事务执行
+func (ctx *HaSqliteContext) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+	return nil, fmt.Errorf("todo impl ctx BeginTx")
+}
+
+// FinishTx 开始事务执行
+func (d *HaSqliteContext) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+	return nil, fmt.Errorf("todo impl ctx FinishTx")
+}

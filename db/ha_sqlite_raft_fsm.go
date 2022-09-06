@@ -130,3 +130,13 @@ func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*pr
 func (fsm *HaSqliteRaftFSM) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
 	return fsm.store.Query(c, req)
 }
+
+// BeginTx 开始事务执行
+func (fsm *HaSqliteRaftFSM) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+	return nil, fmt.Errorf("todo impl ctx BeginTx")
+}
+
+// FinishTx 开始事务执行
+func (fsm *HaSqliteRaftFSM) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+	return nil, fmt.Errorf("todo impl ctx FinishTx")
+}
