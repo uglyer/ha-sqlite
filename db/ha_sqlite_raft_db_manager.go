@@ -45,7 +45,7 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 }
 
 // queueApplyRaftLog 队列应用日志
-func (d *HaSqliteRaftDBManager) queueApplyRaftLog(c context.Context, t cmdType, req interface{}, dbId uint64, txToken string) (interface{}, error) {
+func (d *HaSqliteRaftDBManager) queueApplyRaftLog(c context.Context, t cmdType, req *[]byte, dbId uint64, txToken string) (interface{}, error) {
 	d.mtx.Lock()
 	queue, ok := d.queueMap[dbId]
 	d.mtx.Unlock()

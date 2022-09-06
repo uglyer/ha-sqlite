@@ -102,7 +102,7 @@ func (q *HaSqliteCmdQueue) runCmd() {
 			return
 		}
 		result := &cmdResp{}
-		af := q.raft.Apply(cmd.req.([]byte), applyTimeout).(raft.ApplyFuture)
+		af := q.raft.Apply(*cmd.req.(*[]byte), applyTimeout).(raft.ApplyFuture)
 		if af.Error() != nil {
 			result.err = af.Error()
 		} else {

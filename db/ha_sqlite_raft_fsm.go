@@ -138,7 +138,7 @@ func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	if err != nil {
 		return nil, err
 	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, b, req.Request.DbId, req.Request.TxToken)
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, &b, req.Request.DbId, req.Request.TxToken)
 	if err != nil {
 		return nil, fmt.Errorf("Exec queue error:%v", err)
 	}
@@ -157,7 +157,7 @@ func (fsm *HaSqliteRaftFSM) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if err != nil {
 		return nil, err
 	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeBeginTx, b, req.DbId, "")
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeBeginTx, &b, req.DbId, "")
 	if err != nil {
 		return nil, fmt.Errorf("BeginTx queue error:%v", err)
 	}
@@ -174,7 +174,7 @@ func (fsm *HaSqliteRaftFSM) FinishTx(c context.Context, req *proto.FinishTxReque
 	if req.TxToken == "" {
 		return nil, fmt.Errorf("FinishTx tx token is null")
 	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeFinishTx, b, req.DbId, req.TxToken)
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeFinishTx, &b, req.DbId, req.TxToken)
 	if err != nil {
 		return nil, fmt.Errorf("FinishTx queue error:%v", err)
 	}
