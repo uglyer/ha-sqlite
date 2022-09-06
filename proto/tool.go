@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	gProto "google.golang.org/protobuf/proto"
 	"log"
 	"math/rand"
 	"strings"
@@ -278,4 +279,29 @@ func (b *BeginTxRequest) IsolationLevel() sql.IsolationLevel {
 		return sql.LevelLinearizable
 	}
 	return sql.LevelDefault
+}
+
+func toCommandBytes(t Command_Type, req gProto.Message) ([]byte, error) {
+	b, err := gProto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	command := &Command{
+		Type:       t,
+		SubCommand: b,
+		Compressed: false,
+	}
+	b, err = gProto.Marshal(command)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (req *ExecRequest) ToCommandBytes() ([]byte, error) {
+	return toCommandBytes(Command_COMMAND_TYPE_EXEC, req)
+}
+
+func (req *OpenRequest) ToCommandBytes() ([]byte, error) {
+	return toCommandBytes(Command_COMMAND_TYPE_OPEN, req)
 }

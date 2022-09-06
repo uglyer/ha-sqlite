@@ -100,16 +100,7 @@ type fsmExecResponse struct {
 
 // Open 打开数据库
 func (fsm *HaSqliteRaftFSM) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
-	b, err := gProto.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	command := &proto.Command{
-		Type:       proto.Command_COMMAND_TYPE_OPEN,
-		SubCommand: b,
-		Compressed: false,
-	}
-	b, err = gProto.Marshal(command)
+	b, err := req.ToCommandBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +114,7 @@ func (fsm *HaSqliteRaftFSM) Open(c context.Context, req *proto.OpenRequest) (*pr
 
 // Exec 执行数据库命令
 func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	b, err := gProto.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	command := &proto.Command{
-		Type:       proto.Command_COMMAND_TYPE_EXEC,
-		SubCommand: b,
-		Compressed: false,
-	}
-	b, err = gProto.Marshal(command)
+	b, err := req.ToCommandBytes()
 	if err != nil {
 		return nil, err
 	}
