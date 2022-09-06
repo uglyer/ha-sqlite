@@ -242,6 +242,29 @@ func Test_SingleNodeQuery(t *testing.T) {
 	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
 }
 
+func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
+	db := openSingleNodeDB(t, 31300, "Test_ExecPerformanceAsync", true)
+	defer db.Store.Stop()
+	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	count := 10000
+	start := time.Now()
+	ch := make(chan struct{}, runtime.NumCPU()*2)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		ch <- struct{}{}
+		go func() {
+			defer wg.Done()
+			_, err := db.db.Exec("INSERT INTO foo(name) VALUES(?)", "test")
+			assert.Nil(t, err)
+			<-ch
+		}()
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
+
 func Test_SingleNodeTx(t *testing.T) {
 	var id int
 	var name string
