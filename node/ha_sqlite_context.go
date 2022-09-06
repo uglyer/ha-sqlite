@@ -222,16 +222,36 @@ func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*pr
 
 // Query 查询记录
 func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	// 查询直接执行
+	// 查询直接执行, TODO 查询根据一致性等级, 按需转发至 leader
 	return ctx.fsm.Query(c, req)
 }
 
 // BeginTx 开始事务执行
 func (ctx *HaSqliteContext) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	return nil, fmt.Errorf("todo impl ctx BeginTx")
+	if !ctx.IsLeader() {
+		// 如果不是 leader，转发到 leader 执行
+		conn, err := ctx.getLeaderConn()
+		if err != nil {
+			return nil, fmt.Errorf("open leader conn error: %v", err)
+		}
+		defer conn.Close()
+		client := proto.NewDBClient(conn.Value())
+		return client.BeginTx(context.Background(), req)
+	}
+	return ctx.fsm.BeginTx(c, req)
 }
 
 // FinishTx 开始事务执行
-func (d *HaSqliteContext) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	return nil, fmt.Errorf("todo impl ctx FinishTx")
+func (ctx *HaSqliteContext) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+	if !ctx.IsLeader() {
+		// 如果不是 leader，转发到 leader 执行
+		conn, err := ctx.getLeaderConn()
+		if err != nil {
+			return nil, fmt.Errorf("open leader conn error: %v", err)
+		}
+		defer conn.Close()
+		client := proto.NewDBClient(conn.Value())
+		return client.FinishTx(context.Background(), req)
+	}
+	return ctx.fsm.FinishTx(c, req)
 }
