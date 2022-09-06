@@ -57,6 +57,7 @@ type HaDB struct {
 	db    *sql.DB
 	t     *testing.T
 	tx    *sql.Tx
+	url   string
 }
 
 func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool) *HaDB {
@@ -85,11 +86,19 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool) *Ha
 	}()
 	select {
 	case <-ctx.Done():
-		return &HaDB{db: db, Store: store, t: t}
+		return &HaDB{db: db, Store: store, t: t, url: url}
 	case <-time.After(time.Millisecond * 900):
 		t.Fatalf("connect %s timeout", url)
 		return &HaDB{db: db, t: t}
 	}
+}
+
+func (store *HaDB) cloneConn() *HaDB {
+	db, err := sql.Open("ha-sqlite", store.url)
+	assert.Nil(store.t, err)
+	db.SetMaxIdleConns(runtime.NumCPU() * 2)
+	db.SetMaxOpenConns(runtime.NumCPU() * 2)
+	return &HaDB{db: db, t: store.t, Store: store.Store, url: store.url}
 }
 
 func (store *HaDB) assertExec(sql string, args ...interface{}) {
@@ -236,7 +245,7 @@ func Test_SingleNodeQuery(t *testing.T) {
 func Test_SingleNodeTx(t *testing.T) {
 	var id int
 	var name string
-	db := openSingleNodeDB(t, 31300, "Test_Tx", true)
+	db := openSingleNodeDB(t, 31300, "Test_SingleNodeTx", true)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.beginTx()
@@ -249,4 +258,45 @@ func Test_SingleNodeTx(t *testing.T) {
 	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
 	db.finishTx(proto.FinishTxRequest_TX_TYPE_COMMIT)
 	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "data 1"), &id, &name)
+}
+
+func Test_SingleNodeTxBatch(t *testing.T) {
+	var id int
+	var name string
+	store := openSingleNodeDB(t, 31300, "Test_SingleNodeTxBatch", true)
+	var wg sync.WaitGroup
+	count := 100
+	wg.Add(count)
+	store.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	insertCount := 0
+	var insertCheckLock sync.Mutex
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			insertCheckLock.Lock()
+			defer insertCheckLock.Unlock()
+			store.assertExec("INSERT INTO foo(name) VALUES(?)", "data not tx")
+			insertCount++
+			store.assertQueryCount(insertCount, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data not tx"), &id, &name)
+		}()
+		go func() {
+			defer wg.Done()
+			next := store.cloneConn()
+			log.Printf("beginTx")
+			next.beginTx()
+			log.Printf("assertExec")
+			next.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+			log.Printf("assertQueryCount")
+			next.assertQueryCount(1, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+			log.Printf("finishTx")
+			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
+			log.Printf("finishTx end")
+			next.assertQueryCount(0, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+			log.Printf("finishTx end assertQueryCount")
+		}()
+	}
+	wg.Wait()
+	store.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
+	store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
 }
