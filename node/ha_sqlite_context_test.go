@@ -283,17 +283,11 @@ func Test_SingleNodeTxBatch(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			next := store.cloneConn()
-			log.Printf("beginTx")
 			next.beginTx()
-			log.Printf("assertExec")
 			next.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
-			log.Printf("assertQueryCount")
 			next.assertQueryCount(1, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
-			log.Printf("finishTx")
 			next.finishTx(proto.FinishTxRequest_TX_TYPE_ROLLBACK)
-			log.Printf("finishTx end")
 			next.assertQueryCount(0, next.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
-			log.Printf("finishTx end assertQueryCount")
 		}()
 	}
 	wg.Wait()

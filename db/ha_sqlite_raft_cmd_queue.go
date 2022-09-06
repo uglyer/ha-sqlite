@@ -107,6 +107,19 @@ func (q *HaSqliteCmdQueue) runCmd() {
 			result.err = af.Error()
 		} else {
 			result.resp = af.Response()
+			if cmd.t == cmdTypeBeginTx {
+				q.mtx.Lock()
+				if resp := result.resp.(*fsmBeginTxResponse); resp.err == nil {
+					q.txToken = resp.resp.TxToken
+				}
+				q.mtx.Unlock()
+			} else if cmd.t == cmdTypeFinishTx {
+				q.mtx.Lock()
+				if resp := result.resp.(*fsmFinishTxResponse); resp.err == nil {
+					q.txToken = ""
+				}
+				q.mtx.Unlock()
+			}
 		}
 		cmd.respCh <- result
 	}

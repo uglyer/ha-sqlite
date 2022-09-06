@@ -8,7 +8,6 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Go SQLite bindings
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -21,11 +20,12 @@ type HaSqliteDB struct {
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
-	url := fmt.Sprintf("%s?_txlock=exclusive", dataSourceName)
+	url := fmt.Sprintf("%s?_txlock=exclusive&_busy_timeout=30000", dataSourceName)
 	db, err := sql.Open("sqlite3", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
+	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
 	_, err = db.Exec("PRAGMA synchronous = OFF")
 	if err != nil {
@@ -82,7 +82,6 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		if tx != nil {
 			r, err = tx.Exec(ss, parameters...)
 			if err != nil {
-				log.Printf("handleError:%v", err)
 				handleError(result, err)
 				continue
 			}
@@ -227,7 +226,8 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 // BeginTx 开始事务执行
 func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
 	token := uuid.New().String()
-	tx, err := d.db.BeginTx(c, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
+	// 必须调用 begin , 否则返回 tx 会自动回滚
+	tx, err := d.db.Begin()
 	if err != nil {
 		return nil, err
 	}
