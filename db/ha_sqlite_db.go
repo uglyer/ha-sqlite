@@ -24,28 +24,6 @@ type HaSqliteDB struct {
 	cmdList    list.List
 }
 
-type cmdType int8
-
-const (
-	cmdTypeExec     cmdType = 0
-	cmdTypeQuery    cmdType = 1
-	cmdTypeBeginTx  cmdType = 2
-	cmdTypeFinishTx cmdType = 3
-)
-
-type cmdReq struct {
-	c       context.Context
-	t       cmdType
-	txToken string
-	req     interface{}
-	respCh  chan *cmdResp
-}
-
-type cmdResp struct {
-	resp interface{}
-	err  error
-}
-
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
