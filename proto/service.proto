@@ -15,6 +15,8 @@ message Command {
     COMMAND_TYPE_UNKNOWN = 0;
     COMMAND_TYPE_OPEN = 1;
     COMMAND_TYPE_EXEC = 2;
+    COMMAND_TYPE_BEGIN_TX = 3;
+    COMMAND_TYPE_FINISH_TX = 4;
   }
   Type type = 1;
   bytes sub_command = 2;
