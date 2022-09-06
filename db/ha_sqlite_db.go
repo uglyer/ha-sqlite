@@ -1,7 +1,6 @@
 package db
 
 import (
-	"container/list"
 	"context"
 	"database/sql"
 	"fmt"
@@ -16,16 +15,14 @@ import (
 )
 
 type HaSqliteDB struct {
-	dbMtx      sync.Mutex
-	cmdListMtx sync.Mutex
-	db         *sql.DB
-	tx         *sql.Tx
-	txToken    string
-	cmdList    list.List
+	txMtx sync.Mutex
+	db    *sql.DB
+	txMap map[string]*sql.Tx
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
-	db, err := sql.Open("sqlite3", dataSourceName)
+	url := fmt.Sprintf("%s?_txlock=exclusive", dataSourceName)
+	db, err := sql.Open("sqlite3", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
@@ -39,94 +36,13 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB journal_mode MEMORY")
 	}
 	return &HaSqliteDB{
-		db: db,
+		db:    db,
+		txMap: make(map[string]*sql.Tx),
 	}, nil
-}
-
-// ApplyCmd 结束事务执行
-func (d *HaSqliteDB) ApplyCmd(c context.Context, t cmdType, req interface{}, txToken string) (interface{}, error) {
-	ch := make(chan *cmdResp, 1)
-	defer close(ch)
-	d.cmdListMtx.Lock()
-	cmd := &cmdReq{
-		txToken: txToken,
-		c:       c,
-		t:       t,
-		req:     req,
-		respCh:  ch,
-	}
-	d.cmdList.PushBack(cmd)
-	d.cmdListMtx.Unlock()
-	go d.runCmd()
-	result := <-ch
-	if t == cmdTypeFinishTx {
-		// 事务结束触发重新执行任务
-		go d.runCmd()
-	}
-	return result.resp, result.err
-}
-
-func (d *HaSqliteDB) getNextCmd(it *list.Element) *cmdReq {
-	if it == nil {
-		return nil
-	}
-	cmd := it.Value.(*cmdReq)
-	d.dbMtx.Lock()
-	hasTx := d.tx != nil
-	d.dbMtx.Unlock()
-	if hasTx && cmd.txToken == "" {
-		// 跳过当前任务执行
-		return d.getNextCmd(it.Next())
-	} else if hasTx && cmd.txToken != d.txToken {
-		d.cmdList.Remove(it)
-		cmd.respCh <- &cmdResp{err: errors.New("tx token error")}
-		return d.getNextCmd(it.Next())
-	}
-	d.cmdList.Remove(it)
-	return cmd
-}
-
-func (d *HaSqliteDB) runCmd() {
-	d.cmdListMtx.Lock()
-	defer d.cmdListMtx.Unlock()
-	for {
-		if d.cmdList.Len() == 0 {
-			break
-		}
-		it := d.cmdList.Front()
-		cmd := d.getNextCmd(it)
-		if cmd == nil {
-			return
-		}
-		result := &cmdResp{}
-		switch cmd.t {
-		case cmdTypeExec:
-			resp, err := d.exec(cmd.c, cmd.req.(*proto.ExecRequest))
-			result.resp = resp
-			result.err = err
-		case cmdTypeQuery:
-			resp, err := d.query(cmd.c, cmd.req.(*proto.QueryRequest))
-			result.resp = resp
-			result.err = err
-		case cmdTypeBeginTx:
-			resp, err := d.beginTx(cmd.c, cmd.req.(*proto.BeginTxRequest))
-			result.resp = resp
-			result.err = err
-		case cmdTypeFinishTx:
-			resp, err := d.finishTx(cmd.c, cmd.req.(*proto.FinishTxRequest))
-			result.resp = resp
-			result.err = err
-		default:
-			result.err = fmt.Errorf("unknow cmd type:%v", cmd.t)
-		}
-		cmd.respCh <- result
-	}
 }
 
 // Exec 执行数据库命令
 func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	d.dbMtx.Lock()
-	defer d.dbMtx.Unlock()
 	var allResults []*proto.ExecResult
 	// handleError sets the error field on the given result. It returns
 	// whether the caller should continue processing or break.
@@ -135,7 +51,16 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		allResults = append(allResults, result)
 		return true
 	}
-
+	var tx *sql.Tx
+	if req.Request.TxToken != "" {
+		d.txMtx.Lock()
+		defer d.txMtx.Unlock()
+		dbTx, ok := d.txMap[req.Request.TxToken]
+		if !ok {
+			return nil, fmt.Errorf("get tx error:%s", req.Request.TxToken)
+		}
+		tx = dbTx
+	}
 	// Execute each statement.
 	for _, stmt := range req.Request.Statements {
 		ss := stmt.Sql
@@ -154,8 +79,8 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 			break
 		}
 		var r sql.Result
-		if d.tx != nil {
-			r, err = d.tx.Exec(ss, parameters...)
+		if tx != nil {
+			r, err = tx.Exec(ss, parameters...)
 			if err != nil {
 				log.Printf("handleError:%v", err)
 				handleError(result, err)
@@ -204,8 +129,16 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 
 // Query 查询记录
 func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	d.dbMtx.Lock()
-	defer d.dbMtx.Unlock()
+	var tx *sql.Tx
+	if req.Request.TxToken != "" {
+		d.txMtx.Lock()
+		defer d.txMtx.Unlock()
+		dbTx, ok := d.txMap[req.Request.TxToken]
+		if !ok {
+			return nil, fmt.Errorf("get tx error:%s", req.Request.TxToken)
+		}
+		tx = dbTx
+	}
 	var allRows []*proto.QueryResult
 	for _, stmt := range req.Request.Statements {
 		query := stmt.Sql
@@ -223,8 +156,8 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 			continue
 		}
 		var rs *sql.Rows
-		if d.tx != nil {
-			rs, err = d.tx.QueryContext(c, query, parameters...)
+		if tx != nil {
+			rs, err = tx.QueryContext(c, query, parameters...)
 			if err != nil {
 				rows.Error = err.Error()
 				allRows = append(allRows, rows)
@@ -293,40 +226,36 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	d.dbMtx.Lock()
-	defer d.dbMtx.Unlock()
 	token := uuid.New().String()
-	tx, err := d.db.Begin()
+	tx, err := d.db.BeginTx(c, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return nil, err
 	}
-	d.tx = tx
-	d.txToken = token
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	d.txMap[token] = tx
 	return &proto.BeginTxResponse{TxToken: token}, nil
 }
 
 // FinishTx 结束事务执行
 func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	d.dbMtx.Lock()
-	defer d.dbMtx.Unlock()
-	if d.tx == nil {
-		return nil, fmt.Errorf("tx is null")
-	}
-	if d.txToken != req.TxToken {
-		return nil, fmt.Errorf("tx token is error")
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	tx, ok := d.txMap[req.TxToken]
+	if !ok {
+		return nil, fmt.Errorf("get tx error:%s", req.TxToken)
 	}
 	defer func() {
-		d.tx = nil
-		d.txToken = ""
+		delete(d.txMap, req.TxToken)
 	}()
 	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
-		err := d.tx.Commit()
+		err := tx.Commit()
 		if err != nil {
 			return nil, fmt.Errorf("tx commit error : %v", err)
 		}
 		return &proto.FinishTxResponse{}, nil
 	} else if req.Type == proto.FinishTxRequest_TX_TYPE_ROLLBACK {
-		err := d.tx.Rollback()
+		err := tx.Rollback()
 		if err != nil {
 			return nil, fmt.Errorf("tx rollback error : %v", err)
 		}

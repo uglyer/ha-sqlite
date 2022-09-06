@@ -56,11 +56,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
-	result, err := db.ApplyCmd(c, cmdTypeExec, req, req.Request.TxToken)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*proto.ExecResponse), nil
+	return db.exec(c, req)
 }
 
 // Query 查询记录
@@ -69,11 +65,7 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
-	result, err := db.ApplyCmd(c, cmdTypeQuery, req, req.Request.TxToken)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*proto.QueryResponse), nil
+	return db.query(c, req)
 }
 
 // BeginTx 开始事务执行
@@ -82,11 +74,7 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	result, err := db.ApplyCmd(c, cmdTypeBeginTx, req, "")
-	if err != nil {
-		return nil, err
-	}
-	return result.(*proto.BeginTxResponse), nil
+	return db.beginTx(c, req)
 }
 
 // FinishTx 开始事务执行
@@ -95,9 +83,5 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
-	result, err := db.ApplyCmd(c, cmdTypeFinishTx, req, req.TxToken)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*proto.FinishTxResponse), nil
+	return db.finishTx(c, req)
 }
