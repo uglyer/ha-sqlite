@@ -16,7 +16,7 @@ type HaSqliteCmdQueue struct {
 	cmdListMtx sync.Mutex
 	txToken    string
 	cmdList    list.List
-	runCh      chan *cmdReq
+	runTxCh    chan *cmdReq
 }
 
 type cmdType int8
@@ -32,7 +32,7 @@ type cmdReq struct {
 	c       context.Context
 	t       cmdType
 	txToken string
-	req     interface{}
+	req     *[]byte
 	respCh  chan *cmdResp
 }
 
@@ -46,14 +46,28 @@ func NewHaSqliteCmdQueue(raft *raft.Raft) *HaSqliteCmdQueue {
 	queue := &HaSqliteCmdQueue{
 		raft:    raft,
 		txToken: "",
-		runCh:   make(chan *cmdReq, 1),
+		runTxCh: make(chan *cmdReq, 1),
 	}
-	go queue.runQueue()
+	go queue.runTxQueue()
 	return queue
 }
 
 // queueApplyRaftLog 队列应用日志
-func (q *HaSqliteCmdQueue) queueApplyRaftLog(c context.Context, t cmdType, req interface{}, txToken string) (interface{}, error) {
+func (q *HaSqliteCmdQueue) queueApplyRaftLog(c context.Context, t cmdType, req *[]byte, txToken string) (interface{}, error) {
+	isTx := t == cmdTypeBeginTx || t == cmdTypeFinishTx || txToken != ""
+	q.mtx.Lock()
+	hasTx := q.txToken != ""
+	if !hasTx && !isTx {
+		// 如果没有事务且执行的不是事务命令, 直接执行
+		q.mtx.Unlock()
+		af := q.raft.Apply(*req, applyTimeout).(raft.ApplyFuture)
+		err := af.Error()
+		if err != nil {
+			return nil, err
+		}
+		return af.Response(), nil
+	}
+	q.mtx.Unlock()
 	ch := make(chan *cmdResp, 1)
 	defer close(ch)
 	cmd := &cmdReq{
@@ -63,12 +77,12 @@ func (q *HaSqliteCmdQueue) queueApplyRaftLog(c context.Context, t cmdType, req i
 		req:     req,
 		respCh:  ch,
 	}
-	q.runCh <- cmd
+	q.runTxCh <- cmd
 	result := <-ch
 	if t == cmdTypeFinishTx {
 		// 事务结束触发重新执行任务
 		//go q.runCmd()
-		q.runCh <- nil
+		q.runTxCh <- nil
 	}
 	return result.resp, result.err
 }
@@ -102,10 +116,15 @@ func timeCost() func() {
 		fmt.Printf("time cost = %v\n", tc)
 	}
 }
-func (q *HaSqliteCmdQueue) runQueue() {
+
+//func (q *HaSqliteCmdQueue) runTxQueue() {
+//
+//}
+
+func (q *HaSqliteCmdQueue) runTxQueue() {
 	//q.cmdListMtx.Lock()
 	//defer q.cmdListMtx.Unlock()
-	for cmd := range q.runCh {
+	for cmd := range q.runTxCh {
 		//if q.cmdList.Len() == 0 {
 		//	q.cmdListMtx.Unlock()
 		//	continue
@@ -141,24 +160,24 @@ func (q *HaSqliteCmdQueue) runQueue() {
 
 func (q *HaSqliteCmdQueue) runCmd(cmd *cmdReq) {
 	result := &cmdResp{}
-	af := q.raft.Apply(*cmd.req.(*[]byte), applyTimeout).(raft.ApplyFuture)
+	af := q.raft.Apply(*cmd.req, applyTimeout).(raft.ApplyFuture)
 	if af.Error() != nil {
 		result.err = af.Error()
 	} else {
 		//defer timeCost()()
 		result.resp = af.Response()
 		if cmd.t == cmdTypeBeginTx {
-			//q.mtx.Lock()
+			q.mtx.Lock()
 			if resp := result.resp.(*fsmBeginTxResponse); resp.err == nil {
 				q.txToken = resp.resp.TxToken
 			}
-			//q.mtx.Unlock()
+			q.mtx.Unlock()
 		} else if cmd.t == cmdTypeFinishTx {
-			//q.mtx.Lock()
+			q.mtx.Lock()
 			if resp := result.resp.(*fsmFinishTxResponse); resp.err == nil {
 				q.txToken = ""
 			}
-			//q.mtx.Unlock()
+			q.mtx.Unlock()
 		}
 	}
 	cmd.respCh <- result
