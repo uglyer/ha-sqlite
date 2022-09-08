@@ -60,18 +60,66 @@ type HaDB struct {
 	url   string
 }
 
-func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool) *HaDB {
+type ThreeNodeDB struct {
+	mtx   sync.Mutex
+	db1   *HaDB
+	db2   *HaDB
+	db3   *HaDB
+	index uint
+}
+
+func openThreeNodeDB(t *testing.T, nodePrefix string, deleteLog bool) *ThreeNodeDB {
+	db1 := openSingleNodeDB(t, 31300, fmt.Sprintf("%s_NodeA", nodePrefix), true, 0)
+	db2 := openSingleNodeDB(t, 31301, fmt.Sprintf("%s_NodeB", nodePrefix), true, 31300)
+	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("%s_NodeC", nodePrefix), true, 31302)
+	return &ThreeNodeDB{db1: db1, db2: db2, db3: db3}
+}
+
+func (d *ThreeNodeDB) stop() {
+	d.db3.Store.Stop()
+	d.db2.Store.Stop()
+	d.db1.Store.Stop()
+}
+
+func (d *ThreeNodeDB) getDB() *HaDB {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	d.index++
+	if d.index == 3 {
+		d.index = 0
+	}
+	if d.index == 0 {
+		return d.db1
+	} else if d.index == 1 {
+		return d.db2
+	} else if d.index == 2 {
+		return d.db3
+	} else {
+		return d.db1
+	}
+}
+
+func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joinPort int) *HaDB {
+	var joinAddress = ""
+	var bootstrap = true
+	if joinPort > 0 {
+		joinAddress = fmt.Sprintf("localhost:%d", joinPort)
+		bootstrap = false
+	}
 	store := NewNode(t, &node.HaSqliteConfig{
 		Address:       fmt.Sprintf("localhost:%d", port),
-		RaftBootstrap: true,
+		RaftBootstrap: bootstrap,
 		RaftId:        nodeId,
 		DataPath:      "data",
 		RaftAdmin:     true,
+		JoinAddress:   joinAddress,
 	}, deleteLog)
 	go func() {
 		store.Serve()
 	}()
-	store.ctx.WaitHasLeader()
+	if bootstrap {
+		store.ctx.WaitHasLeader()
+	}
 	url := fmt.Sprintf("multi:///localhost:%d/:memory:", port)
 	db, err := sql.Open("ha-sqlite", url)
 
@@ -195,12 +243,12 @@ func (store *HaDB) finishTx(t proto.FinishTxRequest_Type) {
 }
 
 func Test_SingleNodOpenDB(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_OpenDB", true)
+	db := openSingleNodeDB(t, 31300, "Test_OpenDB", true, 0)
 	defer db.Store.Stop()
 }
 
 func Test_SingleNodeExec(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_Exec", true)
+	db := openSingleNodeDB(t, 31300, "Test_Exec", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
@@ -216,7 +264,7 @@ func Test_SingleNodeExec(t *testing.T) {
 }
 
 func Test_SingleNodeQuery(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_Query", true)
+	db := openSingleNodeDB(t, 31300, "Test_Query", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test1")
@@ -242,8 +290,35 @@ func Test_SingleNodeQuery(t *testing.T) {
 	}, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
 }
 
+func Test_ThreeNodeQuery(t *testing.T) {
+	n := openThreeNodeDB(t, "Test_ThreeNodeQuery", true)
+	defer n.stop()
+	n.getDB().assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
+	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test1")
+	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	n.getDB().assertQueryColumns([]string{"id", "name"}, "SELECT * FROM `foo` WHERE name = ?", "test")
+	n.getDB().assertQueryColumns([]string{"id", "name"}, "SELECT id,name FROM `foo` WHERE name = ?", "test")
+	n.getDB().assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
+	n.getDB().assertQueryColumns([]string{"name"}, "SELECT name FROM `foo` WHERE name = ?", "test")
+	n.getDB().assertQueryColumns([]string{"NNN"}, "SELECT name as NNN FROM `foo` WHERE name = ?", "test")
+	var id int
+	var name string
+	n.getDB().assertQueryCount(3, n.getDB().assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	n.getDB().assertQueryValues(func(i int) {
+		assert.Equal(t, i+2, id)
+		assert.Equal(t, "test", name)
+	}, n.getDB().assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
+	n.getDB().assertQueryCount(1, n.getDB().assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+	n.getDB().assertQueryValues(func(i int) {
+		assert.Equal(t, 1, id)
+		assert.Equal(t, "test1", name)
+	}, n.getDB().assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+}
+
 func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_ExecPerformanceAsync", true)
+	db := openSingleNodeDB(t, 31300, "Test_ExecPerformanceAsync", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 10000
@@ -268,7 +343,7 @@ func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
 func Test_SingleNodeTx(t *testing.T) {
 	var id int
 	var name string
-	db := openSingleNodeDB(t, 31300, "Test_SingleNodeTx", true)
+	db := openSingleNodeDB(t, 31300, "Test_SingleNodeTx", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.beginTx()
@@ -286,7 +361,7 @@ func Test_SingleNodeTx(t *testing.T) {
 func Test_SingleNodeTxBatch(t *testing.T) {
 	var id int
 	var name string
-	store := openSingleNodeDB(t, 31300, "Test_SingleNodeTxBatch", true)
+	store := openSingleNodeDB(t, 31300, "Test_SingleNodeTxBatch", true, 0)
 	var wg sync.WaitGroup
 	count := 100
 	wg.Add(count)
