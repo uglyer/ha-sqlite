@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"github.com/Bowery/prompt"
 	"github.com/mkideal/cli"
 	_ "github.com/uglyer/ha-sqlite/driver"
 	"runtime"
+	"strings"
 )
 
 type argT struct {
@@ -33,6 +36,46 @@ func main() {
 			return nil
 		}
 		ctx.String("connected\n")
+		//timer := false
+		//consistency := "weak"
+		prefix := fmt.Sprintf("%s>", argv.Address)
+		term, err := prompt.NewTerminal()
+		if err != nil {
+			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
+			return nil
+		}
+		term.Close()
+	FOR_READ:
+		for {
+			term.Reopen()
+			line, err := term.Basic(prefix, false)
+			term.Close()
+			if err != nil {
+				return err
+			}
+
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			var (
+				index = strings.Index(line, " ")
+				cmd   = line
+			)
+			if index >= 0 {
+				cmd = line[:index]
+			}
+			cmd = strings.ToUpper(cmd)
+			switch cmd {
+			case ".QUIT", "QUIT", "EXIT":
+				break FOR_READ
+			case "SELECT", "PRAGMA":
+				ctx.String("query:%s\n", line)
+			default:
+				ctx.String("exec:%s\n", line)
+			}
+		}
+		ctx.String("bye~\n")
 		return nil
 	})
 }

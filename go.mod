@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/Bowery/prompt v0.0.0-20190916142128-fa8279994f75
 	github.com/Jille/grpc-multi-resolver v1.1.0
 	github.com/google/uuid v1.1.2
 	github.com/mattn/go-sqlite3 v1.14.15
