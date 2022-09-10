@@ -110,6 +110,7 @@ sqlite 为库级锁，通常单场景的同时写入并发不会太大，一个�
 - [x] Driver
 - [x] Prepare
 - [ ] Transaction isolation (Developing)
+- [ ] CI (Developing)
 - [ ] Snapshot
 - [ ] Restore
 - [ ] S3
