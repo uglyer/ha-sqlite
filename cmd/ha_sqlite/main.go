@@ -17,10 +17,16 @@ type argT struct {
 	Version bool   `cli:"v,version" usage:"display CLI version"`
 }
 
+const version = "0.1.0"
+
 func main() {
 	cli.SetUsageStyle(cli.ManualStyle)
 	cli.Run(new(argT), func(ctx *cli.Context) error {
 		argv := ctx.Argv().(*argT)
+		if argv.Version {
+			ctx.String("version:\n", version)
+			return nil
+		}
 		ctx.String("open:%s\n", argv.Address)
 		db, err := sql.Open("ha-sqlite", argv.Address)
 		if err != nil {
