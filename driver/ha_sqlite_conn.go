@@ -72,6 +72,17 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	}
 }
 
+// Ping is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement Pinger, the sql package's DB.Ping and
+// DB.PingContext will check if there is at least one Conn available.
+//
+// If Conn.Ping returns ErrBadConn, DB.Ping and DB.PingContext will remove
+// the Conn from pool.}
+func (c *HaSqliteConn) Ping(ctx context.Context) error {
+	return fmt.Errorf("todo impl ping")
+}
+
 // Close invalidates and potentially stops any current
 // prepared statements and transactions, marking this
 // connection as no longer in use.
