@@ -3,6 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/uglyer/ha-sqlite/proto";
 
 service DB {
+  rpc Ping(PingRequest) returns (PingResponse) {}
   rpc Open(OpenRequest) returns (OpenResponse) {}
   rpc Exec(ExecRequest) returns (ExecResponse) {}
   rpc Query(QueryRequest) returns (QueryResponse) {}
@@ -21,6 +22,14 @@ message Command {
   Type type = 1;
   bytes sub_command = 2;
   bool compressed = 3;
+}
+
+message PingRequest {
+
+}
+
+message PingResponse {
+
 }
 
 message Parameter {
