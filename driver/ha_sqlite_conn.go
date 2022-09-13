@@ -80,7 +80,11 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 // If Conn.Ping returns ErrBadConn, DB.Ping and DB.PingContext will remove
 // the Conn from pool.}
 func (c *HaSqliteConn) Ping(ctx context.Context) error {
-	return fmt.Errorf("todo impl ping")
+	req := &proto.PingRequest{
+		Timestamp: uint64(time.Now().UnixMilli()),
+	}
+	_, err := c.Client.Ping(context.Background(), req)
+	return err
 }
 
 // Close invalidates and potentially stops any current
