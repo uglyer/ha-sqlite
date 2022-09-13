@@ -81,7 +81,7 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 // the Conn from pool.}
 func (c *HaSqliteConn) Ping(ctx context.Context) error {
 	req := &proto.PingRequest{
-		Timestamp: uint64(time.Now().UnixMilli()),
+		Timestamp: time.Now().UnixMilli(),
 	}
 	_, err := c.Client.Ping(context.Background(), req)
 	return err

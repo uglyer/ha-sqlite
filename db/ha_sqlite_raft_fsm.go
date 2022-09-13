@@ -121,7 +121,7 @@ type fsmFinishTxResponse struct {
 // Ping 验证服务连通性
 func (fsm *HaSqliteRaftFSM) Ping(c context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
 	return &proto.PingResponse{
-		Timestamp: uint64(time.Now().UnixMilli()),
+		Timestamp: time.Now().UnixMilli(),
 	}, nil
 }
 
