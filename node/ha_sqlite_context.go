@@ -100,6 +100,13 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	return c, nil
 }
 
+// Ping 验证服务连通性
+func (ctx *HaSqliteContext) Ping(c context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
+	return &proto.PingResponse{
+		Timestamp: time.Now().UnixMilli(),
+	}, nil
+}
+
 // WaitHasLeader 等待选举 leader 完成
 func (ctx *HaSqliteContext) WaitHasLeader() {
 	ctx.notify.WaitHasLeader()

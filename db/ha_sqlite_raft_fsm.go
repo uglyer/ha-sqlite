@@ -118,13 +118,6 @@ type fsmFinishTxResponse struct {
 	err  error
 }
 
-// Ping 验证服务连通性
-func (fsm *HaSqliteRaftFSM) Ping(c context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
-	return &proto.PingResponse{
-		Timestamp: time.Now().UnixMilli(),
-	}, nil
-}
-
 // Open 打开数据库
 func (fsm *HaSqliteRaftFSM) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	b, err := req.ToCommandBytes()
