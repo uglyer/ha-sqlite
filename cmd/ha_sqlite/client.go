@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/mkideal/cli"
+	"github.com/mkideal/pkg/textutil"
 	"runtime"
 	"time"
 )
@@ -41,15 +42,12 @@ func (c *HaClient) query(ctx *cli.Context, q string) {
 		ctx.String("query error:%v\n", err)
 		return
 	}
-	cols, err := rows.Columns()
+	result, err := parseSqlRows(rows)
 	if err != nil {
-		ctx.String("query get columns error:%v\n", err)
+		ctx.String("query error:%v\n", err)
 		return
 	}
-	ctx.String("cols:%v", cols)
-	for _, col := range cols {
-		ctx.String("query get columns col:%s\n", col)
-	}
+	textutil.WriteTable(ctx, result, &textutil.DefaultStyle{})
 }
 
 func (c *HaClient) exec(ctx *cli.Context, q string) {
