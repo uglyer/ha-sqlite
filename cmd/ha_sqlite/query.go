@@ -18,12 +18,12 @@ func parseSqlRows(rows *sql.Rows) (*QueryRows, error) {
 	defer rows.Close()
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, fmt.Errorf("parseSqlRows get columns error:%v\n", err)
+		return nil, fmt.Errorf("parseSqlRows get columns error:%v", err)
 	}
 	colCount := len(cols)
 	columnTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, fmt.Errorf("parseSqlRows get columnTypes error:%v\n", err)
+		return nil, fmt.Errorf("parseSqlRows get columnTypes error:%v", err)
 	}
 	types := make([]string, colCount)
 	for i, colType := range columnTypes {
@@ -33,9 +33,13 @@ func parseSqlRows(rows *sql.Rows) (*QueryRows, error) {
 	var values [][]interface{}
 	for rows.Next() {
 		row := make([]interface{}, colCount)
+		for i, _ := range row {
+			var data string
+			row[i] = &data
+		}
 		err := rows.Scan(row...)
 		if err != nil {
-			return nil, fmt.Errorf("parseSqlRows rows.Scan error:%v\n", err)
+			return nil, fmt.Errorf("parseSqlRows rows.Scan error:%v", err)
 		}
 		values = append(values, row)
 	}
@@ -77,5 +81,5 @@ func (r *QueryRows) Get(i, j int) string {
 	if j >= len(r.Values[i-1]) {
 		return "NULL"
 	}
-	return fmt.Sprintf("%v", r.Values[i-1][j])
+	return fmt.Sprintf("%v", *r.Values[i-1][j].(*string))
 }
