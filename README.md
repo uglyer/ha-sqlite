@@ -6,7 +6,7 @@ https://github.com/uglyer/ha-sqlite
 
 > 目前项目还处于早期开发阶段
 
-### 目标
+## 目标
 
 - 基于 raft 实现的 高可用的 sqlite 数据库服务
 
@@ -21,6 +21,21 @@ https://github.com/uglyer/ha-sqlite
 - 多操作系统支持: linux、windows、mac
 
 - 跨平台支持: x86、arm
+
+
+## 进度
+
+- [x] Open
+- [x] Exec
+- [x] Query
+- [x] Driver
+- [x] Prepare
+- [ ] Transaction isolation (Developing)
+- [ ] CI (Developing)
+- [ ] Snapshot
+- [ ] Restore
+- [ ] S3
+- [ ] Trigger
 
 ## 为什么需要再造一个数据库的轮子
 
@@ -101,17 +116,3 @@ sqlite 为库级锁，通常单场景的同时写入并发不会太大，一个�
 ### 结论
 
 所以，这个轮子就诞生了
-
-## 进度
-
-- [x] Open
-- [x] Exec
-- [x] Query
-- [x] Driver
-- [x] Prepare
-- [ ] Transaction isolation (Developing)
-- [ ] CI (Developing)
-- [ ] Snapshot
-- [ ] Restore
-- [ ] S3
-- [ ] Trigger
