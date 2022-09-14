@@ -51,6 +51,11 @@ func main() {
 			return nil
 		}
 		term.Close()
+		client, err := newHaClient(argv.Address)
+		if err != nil {
+			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
+			return nil
+		}
 	FOR_READ:
 		for {
 			term.Reopen()
@@ -77,8 +82,10 @@ func main() {
 				break FOR_READ
 			case "SELECT", "PRAGMA":
 				ctx.String("query:%s\n", line)
+				client.query(ctx, line)
 			default:
 				ctx.String("exec:%s\n", line)
+				client.exec(ctx, line)
 			}
 		}
 		ctx.String("bye~\n")

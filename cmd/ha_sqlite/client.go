@@ -38,34 +38,35 @@ func newHaClient(url string) (*HaClient, error) {
 func (c *HaClient) query(ctx *cli.Context, q string) {
 	rows, err := c.db.Query(q)
 	if err != nil {
-		ctx.String("query error:%v", err)
+		ctx.String("query error:%v\n", err)
 		return
 	}
 	cols, err := rows.Columns()
 	if err != nil {
-		ctx.String("query get columns error:%v", err)
+		ctx.String("query get columns error:%v\n", err)
 		return
 	}
+	ctx.String("cols:%v", cols)
 	for _, col := range cols {
-		ctx.String("query get columns col:%s", col)
+		ctx.String("query get columns col:%s\n", col)
 	}
 }
 
 func (c *HaClient) exec(ctx *cli.Context, q string) {
 	result, err := c.db.Exec(q)
 	if err != nil {
-		ctx.String("exec error:%v", err)
+		ctx.String("exec error:%v\n", err)
 		return
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		ctx.String("exec get rowsAffected error:%v", err)
+		ctx.String("exec get rowsAffected error:%v\n", err)
 		return
 	}
 	lastInsertId, err := result.LastInsertId()
 	if err != nil {
-		ctx.String("exec get lastInsertId error:%v", err)
+		ctx.String("exec get lastInsertId error:%v\n", err)
 		return
 	}
-	ctx.String("exec success! rowsAffected:%v,lastInsertId:%v", rowsAffected, lastInsertId)
+	ctx.String("exec success! rowsAffected:%v,lastInsertId:%v\n", rowsAffected, lastInsertId)
 }
