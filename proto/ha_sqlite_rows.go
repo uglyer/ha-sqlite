@@ -52,3 +52,12 @@ func (r *HaSqliteRows) Next(dest []driver.Value) error {
 	r.index++
 	return nil
 }
+
+// ColumnTypeDatabaseTypeName RowsColumnTypeDatabaseTypeName may be implemented by Rows. It should return the
+// database system type name without the length. Type names should be uppercase.
+// Examples of returned types: "VARCHAR", "NVARCHAR", "VARCHAR2", "CHAR", "TEXT",
+// "DECIMAL", "SMALLINT", "INT", "BIGINT", "BOOL", "[]BIGINT", "JSONB", "XML",
+// "TIMESTAMP".
+func (r *HaSqliteRows) ColumnTypeDatabaseTypeName(index int) string {
+	return r.r.Types[index]
+}
