@@ -80,11 +80,13 @@ func main() {
 			switch cmd {
 			case ".QUIT", "QUIT", "EXIT":
 				break FOR_READ
+			case ".TABLES":
+				client.query(ctx, `SELECT * FROM sqlite_master WHERE type="table"`)
+			case ".INDEXES":
+				client.query(ctx, `SELECT * FROM sqlite_master WHERE type="index"`)
 			case "SELECT", "PRAGMA":
-				ctx.String("query:%s\n", line)
 				client.query(ctx, line)
 			default:
-				ctx.String("exec:%s\n", line)
 				client.exec(ctx, line)
 			}
 		}
