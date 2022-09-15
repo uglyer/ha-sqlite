@@ -35,6 +35,7 @@ https://github.com/uglyer/ha-sqlite
 - [ ] Snapshot
 - [ ] Restore
 - [ ] S3
+- [ ] `use` sql statement
 - [ ] Trigger
 
 ## 为什么需要再造一个数据库的轮子
