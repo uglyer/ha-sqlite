@@ -10,12 +10,14 @@ type HaSqliteLeaderNotify struct {
 	raft       *raft.Raft
 	mtx        sync.Mutex
 	notifyList *list.List
+	hasLeader  bool
 }
 
 func NewHaSqliteLeaderNotify(raft *raft.Raft) *HaSqliteLeaderNotify {
 	notify := &HaSqliteLeaderNotify{
 		raft:       raft,
 		notifyList: list.New(),
+		hasLeader:  false,
 	}
 	notify.observeLeader()
 	return notify
@@ -25,12 +27,16 @@ func (n *HaSqliteLeaderNotify) observeLeader() {
 	ch := make(chan raft.Observation, 1)
 	n.raft.RegisterObserver(raft.NewObserver(ch, true, func(o *raft.Observation) bool {
 		_, ok := o.Data.(raft.LeaderObservation)
+		n.mtx.Lock()
+		n.hasLeader = ok
+		n.mtx.Unlock()
 		return ok
 	}))
 	go func() {
-		for range ch {
-			if !n.hasLeader() {
-				continue
+		for o := range ch {
+			_, ok := o.Data.(raft.LeaderObservation)
+			if !ok {
+				return
 			}
 			n.mtx.Lock()
 			for {
@@ -46,14 +52,9 @@ func (n *HaSqliteLeaderNotify) observeLeader() {
 	}()
 }
 
-func (n *HaSqliteLeaderNotify) hasLeader() bool {
-	_, address := n.raft.LeaderWithID()
-	return address != ""
-}
-
 func (n *HaSqliteLeaderNotify) WaitHasLeader() {
 	n.mtx.Lock()
-	if n.hasLeader() {
+	if n.hasLeader {
 		n.mtx.Unlock()
 		return
 	}

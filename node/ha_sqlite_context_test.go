@@ -71,7 +71,12 @@ type ThreeNodeDB struct {
 func openThreeNodeDB(t *testing.T, nodePrefix string, deleteLog bool) *ThreeNodeDB {
 	db1 := openSingleNodeDB(t, 31300, fmt.Sprintf("%s_NodeA", nodePrefix), true, 0)
 	db2 := openSingleNodeDB(t, 31301, fmt.Sprintf("%s_NodeB", nodePrefix), true, 31300)
-	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("%s_NodeC", nodePrefix), true, 31302)
+	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("%s_NodeC", nodePrefix), true, 31300)
+	//db1.Store.ctx.WaitHasLeader()
+	db2.Store.ctx.WaitHasLeader()
+	db3.Store.ctx.WaitHasLeader()
+	assert.Nil(t, db2.db.PingContext(context.Background()))
+	assert.Nil(t, db3.db.PingContext(context.Background()))
 	return &ThreeNodeDB{db1: db1, db2: db2, db3: db3}
 }
 
