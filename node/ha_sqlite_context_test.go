@@ -128,10 +128,12 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joi
 	db.SetMaxOpenConns(runtime.NumCPU() * 2)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*800)
 	defer cancel()
-	go func() {
-		err = db.PingContext(ctx)
-		assert.Nilf(t, err, "ha-sqlite ping error:%v", err)
-	}()
+	if bootstrap {
+		go func() {
+			err = db.PingContext(ctx)
+			assert.Nilf(t, err, "ha-sqlite ping error:%v", err)
+		}()
+	}
 	select {
 	case <-ctx.Done():
 		return &HaDB{db: db, Store: store, t: t, url: url}
@@ -321,7 +323,7 @@ func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
 	db := openSingleNodeDB(t, 31300, "Test_ExecPerformanceAsync", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
-	count := 10000
+	count := 1000
 	start := time.Now()
 	ch := make(chan struct{}, runtime.NumCPU()*2)
 	var wg sync.WaitGroup
