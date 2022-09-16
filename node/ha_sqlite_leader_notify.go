@@ -33,7 +33,6 @@ func (n *HaSqliteLeaderNotify) observeLeader() {
 				continue
 			}
 			n.mtx.Lock()
-			defer n.mtx.Unlock()
 			for {
 				if n.notifyList.Len() == 0 {
 					break
@@ -42,6 +41,7 @@ func (n *HaSqliteLeaderNotify) observeLeader() {
 				n.notifyList.Remove(it)
 				it.Value.(chan struct{}) <- struct{}{}
 			}
+			n.mtx.Unlock()
 		}
 	}()
 }
