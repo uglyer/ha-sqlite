@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"github.com/Bowery/prompt"
 	"github.com/mkideal/cli"
 	_ "github.com/uglyer/ha-sqlite/driver"
-	"runtime"
 	"strings"
 )
 
@@ -27,21 +24,6 @@ func main() {
 			ctx.String("version:\n", version)
 			return nil
 		}
-		ctx.String("open:%s\n", argv.Address)
-		db, err := sql.Open("ha-sqlite", argv.Address)
-		if err != nil {
-			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
-			return nil
-		}
-		db.SetMaxIdleConns(runtime.NumCPU() * 2)
-		db.SetMaxOpenConns(runtime.NumCPU() * 2)
-		ctx.String("ping~\n")
-		err = db.PingContext(context.Background())
-		if err != nil {
-			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
-			return nil
-		}
-		ctx.String("connected\n")
 		//timer := false
 		//consistency := "weak"
 		prefix := fmt.Sprintf("%s>", argv.Address)
