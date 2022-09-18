@@ -24,8 +24,6 @@ func main() {
 			ctx.String("version:\n", version)
 			return nil
 		}
-		//timer := false
-		//consistency := "weak"
 		prefix := fmt.Sprintf("%s>", argv.Address)
 		term, err := prompt.NewTerminal()
 		if err != nil {
