@@ -144,6 +144,7 @@ func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 	c.txToken = resp.TxToken
 	return NewHaSqliteTx(c)
 }
+
 func (tx *HaSqliteConn) finishTx(finishType proto.FinishTxRequest_Type) error {
 	defer func() {
 		tx.txToken = ""
@@ -164,6 +165,14 @@ func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, e
 
 // ExecContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	if c.dbId == 0 {
+		return nil, fmt.Errorf("exec db id is zero")
+	}
+	return c.ExecContextWithDbId(ctx, c.dbId, query, args)
+}
+
+// ExecContextWithDbId 通过外部的数据库id执行sql语句
+func (c *HaSqliteConn) ExecContextWithDbId(ctx context.Context, dbId uint64, query string, args []driver.NamedValue) (driver.Result, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
@@ -174,7 +183,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	req := &proto.ExecRequest{Request: &proto.Request{
 		TxToken:    c.txToken,
-		DbId:       c.dbId,
+		DbId:       dbId,
 		Statements: statements,
 	}}
 	return proto.DBClientExecCheckResult(c.Client, ctx, req)
@@ -187,6 +196,14 @@ func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, er
 
 // QueryContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if c.dbId == 0 {
+		return nil, fmt.Errorf("query db id is zero")
+	}
+	return c.QueryContextWithDbId(ctx, c.dbId, query, args)
+}
+
+// QueryContextWithDbId 通过外部的数据库id查询sql语句
+func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId uint64, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
@@ -197,7 +214,7 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
 	req := &proto.QueryRequest{Request: &proto.Request{
 		TxToken:    c.txToken,
-		DbId:       c.dbId,
+		DbId:       dbId,
 		Statements: statements,
 	}}
 	return proto.DBClientQueryCheckResult(c.Client, ctx, req)
