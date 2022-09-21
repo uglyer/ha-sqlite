@@ -134,17 +134,16 @@ func (fsm *HaSqliteRaftFSM) Open(c context.Context, req *proto.OpenRequest) (*pr
 
 // Exec 执行数据库命令
 func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	return fsm.store.Exec(c, req)
-	//b, err := req.ToCommandBytes()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, &b, req.Request.DbId, req.Request.TxToken)
-	//if err != nil {
-	//	return nil, fmt.Errorf("Exec queue error:%v", err)
-	//}
-	//r := resp.(*fsmExecResponse)
-	//return r.resp, r.err
+	b, err := req.ToCommandBytes()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, &b, req.Request.DbId, req.Request.TxToken)
+	if err != nil {
+		return nil, fmt.Errorf("Exec queue error:%v", err)
+	}
+	r := resp.(*fsmExecResponse)
+	return r.resp, r.err
 }
 
 // Query 查询记录
