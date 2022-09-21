@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
-	_ "github.com/mattn/go-sqlite3" // Go SQLite bindings
 	"github.com/pkg/errors"
+	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
 	"strings"
 	"sync"
