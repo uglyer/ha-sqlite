@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
+	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
 	"strings"
 	"sync"
@@ -19,9 +19,25 @@ type HaSqliteDB struct {
 	txMap map[string]*sql.Tx
 }
 
+func init() {
+	sql.Register("sqlite3-wal", &sqlite.SQLiteDriver{
+		ConnectHook: func(conn *sqlite.SQLiteConn) error {
+			if err := conn.SetFileControlInt("", sqlite.SQLITE_FCNTL_PERSIST_WAL, 1); err != nil {
+				return fmt.Errorf("Unexpected error from SetFileControlInt(): %w", err)
+			}
+			conn.RegisterWalHook(func(s string, i int) int {
+				// 仅txnState == SQLITE_TXN_NONE 会触发调用
+				conn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
+				return sqlite.SQLITE_OK
+			})
+			return nil
+		},
+	})
+}
+
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	url := fmt.Sprintf("%s?_txlock=exclusive&_busy_timeout=30000", dataSourceName)
-	db, err := sql.Open("sqlite3", url)
+	db, err := sql.Open("sqlite3-wal", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
@@ -31,7 +47,7 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB synchronous off")
 	}
-	_, err = db.Exec("PRAGMA journal_mode = MEMORY")
+	_, err = db.Exec("PRAGMA journal_mode = wal")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB journal_mode MEMORY")
 	}
