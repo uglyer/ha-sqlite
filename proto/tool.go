@@ -289,9 +289,21 @@ func toCommandBytes(t Command_Type, req gProto.Message) ([]byte, error) {
 	command := &Command{
 		Type:       t,
 		SubCommand: b,
-		Compressed: false,
 	}
 	b, err = gProto.Marshal(command)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func BytesToCommandBytes(t Command_Type, dbId uint64, b []byte) ([]byte, error) {
+	command := &Command{
+		Type:       t,
+		SubCommand: b,
+		DbId:       dbId,
+	}
+	b, err := gProto.Marshal(command)
 	if err != nil {
 		return nil, err
 	}
