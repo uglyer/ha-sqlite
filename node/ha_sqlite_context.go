@@ -127,10 +127,21 @@ func (ctx *HaSqliteContext) getRPCPollConn(addr string) (pool.Conn, error) {
 	return p.Get()
 }
 
-// getGrpcConn 获取rpc连接池
+// getLeaderConn 获取主节点连接池
 func (ctx *HaSqliteContext) getLeaderConn() (pool.Conn, error) {
 	leaderAddress, _ := ctx.Raft.LeaderWithID()
 	return ctx.getRPCPollConn(string(leaderAddress))
+}
+
+// getFollowerConn 获取跟随节点的链接池
+func (ctx *HaSqliteContext) getFollowerConn() (pool.Conn, error) {
+	leaderAddress, _ := ctx.Raft.LeaderWithID()
+	for _, server := range ctx.Raft.GetConfiguration().Configuration().Servers {
+		if server.Address != leaderAddress {
+			return ctx.getRPCPollConn(string(server.Address))
+		}
+	}
+	return nil, fmt.Errorf("without follower")
 }
 
 // IsLeader 当前节点是否为 leader
@@ -229,7 +240,24 @@ func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*pr
 
 // Query 查询记录
 func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	// 查询直接执行, TODO 查询根据一致性等级, 按需转发至 leader
+	if req.Request.TxToken != "" && !ctx.IsLeader() {
+		// 事务请求转发到 leader 执行
+		conn, err := ctx.getLeaderConn()
+		if err != nil {
+			return nil, fmt.Errorf("open leader conn error: %v", err)
+		}
+		defer conn.Close()
+		client := proto.NewDBClient(conn.Value())
+		return client.Query(context.Background(), req)
+	} else if req.Request.TxToken == "" && ctx.IsLeader() {
+		// 非事务请求, 且有活动的 follow 节点, 转发至 follower
+		if conn, err := ctx.getFollowerConn(); err != nil {
+			defer conn.Close()
+			client := proto.NewDBClient(conn.Value())
+			return client.Query(context.Background(), req)
+		}
+		// 无跟随节点, 直接执行
+	}
 	return ctx.fsm.Query(c, req)
 }
 
