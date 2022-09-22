@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	"strings"
 	"time"
 	// Allow dialing multiple nodes with multi:///.
 	_ "github.com/Jille/grpc-multi-resolver"
 	// Register health checker with gRPC.
 	_ "google.golang.org/grpc/health"
-	"strings"
 )
 
 type HaSqliteConn struct {
@@ -31,7 +31,13 @@ const MaxTupleParams = 255
 
 func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	var o grpc.DialOption = grpc.EmptyDialOption{}
-	index := strings.LastIndex(dsn, "/")
+	index := -1
+	if strings.HasPrefix(dsn, "multi:///") {
+		l := len("multi:///")
+		index = strings.Index(dsn[l:], "/") + l
+	} else {
+		index = strings.LastIndex(dsn, "/")
+	}
 	if index < 0 {
 		return nil, fmt.Errorf("NewHaSqliteConn error dsn: %v, example: \"localhost:30051/db-name.db\"", dsn)
 	}
