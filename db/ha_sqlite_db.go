@@ -25,11 +25,11 @@ func init() {
 			if err := conn.SetFileControlInt("", sqlite.SQLITE_FCNTL_PERSIST_WAL, 1); err != nil {
 				return fmt.Errorf("Unexpected error from SetFileControlInt(): %w", err)
 			}
-			conn.RegisterWalHook(func(s string, i int) int {
-				// 仅txnState == SQLITE_TXN_NONE 会触发调用
-				conn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
-				return sqlite.SQLITE_OK
-			})
+			//conn.RegisterWalHook(func(s string, i int) int {
+			//	// 仅txnState == SQLITE_TXN_NONE 会触发调用
+			//	conn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
+			//	return sqlite.SQLITE_OK
+			//})
 			return nil
 		},
 	})
@@ -50,6 +50,22 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	_, err = db.Exec("PRAGMA journal_mode = wal")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB journal_mode MEMORY")
+	}
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get NewHaSqliteDB conn")
+	}
+	if err := conn.Raw(func(driverConn interface{}) error {
+		srcConn := driverConn.(*sqlite.SQLiteConn)
+		srcConn.RegisterWalHook(func(s string, i int) int {
+			// TODO 触发应用 raft 日志
+			// 仅txnState == SQLITE_TXN_NONE 会触发调用
+			srcConn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
+			return sqlite.SQLITE_OK
+		})
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return &HaSqliteDB{
 		db:    db,

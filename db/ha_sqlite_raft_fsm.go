@@ -134,16 +134,17 @@ func (fsm *HaSqliteRaftFSM) Open(c context.Context, req *proto.OpenRequest) (*pr
 
 // Exec 执行数据库命令
 func (fsm *HaSqliteRaftFSM) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	b, err := req.ToCommandBytes()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, &b, req.Request.DbId, req.Request.TxToken)
-	if err != nil {
-		return nil, fmt.Errorf("Exec queue error:%v", err)
-	}
-	r := resp.(*fsmExecResponse)
-	return r.resp, r.err
+	return fsm.store.Exec(c, req)
+	//b, err := req.ToCommandBytes()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeExec, &b, req.Request.DbId, req.Request.TxToken)
+	//if err != nil {
+	//	return nil, fmt.Errorf("Exec queue error:%v", err)
+	//}
+	//r := resp.(*fsmExecResponse)
+	//return r.resp, r.err
 }
 
 // Query 查询记录
@@ -153,31 +154,33 @@ func (fsm *HaSqliteRaftFSM) Query(c context.Context, req *proto.QueryRequest) (*
 
 // BeginTx 开始事务执行
 func (fsm *HaSqliteRaftFSM) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	b, err := req.ToCommandBytes()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeBeginTx, &b, req.DbId, "")
-	if err != nil {
-		return nil, fmt.Errorf("BeginTx queue error:%v", err)
-	}
-	r := resp.(*fsmBeginTxResponse)
-	return r.resp, r.err
+	return fsm.store.BeginTx(c, req)
+	//b, err := req.ToCommandBytes()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeBeginTx, &b, req.DbId, "")
+	//if err != nil {
+	//	return nil, fmt.Errorf("BeginTx queue error:%v", err)
+	//}
+	//r := resp.(*fsmBeginTxResponse)
+	//return r.resp, r.err
 }
 
 // FinishTx 开始事务执行
 func (fsm *HaSqliteRaftFSM) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	b, err := req.ToCommandBytes()
-	if err != nil {
-		return nil, err
-	}
-	if req.TxToken == "" {
-		return nil, fmt.Errorf("FinishTx tx token is null")
-	}
-	resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeFinishTx, &b, req.DbId, req.TxToken)
-	if err != nil {
-		return nil, fmt.Errorf("FinishTx queue error:%v", err)
-	}
-	r := resp.(*fsmFinishTxResponse)
-	return r.resp, r.err
+	return fsm.store.FinishTx(c, req)
+	//b, err := req.ToCommandBytes()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if req.TxToken == "" {
+	//	return nil, fmt.Errorf("FinishTx tx token is null")
+	//}
+	//resp, err := fsm.store.queueApplyRaftLog(c, cmdTypeFinishTx, &b, req.DbId, req.TxToken)
+	//if err != nil {
+	//	return nil, fmt.Errorf("FinishTx queue error:%v", err)
+	//}
+	//r := resp.(*fsmFinishTxResponse)
+	//return r.resp, r.err
 }
