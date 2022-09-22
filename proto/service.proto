@@ -22,7 +22,8 @@ message Command {
   }
   Type type = 1;
   bytes sub_command = 2;
-  uint64 db_id = 3;
+  bool compressed = 3;
+  uint64 db_id = 4;
 }
 
 message PingRequest {
