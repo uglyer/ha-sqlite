@@ -251,7 +251,7 @@ func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*
 		return client.Query(context.Background(), req)
 	} else if req.Request.TxToken == "" && ctx.IsLeader() {
 		// 非事务请求, 且有活动的 follow 节点, 转发至 follower
-		if conn, err := ctx.getFollowerConn(); err != nil {
+		if conn, err := ctx.getFollowerConn(); err == nil {
 			defer conn.Close()
 			client := proto.NewDBClient(conn.Value())
 			return client.Query(context.Background(), req)
