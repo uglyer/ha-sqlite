@@ -125,7 +125,7 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joi
 	if bootstrap {
 		store.ctx.WaitHasLeader()
 	}
-	url := fmt.Sprintf("multi:///localhost:%d/:memory:", port)
+	url := fmt.Sprintf("multi:///localhost:%d/data/%s/test.db", port, nodeId)
 	db, err := sql.Open("ha-sqlite", url)
 
 	assert.NoErrorf(t, err, "ha-sqlite open error:%v", err)
@@ -134,10 +134,8 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joi
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*800)
 	defer cancel()
 	if bootstrap {
-		go func() {
-			err = db.PingContext(ctx)
-			assert.NoErrorf(t, err, "ha-sqlite ping error:%v", err)
-		}()
+		err = db.PingContext(ctx)
+		assert.NoErrorf(t, err, "ha-sqlite ping error:%v", err)
 	}
 	select {
 	case <-ctx.Done():

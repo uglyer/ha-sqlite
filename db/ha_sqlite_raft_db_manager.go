@@ -38,6 +38,18 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 	}
 	d.dbIndex++
 	token := d.dbIndex
+	err = db.InitWalHook(func(b []byte) error {
+		cmdBytes, err := proto.BytesToCommandBytes(proto.Command_COMMAND_TYPE_APPLY_WAL, token, b)
+		if err != nil {
+			return errors.Wrap(err, "error encode wal file")
+		}
+		d.raft.Apply(cmdBytes, applyTimeout)
+		return nil
+	})
+	if err != nil {
+		db.db.Close()
+		return nil, errors.Wrap(err, "failed to InitWalHook")
+	}
 	d.dbFilenameTokenMap[req.Dsn] = token
 	d.dbMap[token] = db
 	d.queueMap[token] = NewHaSqliteCmdQueue(d.raft)

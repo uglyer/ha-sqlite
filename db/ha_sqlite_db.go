@@ -8,15 +8,19 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
+	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 	"time"
 )
 
 type HaSqliteDB struct {
-	txMtx sync.Mutex
-	db    *sql.DB
-	txMap map[string]*sql.Tx
+	txMtx          sync.Mutex
+	db             *sql.DB
+	dataSourceName string
+	sourceWalFile  string
+	txMap          map[string]*sql.Tx
 }
 
 func init() {
@@ -51,26 +55,47 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set NewHaSqliteDB journal_mode MEMORY")
 	}
-	conn, err := db.Conn(context.Background())
+
+	sourceWalFile := fmt.Sprintf("%s-wal", dataSourceName)
+	return &HaSqliteDB{
+		dataSourceName: dataSourceName,
+		sourceWalFile:  sourceWalFile,
+		db:             db,
+		txMap:          make(map[string]*sql.Tx),
+	}, nil
+}
+
+// InitWalHook 执行数据库命令
+func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) error {
+	conn, err := d.db.Conn(context.Background())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get NewHaSqliteDB conn")
+		return errors.Wrap(err, "failed to get NewHaSqliteDB conn")
 	}
+	defer conn.Close()
 	if err := conn.Raw(func(driverConn interface{}) error {
 		srcConn := driverConn.(*sqlite.SQLiteConn)
 		srcConn.RegisterWalHook(func(s string, i int) int {
+			if onApplyWal == nil {
+				return sqlite.SQLITE_OK
+			}
 			// TODO 触发应用 raft 日志
+			//_, err := ioutil.ReadFile(d.sourceWalFile)
+			//if err != nil {
+			//	log.Fatalf("Failed to get wal file:", err)
+			//}
+			//err = onApplyWal(input)
+			//if err != nil {
+			//	log.Fatalf("Failed to apply wal file:", err)
+			//}
 			// 仅txnState == SQLITE_TXN_NONE 会触发调用
 			srcConn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
 			return sqlite.SQLITE_OK
 		})
 		return nil
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	return &HaSqliteDB{
-		db:    db,
-		txMap: make(map[string]*sql.Tx),
-	}, nil
+	return nil
 }
 
 // Exec 执行数据库命令
@@ -152,7 +177,6 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		}
 		allResults = append(allResults, result)
 	}
-
 	return &proto.ExecResponse{
 		Result: allResults,
 	}, nil
@@ -294,4 +318,28 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 		return &proto.FinishTxResponse{}, nil
 	}
 	panic(fmt.Sprintf("unknow tx type :%s", req.Type.String()))
+}
+
+// applyWal 应用 wal 日志
+func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
+	defer os.Remove(d.sourceWalFile)
+	err := ioutil.WriteFile(d.sourceWalFile, b, 0644)
+	if err != nil {
+		return errors.Wrap(err, "Error write wal file")
+	}
+	dbCopy, err := sql.Open("sqlite3-wal", d.dataSourceName)
+	if err != nil {
+		return errors.Wrap(err, "Error open db file when apply wal")
+	}
+	defer dbCopy.Close()
+	if _, err := dbCopy.Exec(`PRAGMA journal_mode = wal`); err != nil {
+		return errors.Wrap(err, "Failed to set db copy journal mode")
+	}
+	var row [3]int
+	if err := dbCopy.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		return errors.Wrap(err, "Failed to set db copy journal mode")
+	} else if row[0] != 0 {
+		return errors.Wrap(err, "Failed to set db copy journal mode")
+	}
+	return nil
 }

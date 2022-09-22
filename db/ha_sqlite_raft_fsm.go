@@ -68,27 +68,27 @@ func (fsm *HaSqliteRaftFSM) applyCommand(data []byte) interface{} {
 		}
 		resp, err := fsm.store.Open(context.Background(), &req)
 		return &fsmOpenResponse{resp: resp, err: err}
-	case proto.Command_COMMAND_TYPE_EXEC:
-		var req proto.ExecRequest
-		if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
-			panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
+	case proto.Command_COMMAND_TYPE_APPLY_WAL:
+		if fsm.raft.State() == raft.Leader {
+			// leader 节点无需应用日志
+			return &fsmGenericResponse{error: nil}
 		}
-		resp, err := fsm.store.Exec(context.Background(), &req)
-		return &fsmExecResponse{resp: resp, err: err}
-	case proto.Command_COMMAND_TYPE_BEGIN_TX:
-		var req proto.BeginTxRequest
-		if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
-			panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
-		}
-		resp, err := fsm.store.BeginTx(context.Background(), &req)
-		return &fsmBeginTxResponse{resp: resp, err: err}
-	case proto.Command_COMMAND_TYPE_FINISH_TX:
-		var req proto.FinishTxRequest
-		if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
-			panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
-		}
-		resp, err := fsm.store.FinishTx(context.Background(), &req)
-		return &fsmFinishTxResponse{resp: resp, err: err}
+		err := fsm.store.ApplyWal(context.Background(), c.DbId, c.SubCommand)
+		return &fsmGenericResponse{error: err}
+	//case proto.Command_COMMAND_TYPE_BEGIN_TX:
+	//	var req proto.BeginTxRequest
+	//	if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
+	//		panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
+	//	}
+	//	resp, err := fsm.store.BeginTx(context.Background(), &req)
+	//	return &fsmBeginTxResponse{resp: resp, err: err}
+	//case proto.Command_COMMAND_TYPE_FINISH_TX:
+	//	var req proto.FinishTxRequest
+	//	if err := gProto.Unmarshal(c.SubCommand, &req); err != nil {
+	//		panic(fmt.Sprintf("failed to unmarshal query subcommand: %s", err.Error()))
+	//	}
+	//	resp, err := fsm.store.FinishTx(context.Background(), &req)
+	//	return &fsmFinishTxResponse{resp: resp, err: err}
 	default:
 		return &fsmGenericResponse{error: fmt.Errorf("unknow cmd type:%s", c.Type.String())}
 	}

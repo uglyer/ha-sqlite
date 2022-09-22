@@ -85,3 +85,12 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 	}
 	return db.finishTx(c, req)
 }
+
+// ApplyWal 开始事务执行
+func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId uint64, b []byte) error {
+	db, ok := d.getDB(dbId)
+	if !ok {
+		return fmt.Errorf("get db error : %d", dbId)
+	}
+	return db.applyWal(c, b)
+}
