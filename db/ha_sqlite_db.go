@@ -40,6 +40,7 @@ func init() {
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
+	// TODO 实现 VFS
 	url := fmt.Sprintf("%s?_txlock=exclusive&_busy_timeout=30000", dataSourceName)
 	db, err := sql.Open("sqlite3-wal", url)
 	if err != nil {
@@ -177,6 +178,7 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		}
 		allResults = append(allResults, result)
 	}
+	// TODO 检查 wal 日志文件
 	return &proto.ExecResponse{
 		Result: allResults,
 	}, nil
