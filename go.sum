@@ -187,8 +187,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
-github.com/uglyer/go-sqlite3 v1.14.17 h1:rWpTibqr1llJLOoHU4T4Ddi9mkuZlookwlUSwK47Kfg=
-github.com/uglyer/go-sqlite3 v1.14.17/go.mod h1:kmmbYZNWnod/nDvOo9nkAQjIpCbzZaTiPfQm6QaQG+8=
+github.com/uglyer/go-sqlite3 v1.14.18 h1:N2Q0kcgoxj4m0dKGqmQ3vz8yiks2fhzQNuFXi7sKEO8=
+github.com/uglyer/go-sqlite3 v1.14.18/go.mod h1:kmmbYZNWnod/nDvOo9nkAQjIpCbzZaTiPfQm6QaQG+8=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasttemplate v1.0.1/go.mod h1:UQGH1tvbgY+Nz5t2n7tXsz52dQxojPUpymEIMZ47gx8=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
