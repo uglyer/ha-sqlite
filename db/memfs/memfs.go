@@ -39,7 +39,7 @@ func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	}
 	newFile := &File{
 		name:       name,
-		perm:       0666,
+		perm:       perm,
 		content:    &MemBuffer{content: []byte{}},
 		appendMode: flag&os.O_APPEND != 0,
 	}
