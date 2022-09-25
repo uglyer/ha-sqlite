@@ -33,6 +33,7 @@ func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	defer f.mtx.Unlock()
 	if file, ok := f.fileMap[name]; ok {
 		file.appendMode = flag&os.O_APPEND != 0
+		file.closed = false
 		return file, nil
 	}
 	newFile := &File{
@@ -160,10 +161,10 @@ func (b *MemBuffer) Len() int64 {
 }
 
 func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
-	//bLen := b.Len()
-	//if off >= bLen {
-	//	return 0, io.EOF
-	//}
+	bLen := b.Len()
+	if off >= bLen {
+		return 0, io.EOF
+	}
 	//pLen := int64(len(p))
 	//bLen - pLen
 	return 0, nil
