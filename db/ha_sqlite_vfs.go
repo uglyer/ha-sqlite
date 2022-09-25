@@ -26,7 +26,7 @@ func NewHaSqliteVFS() *HaSqliteVFS {
 
 func (v *HaSqliteVFS) Open(name string, flags int) (interface{}, error) {
 	log.Printf("vfs.open:%s", name)
-	// TODO 实现 xShmMap 以支持 wal 模式
+	// TODO 实现 xShmMap,xShmLock,xShmBarrier,xShmUnmap 以支持 wal 模式
 	//if strings.HasSuffix(name, "-wal") {
 	//	file, err := v.rootMemFS.OpenFile(name, flags, 0600)
 	//	if err != nil {
