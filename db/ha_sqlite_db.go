@@ -23,6 +23,8 @@ type HaSqliteDB struct {
 	txMap          map[string]*sql.Tx
 }
 
+var vfs *HaSqliteVFS
+
 func init() {
 	sql.Register("sqlite3-wal", &sqlite.SQLiteDriver{
 		ConnectHook: func(conn *sqlite.SQLiteConn) error {
@@ -37,6 +39,11 @@ func init() {
 			return nil
 		},
 	})
+	vfs = NewHaSqliteVFS()
+	err := sqlite.VFSRegister("demo", vfs)
+	if err != nil {
+		panic(fmt.Sprintf("VFSRegister error:%v", err))
+	}
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
