@@ -3,6 +3,7 @@ package memfs
 import (
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -39,7 +40,7 @@ func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	newFile := &File{
 		name:       name,
 		perm:       0666,
-		content:    &MemBuffer{},
+		content:    &MemBuffer{content: []byte{}},
 		appendMode: flag&os.O_APPEND != 0,
 	}
 	f.fileMap[name] = newFile
@@ -163,7 +164,7 @@ func (b *MemBuffer) Len() int64 {
 func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	bLen := b.Len()
+	bLen := int64(len(b.content))
 	if off >= bLen {
 		return 0, io.EOF
 	}
@@ -178,7 +179,24 @@ func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	return int(realReadLen), nil
 }
 
-func (f *MemBuffer) WriteAt(p []byte, off int64) (n int, err error) {
-	//n, err = f.content.WriteAt(p, off)
-	return
+func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	bLen := int64(len(b.content))
+	writeLen := int64(len(p))
+	freeLen := bLen - off
+	if freeLen < writeLen {
+		// 需要扩容
+		nextLen := bLen + 8192*int64(math.Ceil(float64(writeLen/8192)))
+		nextBuffer := make([]byte, nextLen)
+		// 拷贝原字节
+		for i := int64(0); i < bLen; i++ {
+			nextBuffer[i] = b.content[i]
+		}
+		b.content = nextBuffer
+	}
+	for i := int64(0); i < writeLen; i++ {
+		b.content[i+off] = p[i]
+	}
+	return int(writeLen), nil
 }
