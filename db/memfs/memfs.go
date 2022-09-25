@@ -182,15 +182,15 @@ func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	bLen := int64(len(b.content))
+	pageLen := int64(len(b.content))
 	writeLen := int64(len(p))
-	freeLen := bLen - off
+	freeLen := pageLen - off
 	if freeLen < writeLen {
 		// 需要扩容
-		nextLen := bLen + 8192*int64(math.Ceil(float64(writeLen)/float64(8192)))
+		nextLen := pageLen + 8192*int64(math.Ceil(float64(writeLen)/float64(8192)))
 		nextBuffer := make([]byte, nextLen)
 		// 拷贝原字节
-		for i := int64(0); i < bLen; i++ {
+		for i := int64(0); i < b.contentLen; i++ {
 			nextBuffer[i] = b.content[i]
 		}
 		b.content = nextBuffer
