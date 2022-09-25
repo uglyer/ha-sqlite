@@ -2,13 +2,18 @@ package db_test
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
+	"io/ioutil"
 	"log"
+	"os"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
 type Store struct {
@@ -119,9 +124,11 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 
 func openDB(t *testing.T) *Store {
 	store, err := db.NewHaSqliteDBManager()
-	assert.Nilf(t, err, "NewHaSqliteDBManager")
-	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: ":memory:"})
-	assert.Nilf(t, err, "store.Open")
+	assert.NoError(t, err)
+	tempFile, err := ioutil.TempFile("", "ha-sqlite-db-test")
+	assert.NoError(t, err)
+	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: tempFile.Name()})
+	assert.NoError(t, err)
 	return &Store{db: store, id: openResp.DbId, t: t}
 }
 
@@ -276,4 +283,32 @@ func Test_TxBatch(t *testing.T) {
 	store.exec("INSERT INTO foo(name) VALUES(?)", "data 1")
 	resp := store.query("SELECT * FROM foo WHERE name = ?", "data 1")
 	assert.Equal(t, 1, len(resp.Result[0].Values))
+}
+
+func Test_RawSqlite3Performse(t *testing.T) {
+	tempFile, err := ioutil.TempFile("", "ha-sqlite-db-test")
+	assert.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+	db, err := sql.Open("sqlite3", tempFile.Name())
+	assert.NoError(t, err)
+	db.Exec("CREATE TABLE foo (id integer not null primary key, name text)")
+	db.Exec("PRAGMA synchronous = OFF")
+	db.Exec("PRAGMA journal_mode = wal")
+	count := 10000
+	start := time.Now()
+	ch := make(chan struct{}, runtime.NumCPU()*2)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		ch <- struct{}{}
+		go func() {
+			defer wg.Done()
+			db.Exec("INSERT INTO foo(name) VALUES(?)", "test")
+			<-ch
+		}()
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
