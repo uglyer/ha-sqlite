@@ -151,25 +151,25 @@ func (de *dirEntry) Info() (fs.FileInfo, error) {
 }
 
 type MemBuffer struct {
-	mtx     sync.Mutex
-	content []byte
+	mtx        sync.Mutex
+	content    []byte
+	contentLen int64
 }
 
 func (b *MemBuffer) Len() int64 {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	return int64(len(b.content))
+	return b.contentLen
 }
 
 func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	bLen := int64(len(b.content))
-	if off >= bLen {
+	if off >= b.contentLen {
 		return 0, io.EOF
 	}
 	readLen := int64(len(p))
-	realReadLen := bLen - off
+	realReadLen := b.contentLen - off
 	if realReadLen >= readLen {
 		realReadLen = readLen
 	}
@@ -187,7 +187,7 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 	freeLen := bLen - off
 	if freeLen < writeLen {
 		// 需要扩容
-		nextLen := bLen + 8192*int64(math.Ceil(float64(writeLen/8192)))
+		nextLen := bLen + 8192*int64(math.Ceil(float64(writeLen)/float64(8192)))
 		nextBuffer := make([]byte, nextLen)
 		// 拷贝原字节
 		for i := int64(0); i < bLen; i++ {
@@ -197,6 +197,10 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 	}
 	for i := int64(0); i < writeLen; i++ {
 		b.content[i+off] = p[i]
+	}
+	nextLen := writeLen + off
+	if nextLen > b.contentLen {
+		b.contentLen = nextLen
 	}
 	return int(writeLen), nil
 }
