@@ -1,11 +1,15 @@
 package db
 
 import (
+	"github.com/uglyer/ha-sqlite/db/memfs"
 	"io"
 	"os"
+	"strings"
 )
 
-type HaSqliteVFS struct{}
+type HaSqliteVFS struct {
+	rootMemFS *memfs.FS
+}
 
 type HaSqliteVFSFile struct {
 	*os.File
@@ -14,12 +18,23 @@ type HaSqliteVFSFile struct {
 	lock int
 }
 
-func (*HaSqliteVFS) Open(name string, flags int) (interface{}, error) {
+func NewHaSqliteVFS() *HaSqliteVFS {
+	rootFS := memfs.NewFS()
+	return &HaSqliteVFS{rootMemFS: rootFS}
+}
+
+func (v *HaSqliteVFS) Open(name string, flags int) (interface{}, error) {
+	if strings.HasSuffix(name, "-wal") {
+		file, err := v.rootMemFS.OpenFile(name, flags, 0600)
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
+	}
 	file, err := os.OpenFile(name, flags, 0600)
 	if err != nil {
 		return nil, err
 	}
-
 	return &HaSqliteVFSFile{file, name, file, 0}, nil
 }
 
