@@ -161,13 +161,21 @@ func (b *MemBuffer) Len() int64 {
 }
 
 func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
 	bLen := b.Len()
 	if off >= bLen {
 		return 0, io.EOF
 	}
-	//pLen := int64(len(p))
-	//bLen - pLen
-	return 0, nil
+	readLen := int64(len(p))
+	realReadLen := bLen - off
+	if realReadLen >= readLen {
+		realReadLen = readLen
+	}
+	for i := int64(0); i < realReadLen; i++ {
+		p[i] = b.content[i+off]
+	}
+	return int(realReadLen), nil
 }
 
 func (f *MemBuffer) WriteAt(p []byte, off int64) (n int, err error) {
