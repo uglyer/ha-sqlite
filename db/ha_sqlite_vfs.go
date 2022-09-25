@@ -58,7 +58,7 @@ func (f *HaSqliteVFSFile) WriteAt(p []byte, off int64) (n int, err error) {
 //	return 0x00004000
 //}
 //
-//// Access 必须实现 access 方法, sqlite3 内部会在 pagerOpenWalIfPresent 中验证权限, 如果返回值不是 SQLITE_OK, 则会从 wal 切换为 delete 模式
+//// Access sqlite3 内部会在 pagerOpenWalIfPresent 中被调用
 //func (f *HaSqliteVFSFile) Access(path string, flags int) (int, error) {
 //	log.Printf("vfs.access:%s,%d", path, flags)
 //	return sqlite3.SQLITE_OK, nil
