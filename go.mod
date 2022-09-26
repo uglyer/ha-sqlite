@@ -15,12 +15,14 @@ require (
 require (
 	github.com/Bowery/prompt v0.0.0-20190916142128-fa8279994f75
 	github.com/Jille/grpc-multi-resolver v1.1.0
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/mkideal/cli v0.2.7
 	github.com/mkideal/pkg v0.1.3
 	github.com/pkg/errors v0.8.1
+	github.com/psanford/memfs v0.0.0-20210214183328-a001468d78ef
 	github.com/shimingyah/pool v1.0.0
 	github.com/stretchr/testify v1.7.0
 	github.com/uglyer/go-sqlite3 v1.14.18
 	google.golang.org/protobuf v1.27.1
+	modernc.org/sqlite v1.19.1
 )
