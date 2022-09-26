@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/psanford/memfs"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	_ "modernc.org/sqlite"
@@ -14,10 +14,17 @@ import (
 	"time"
 )
 
+type FileSystem struct {
+}
+
+func (f FileSystem) Open(name string) (fs.File, error) {
+	log.Printf("Open:%s", name)
+	return os.OpenFile(name, os.O_RDWR, 0600)
+}
+
 func main() {
 	// TODO modernc.org/sqlite vfs 支持测试
-	rootFS := memfs.New()
-	fn, f, err := vfs.New(rootFS)
+	fn, f, err := vfs.New(&FileSystem{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +48,10 @@ func main() {
 	}
 	//assert.NoError(t, err)
 	db.Exec("CREATE TABLE foo (id integer not null primary key, name text)")
-	db.Exec("PRAGMA synchronous = OFF")
+	_, err = db.Exec("PRAGMA synchronous = OFF")
+	if err != nil {
+		log.Fatalf("PRAGMA synchronous = OFF error:%v", err)
+	}
 	_, err = db.Exec("PRAGMA journal_mode=WAL")
 	if err != nil {
 		log.Fatalf("set journal_mode = WAL error:%v", err)
