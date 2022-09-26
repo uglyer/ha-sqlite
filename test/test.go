@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	// TODO modernc.org/sqlite vfs 支持测试
 	rootFS := memfs.New()
 	fn, f, err := vfs.New(rootFS)
 	if err != nil {
@@ -41,7 +42,10 @@ func main() {
 	//assert.NoError(t, err)
 	db.Exec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.Exec("PRAGMA synchronous = OFF")
-	db.Exec("PRAGMA journal_mode = wal")
+	_, err = db.Exec("PRAGMA journal_mode=WAL")
+	if err != nil {
+		log.Fatalf("set journal_mode = WAL error:%v", err)
+	}
 	count := 100000
 	start := time.Now()
 	ch := make(chan struct{}, runtime.NumCPU()*2)

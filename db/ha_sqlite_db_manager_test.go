@@ -128,6 +128,7 @@ func openDB(t *testing.T) *Store {
 	tempFile, err := ioutil.TempFile("", "ha-sqlite-db-test")
 	assert.NoError(t, err)
 	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: tempFile.Name()})
+	//openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: "test.db"})
 	assert.NoError(t, err)
 	return &Store{db: store, id: openResp.DbId, t: t}
 }
