@@ -49,13 +49,22 @@ func init() {
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	// TODO 实现 VFS https://github.com/psanford/sqlite3vfs github.com/blang/vfs/memfs
 	// TODO 启用 vfs 后与 wal 冲突
-	url := fmt.Sprintf("%s?_txlock=exclusive&_busy_timeout=30000&_journal_mode=wal&vfs=ha_sqlite&_synchronous=OFF", dataSourceName)
+	url := fmt.Sprintf("%s?_txlock=exclusive&_busy_timeout=30000&vfs=ha_sqlite&_synchronous=OFF", dataSourceName)
 	db, err := sql.Open("sqlite3-wal", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
+	// 通过设定 locking_mod=EXCLUSIVE 启用 vfs 不支持共享内存时的 wal 模式 https://sqlite.org/wal.html 8
+	_, err = db.Exec("PRAGMA locking_mode=EXCLUSIVE;")
+	if err != nil {
+		return nil, fmt.Errorf("set locking_mode = EXCLUSIVE error:%v", err)
+	}
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		return nil, fmt.Errorf("set journal_mode = WAL error:%v", err)
+	}
 
 	sourceWalFile := fmt.Sprintf("%s-wal", dataSourceName)
 	return &HaSqliteDB{
