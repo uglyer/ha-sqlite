@@ -285,7 +285,7 @@ func Test_TxBatch(t *testing.T) {
 	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
 
-func Test_RawSqlite3Performse(t *testing.T) {
+func Test_RawSqlite3Performance(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", "ha-sqlite-db-test")
 	assert.NoError(t, err)
 	defer os.Remove(tempFile.Name())
@@ -305,6 +305,27 @@ func Test_RawSqlite3Performse(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			db.Exec("INSERT INTO foo(name) VALUES(?)", "test")
+			<-ch
+		}()
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
+
+func Test_MemWalSqlite3Performance(t *testing.T) {
+	store := openDB(t)
+	store.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+	count := 10000
+	start := time.Now()
+	ch := make(chan struct{}, runtime.NumCPU()*2)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		ch <- struct{}{}
+		go func() {
+			defer wg.Done()
+			store.exec("INSERT INTO foo(name) VALUES(?)", "test")
 			<-ch
 		}()
 	}
