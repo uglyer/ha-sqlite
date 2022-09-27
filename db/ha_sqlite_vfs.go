@@ -4,7 +4,6 @@ import "C"
 import (
 	"github.com/uglyer/ha-sqlite/db/memfs"
 	"io"
-	"log"
 	"os"
 )
 
@@ -25,7 +24,7 @@ func NewHaSqliteVFS() *HaSqliteVFS {
 }
 
 func (v *HaSqliteVFS) Open(name string, flags int) (interface{}, error) {
-	log.Printf("vfs.open:%s", name)
+	//log.Printf("vfs.open:%s", name)
 	// TODO vfs 实现 sqlite3_io_methods 中 xTruncate,xShmMap,xShmLock,xShmBarrier,xShmUnmap,xFetch,xUnfetch 以支持 wal 模式
 	//if strings.HasSuffix(name, "-wal") {
 	//	file, err := v.rootMemFS.OpenFile(name, flags, 0600)

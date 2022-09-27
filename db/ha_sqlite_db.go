@@ -6,14 +6,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/psanford/memfs"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
 	"io/ioutil"
-	_ "modernc.org/sqlite"
-	"modernc.org/sqlite/vfs"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -27,8 +23,7 @@ type HaSqliteDB struct {
 	txMap          map[string]*sql.Tx
 }
 
-//var vfs *HaSqliteVFS
-var vfsName string
+var vfs *HaSqliteVFS
 
 func init() {
 	sql.Register("sqlite3-wal", &sqlite.SQLiteDriver{
@@ -44,28 +39,27 @@ func init() {
 			return nil
 		},
 	})
-	//vfs = NewHaSqliteVFS()
-	//err := sqlite.VFSRegister("ha_sqlite", vfs)
-	//if err != nil {
-	//	panic(fmt.Sprintf("VFSRegister error:%v", err))
-	//}
-
-	rootFS := memfs.New()
-	fn, f, err := vfs.New(rootFS)
+	vfs = NewHaSqliteVFS()
+	err := sqlite.VFSRegister("ha_sqlite", vfs)
 	if err != nil {
 		panic(fmt.Sprintf("VFSRegister error:%v", err))
 	}
-	vfsName = fn
-	runtime.SetFinalizer(f, (*vfs.FS).Close)
+
+	//rootFS := memfs.New()
+	//fn, f, err := vfs.New(rootFS)
+	//if err != nil {
+	//	panic(fmt.Sprintf("VFSRegister error:%v", err))
+	//}
+	//vfsName = fn
+	//runtime.SetFinalizer(f, (*vfs.FS).Close)
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	// TODO 实现 VFS https://github.com/psanford/sqlite3vfs github.com/blang/vfs/memfs
 	// TODO 启用 vfs 后与 wal 冲突
-	// TODO modernc.org/sqlite vfs 支持测试
-	//url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF&vfs=%s", dataSourceName, vfsName)
-	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
-	db, err := sql.Open("sqlite", url)
+	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF&vfs=ha_sqlite", dataSourceName)
+	//url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
+	db, err := sql.Open("sqlite3", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
 	}
