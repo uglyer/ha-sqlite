@@ -267,6 +267,7 @@ func Test_Tx(t *testing.T) {
 	var id int
 	var name string
 	db := openDB(t, 30330)
+	defer db.Store.Close()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.beginTx()
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
