@@ -21,6 +21,6 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/shimingyah/pool v1.0.0
 	github.com/stretchr/testify v1.7.0
-	github.com/uglyer/go-sqlite3 v1.14.19
+	github.com/uglyer/go-sqlite3 v1.14.20
 	google.golang.org/protobuf v1.27.1
 )
