@@ -33,7 +33,7 @@ func NewFS() *FS {
 // is passed, it is created with mode perm (before umask). If successful,
 // methods on the returned MemFile can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func (f *FS) OpenFile(name string, flags int, perm os.FileMode) (*sqlite3.File, error) {
+func (f *FS) OpenFile(name string, flags int, perm os.FileMode) (*MemFile, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	b, hasFile := f.bufferMap[name]
@@ -69,6 +69,7 @@ type MemFile struct {
 	perm       os.FileMode
 	content    *MemBuffer
 	modTime    time.Time
+	lockCount  int64
 	appendMode bool
 	closed     bool
 }
@@ -104,10 +105,49 @@ func (f *MemFile) Close() error {
 		return fs.ErrClosed
 	}
 	f.closed = true
+	f.content.Unlock()
 	return nil
 }
 
-type childI interface {
+func (f *MemFile) Truncate(size int64) error {
+	//return f.f.Truncate(size)
+}
+
+func (f *MemFile) Sync(flag sqlite3.SyncType) error {
+	return nil
+}
+
+func (f *MemFile) FileSize() (int64, error) {
+	return f.content.Len(), nil
+}
+
+func (f *MemFile) Lock(elock sqlite3.LockType) error {
+	if elock == sqlite3.LockNone {
+		return nil
+	}
+	atomic.AddInt64(&f.lockCount, 1)
+	return nil
+}
+
+func (f *MemFile) Unlock(elock sqlite3.LockType) error {
+	if elock == sqlite3.LockNone {
+		return nil
+	}
+	atomic.AddInt64(&f.lockCount, -1)
+	return nil
+}
+
+func (f *MemFile) CheckReservedLock() (bool, error) {
+	count := atomic.LoadInt64(&f.lockCount)
+	return count > 0, nil
+}
+
+func (f *MemFile) SectorSize() int64 {
+	return 0
+}
+
+func (f *MemFile) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
+	return 0
 }
 
 type fileInfo struct {
