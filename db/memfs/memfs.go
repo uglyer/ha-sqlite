@@ -2,7 +2,6 @@ package memfs
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/uglyer/go-sqlite3"
 	"io"
 	"io/fs"
@@ -110,7 +109,7 @@ func (f *MemFile) Close() error {
 }
 
 func (f *MemFile) Truncate(size int64) error {
-	//return f.f.Truncate(size)
+	return f.content.Truncate(size)
 }
 
 func (f *MemFile) Sync(flag sqlite3.SyncType) error {
@@ -261,6 +260,26 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 		b.contentLen = nextLen
 	}
 	return int(writeLen), nil
+}
+
+func (b *MemBuffer) Truncate(size int64) error {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	if size == 0 {
+		b.content = []byte{}
+		return nil
+	}
+	if b.Len() < size {
+		nextBuffer := make([]byte, size)
+		// 拷贝原字节
+		for i := int64(0); i < b.contentLen; i++ {
+			nextBuffer[i] = b.content[i]
+		}
+		b.content = nextBuffer
+		return nil
+	}
+	b.content = b.content[:size]
+	return nil
 }
 
 func (b *MemBuffer) CheckReservedLock() bool {
