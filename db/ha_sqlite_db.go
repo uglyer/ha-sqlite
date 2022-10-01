@@ -23,7 +23,7 @@ type HaSqliteDB struct {
 	txMap          map[string]*sql.Tx
 }
 
-//var vfs *HaSqliteVFS
+var vfs *HaSqliteVFS
 
 func init() {
 	sql.Register("sqlite3-wal", &sqlite.SQLiteDriver{
@@ -39,11 +39,11 @@ func init() {
 			return nil
 		},
 	})
-	//vfs = NewHaSqliteVFS()
-	//err := sqlite.VFSRegister("ha_sqlite", vfs)
-	//if err != nil {
-	//	panic(fmt.Sprintf("VFSRegister error:%v", err))
-	//}
+	vfs = NewHaSqliteVFS()
+	err := sqlite.RegisterVFS("ha_sqlite_vfs", vfs)
+	if err != nil {
+		panic(fmt.Sprintf("RegisterVFS error:%v", err))
+	}
 
 	//rootFS := memfs.New()
 	//fn, f, err := vfs.New(rootFS)
@@ -57,7 +57,7 @@ func init() {
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	// TODO 实现 VFS https://github.com/psanford/sqlite3vfs github.com/blang/vfs/memfs
 	// TODO 启用 vfs 后与 wal 冲突
-	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
+	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF&vfs=ha_sqlite_vfs", dataSourceName)
 	//url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
 	db, err := sql.Open("sqlite3", url)
 	if err != nil {
@@ -65,11 +65,6 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
-	// 通过设定 locking_mod=EXCLUSIVE 启用 vfs 不支持共享内存时的 wal 模式 https://sqlite.org/wal.html 8
-	//_, err = db.Exec("PRAGMA locking_mode=EXCLUSIVE;")
-	//if err != nil {
-	//	return nil, fmt.Errorf("set locking_mode = EXCLUSIVE error:%v", err)
-	//}
 	_, err = db.Exec("PRAGMA synchronous = OFF")
 	if err != nil {
 		return nil, fmt.Errorf("set synchronous = OFF error:%v", err)
