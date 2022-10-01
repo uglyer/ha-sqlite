@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
 	"sync"
+	"time"
 )
 
 type HaSqliteDBManager struct {
@@ -48,6 +49,13 @@ func (d *HaSqliteDBManager) getDB(dbId uint64) (*HaSqliteDB, bool) {
 	defer d.mtx.Unlock()
 	db, ok := d.dbMap[dbId]
 	return db, ok
+}
+
+// Ping 验证服务连通性
+func (ctx *HaSqliteDBManager) Ping(c context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
+	return &proto.PingResponse{
+		Timestamp: time.Now().UnixMilli(),
+	}, nil
 }
 
 // Exec 执行数据库命令
