@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const pageSize = 8192
+
 // FS is an in-memory filesystem that implements
 // io/fs.FS
 type FS struct {
@@ -244,7 +246,7 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 	freeLen := pageLen - off
 	if freeLen < writeLen {
 		// 需要扩容
-		nextLen := pageLen + 8192*int64(math.Ceil(float64(writeLen)/float64(8192)))
+		nextLen := pageLen + pageSize*int64(math.Ceil(float64(writeLen)/float64(pageSize)))
 		nextBuffer := make([]byte, nextLen)
 		// 拷贝原字节
 		for i := int64(0); i < b.contentLen; i++ {
@@ -265,20 +267,34 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 func (b *MemBuffer) Truncate(size int64) error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
+	bLen := b.contentLen
+	if bLen == size {
+		return nil
+	}
 	if size == 0 {
-		b.content = []byte{}
+		b.contentLen = size
 		return nil
 	}
-	if b.Len() < size {
-		nextBuffer := make([]byte, size)
-		// 拷贝原字节
-		for i := int64(0); i < b.contentLen; i++ {
-			nextBuffer[i] = b.content[i]
+	if bLen < size {
+		// 截断更大尺寸需要考虑扩容问题
+		pageLen := int64(len(b.content))
+		if pageLen < size {
+			writeLen := size - pageLen
+			nextLen := pageLen + pageSize*int64(math.Ceil(float64(writeLen)/float64(pageSize)))
+			nextBuffer := make([]byte, nextLen)
+			// 拷贝原字节
+			for i := int64(0); i < b.contentLen; i++ {
+				nextBuffer[i] = b.content[i]
+			}
+			b.content = nextBuffer
 		}
-		b.content = nextBuffer
+		b.contentLen = size
 		return nil
 	}
-	b.content = b.content[:size]
+	b.contentLen = size
+	if size < 0 {
+		b.contentLen = 0
+	}
 	return nil
 }
 
