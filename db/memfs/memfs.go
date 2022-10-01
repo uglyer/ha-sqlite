@@ -1,6 +1,7 @@
 package memfs
 
 import (
+	"github.com/uglyer/go-sqlite3"
 	"io"
 	"io/fs"
 	"math"
@@ -12,14 +13,14 @@ import (
 // FS is an in-memory filesystem that implements
 // io/fs.FS
 type FS struct {
-	fileMap map[string]*File
+	fileMap map[string]*MemFile
 	mtx     sync.Mutex
 }
 
 // NewFS creates a new in-memory FileSystem.
 func NewFS() *FS {
 	return &FS{
-		fileMap: make(map[string]*File),
+		fileMap: make(map[string]*MemFile),
 	}
 }
 
@@ -27,9 +28,9 @@ func NewFS() *FS {
 // or Create instead. It opens the named file with specified flag
 // (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
 // is passed, it is created with mode perm (before umask). If successful,
-// methods on the returned File can be used for I/O.
+// methods on the returned MemFile can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
+func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*sqlite3.File, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	if file, ok := f.fileMap[name]; ok {
@@ -37,7 +38,7 @@ func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 		file.closed = false
 		return file, nil
 	}
-	newFile := &File{
+	newFile := &MemFile{
 		name:       name,
 		perm:       perm,
 		content:    &MemBuffer{content: []byte{}},
@@ -47,7 +48,7 @@ func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	return newFile, nil
 }
 
-type File struct {
+type MemFile struct {
 	name       string
 	perm       os.FileMode
 	content    *MemBuffer
@@ -56,7 +57,7 @@ type File struct {
 	closed     bool
 }
 
-func (f *File) Stat() (fs.FileInfo, error) {
+func (f *MemFile) Stat() (fs.FileInfo, error) {
 	if f.closed {
 		return nil, fs.ErrClosed
 	}
@@ -69,7 +70,7 @@ func (f *File) Stat() (fs.FileInfo, error) {
 	return &fi, nil
 }
 
-func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
+func (f *MemFile) ReadAt(p []byte, off int64) (n int, err error) {
 	n, err = f.content.ReadAt(p, off)
 	if err == io.EOF {
 		err = nil
@@ -77,12 +78,12 @@ func (f *File) ReadAt(p []byte, off int64) (n int, err error) {
 	return
 }
 
-func (f *File) WriteAt(p []byte, off int64) (n int, err error) {
+func (f *MemFile) WriteAt(p []byte, off int64) (n int, err error) {
 	n, err = f.content.WriteAt(p, off)
 	return
 }
 
-func (f *File) Close() error {
+func (f *MemFile) Close() error {
 	if f.closed {
 		return fs.ErrClosed
 	}
