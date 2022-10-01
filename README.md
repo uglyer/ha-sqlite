@@ -32,6 +32,7 @@ https://github.com/uglyer/ha-sqlite
 - [x] Prepare
 - [ ] Transaction isolation (Developing)
 - [ ] CI (Developing)
+- [ ] Wal copy (Developing)
 - [ ] Snapshot
 - [ ] Restore
 - [ ] S3
