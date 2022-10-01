@@ -109,14 +109,11 @@ func (tf *HaSqliteVFSFile) Sync(flag sqlite3.SyncType) error {
 }
 
 func (tf *HaSqliteVFSFile) FileSize() (int64, error) {
-	cur, _ := tf.f.Seek(0, os.SEEK_CUR)
-	end, err := tf.f.Seek(0, os.SEEK_END)
+	info, err := tf.f.Stat()
 	if err != nil {
 		return 0, err
 	}
-
-	tf.f.Seek(cur, os.SEEK_SET)
-	return end, nil
+	return info.Size(), nil
 }
 
 func (tf *HaSqliteVFSFile) Lock(elock sqlite3.LockType) error {
