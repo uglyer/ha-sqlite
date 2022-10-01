@@ -65,6 +65,13 @@ func (f *FS) OpenFile(name string, flags int, perm os.FileMode) (*MemFile, error
 	return newFile, nil
 }
 
+func (f *FS) GetFileBuffer(name string) (buf *MemBuffer, hasFile bool) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	buf, hasFile = f.bufferMap[name]
+	return
+}
+
 type MemFile struct {
 	name       string
 	perm       os.FileMode
