@@ -1,26 +1,29 @@
 package memfs
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/uglyer/go-sqlite3"
 	"io"
 	"io/fs"
 	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // FS is an in-memory filesystem that implements
 // io/fs.FS
 type FS struct {
-	fileMap map[string]*MemFile
-	mtx     sync.Mutex
+	bufferMap map[string]*MemBuffer
+	mtx       sync.Mutex
 }
 
 // NewFS creates a new in-memory FileSystem.
 func NewFS() *FS {
 	return &FS{
-		fileMap: make(map[string]*MemFile),
+		bufferMap: make(map[string]*MemBuffer),
 	}
 }
 
@@ -30,21 +33,34 @@ func NewFS() *FS {
 // is passed, it is created with mode perm (before umask). If successful,
 // methods on the returned MemFile can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func (f *FS) OpenFile(name string, flag int, perm os.FileMode) (*sqlite3.File, error) {
+func (f *FS) OpenFile(name string, flags int, perm os.FileMode) (*sqlite3.File, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
-	if file, ok := f.fileMap[name]; ok {
-		file.appendMode = flag&os.O_APPEND != 0
-		file.closed = false
-		return file, nil
+	b, hasFile := f.bufferMap[name]
+	if flags&os.O_EXCL != 0 && hasFile {
+		return nil, fmt.Errorf("The file already exists:%s", name)
 	}
+	if flags&os.O_CREATE != 0 && hasFile && b.CheckReservedLock() {
+		return nil, fmt.Errorf("The file is locked:%s", name)
+	}
+	if hasFile {
+		b.Lock()
+		return &MemFile{
+			name:       name,
+			perm:       perm,
+			content:    b,
+			appendMode: flags&os.O_APPEND != 0,
+		}, nil
+	}
+	buffer := &MemBuffer{content: []byte{}}
+	buffer.Lock()
 	newFile := &MemFile{
 		name:       name,
 		perm:       perm,
-		content:    &MemBuffer{content: []byte{}},
-		appendMode: flag&os.O_APPEND != 0,
+		content:    buffer,
+		appendMode: flags&os.O_APPEND != 0,
 	}
-	f.fileMap[name] = newFile
+	f.bufferMap[name] = buffer
 	return newFile, nil
 }
 
@@ -155,6 +171,7 @@ type MemBuffer struct {
 	mtx        sync.Mutex
 	content    []byte
 	contentLen int64
+	lockCount  int64
 }
 
 func (b *MemBuffer) Len() int64 {
@@ -204,4 +221,17 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 		b.contentLen = nextLen
 	}
 	return int(writeLen), nil
+}
+
+func (b *MemBuffer) CheckReservedLock() bool {
+	count := atomic.LoadInt64(&b.lockCount)
+	return count > 0
+}
+
+func (tf *MemBuffer) Lock() {
+	atomic.AddInt64(&tf.lockCount, 1)
+}
+
+func (tf *MemBuffer) Unlock() {
+	atomic.AddInt64(&tf.lockCount, -1)
 }
