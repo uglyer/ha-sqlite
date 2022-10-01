@@ -52,3 +52,33 @@ func TestMemFS(t *testing.T) {
 		assert.Equal(t, pageBody[i-1], readBody5[i])
 	}
 }
+
+func TestMemFSTruncate(t *testing.T) {
+	rootFS := NewFS()
+	testFile, err := rootFS.OpenFile("test.txt", os.O_CREATE, 0600)
+	assert.NoError(t, err)
+
+	body := []byte("memFS")
+	writeCount, err := testFile.WriteAt(body, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, len(body), writeCount)
+
+	// 超出尺寸截断
+	err = testFile.Truncate(6)
+	assert.NoError(t, err)
+	fileSize, err := testFile.FileSize()
+	assert.NoError(t, err)
+	assert.Equal(t, int64(6), fileSize)
+
+	// 更小尺寸截断
+	err = testFile.Truncate(1)
+	assert.NoError(t, err)
+	fileSize, err = testFile.FileSize()
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), fileSize)
+	readBody5 := make([]byte, 5)
+	readCount, err := testFile.ReadAt(readBody5, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, readCount)
+	assert.Equal(t, body[0], readBody5[0])
+}
