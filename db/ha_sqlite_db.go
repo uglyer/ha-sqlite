@@ -116,6 +116,21 @@ func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) error {
 	return nil
 }
 
+func (d *HaSqliteDB) checkWal() error {
+	_, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+	if !hasWal {
+		return nil
+	}
+	// TODO 应用 wal 日志
+	var row [3]int
+	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		return fmt.Errorf("Copy db error apply wal:%s", d.sourceWalFile)
+	} else if row[0] != 0 {
+		return fmt.Errorf("truncation checkpoint failed during restore (%d,%d,%d)", row[0], row[1], row[2])
+	}
+	return nil
+}
+
 // Exec 执行数据库命令
 func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
 	var allResults []*proto.ExecResult
@@ -195,7 +210,9 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		}
 		allResults = append(allResults, result)
 	}
-	// TODO 检查 wal 日志文件
+	if req.Request.TxToken == "" {
+		d.checkWal()
+	}
 	return &proto.ExecResponse{
 		Result: allResults,
 	}, nil
@@ -320,6 +337,9 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	if !ok {
 		return nil, fmt.Errorf("get tx error:%s", req.TxToken)
 	}
+	defer func() {
+		d.checkWal()
+	}()
 	defer func() {
 		delete(d.txMap, req.TxToken)
 	}()
