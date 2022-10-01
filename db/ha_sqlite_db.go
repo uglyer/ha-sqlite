@@ -338,13 +338,11 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 		return nil, fmt.Errorf("get tx error:%s", req.TxToken)
 	}
 	defer func() {
-		d.checkWal()
-	}()
-	defer func() {
 		delete(d.txMap, req.TxToken)
 	}()
 	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
 		err := tx.Commit()
+		d.checkWal()
 		if err != nil {
 			return nil, fmt.Errorf("tx commit error : %v", err)
 		}
