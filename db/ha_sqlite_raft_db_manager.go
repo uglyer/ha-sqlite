@@ -6,18 +6,21 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/proto"
+	"path"
 )
 
 type HaSqliteRaftDBManager struct {
 	HaSqliteDBManager
 	queueMap map[uint64]*HaSqliteCmdQueue
 	raft     *raft.Raft
+	dataPath string
 }
 
-func NewHaSqliteRaftDBManager(raft *raft.Raft) *HaSqliteRaftDBManager {
+func NewHaSqliteRaftDBManager(raft *raft.Raft, dataPath string) *HaSqliteRaftDBManager {
 	manager := &HaSqliteRaftDBManager{
 		raft:     raft,
 		queueMap: make(map[uint64]*HaSqliteCmdQueue),
+		dataPath: dataPath,
 	}
 	manager.dbIndex = 0
 	manager.dbFilenameTokenMap = make(map[string]uint64)
@@ -32,7 +35,8 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 	if token, ok := d.dbFilenameTokenMap[req.Dsn]; ok {
 		return &proto.OpenResponse{DbId: token}, nil
 	}
-	db, err := newHaSqliteDB(req.Dsn)
+	dataSourceName := path.Join(d.dataPath, req.Dsn)
+	db, err := newHaSqliteDB(dataSourceName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}

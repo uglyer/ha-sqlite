@@ -28,7 +28,7 @@ func NewNode(t *testing.T, config *node.HaSqliteConfig, deleteLog bool) *Node {
 		baseDir := filepath.Join(config.DataPath, config.RaftId)
 		err := os.RemoveAll(baseDir)
 		if err != nil {
-			log.Printf("RemoveAll failed:%v", err)
+			log.Fatalf("RemoveAll failed:%v", err)
 		}
 	}
 	_, port, err := net.SplitHostPort(config.Address)
@@ -69,15 +69,15 @@ type ThreeNodeDB struct {
 }
 
 func openThreeNodeDB(t *testing.T, nodePrefix string, deleteLog bool) *ThreeNodeDB {
-	db1 := openSingleNodeDB(t, 31300, fmt.Sprintf("%s_NodeA", nodePrefix), true, 0)
-	db2 := openSingleNodeDB(t, 31301, fmt.Sprintf("%s_NodeB", nodePrefix), true, 31300)
-	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("%s_NodeC", nodePrefix), true, 31300)
+	db1 := openSingleNodeDB(t, 31300, fmt.Sprintf("multi_%s_NodeA", nodePrefix), true, 0)
+	db2 := openSingleNodeDB(t, 31301, fmt.Sprintf("multi_%s_NodeB", nodePrefix), true, 31300)
+	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("multi_%s_NodeC", nodePrefix), true, 31300)
 	//db1.Store.ctx.WaitHasLeader()
 	db2.Store.ctx.WaitHasLeader()
 	db3.Store.ctx.WaitHasLeader()
 	assert.Nil(t, db2.db.PingContext(context.Background()))
 	assert.Nil(t, db3.db.PingContext(context.Background()))
-	return &ThreeNodeDB{db1: db1, db2: db2, db3: db3}
+	return &ThreeNodeDB{db1: db1, db2: db2, db3: db2}
 }
 
 func (d *ThreeNodeDB) stop() {
@@ -125,7 +125,7 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joi
 	if bootstrap {
 		store.ctx.WaitHasLeader()
 	}
-	url := fmt.Sprintf("multi:///localhost:%d/data/%s/test.db", port, nodeId)
+	url := fmt.Sprintf("multi:///localhost:%d/test.db", port)
 	db, err := sql.Open("ha-sqlite", url)
 
 	assert.NoErrorf(t, err, "ha-sqlite open error:%v", err)

@@ -18,19 +18,20 @@ const (
 
 // HaSqliteRaftFSM Raft 生命周期相关接口实现
 type HaSqliteRaftFSM struct {
-	mtx   sync.RWMutex
-	store *HaSqliteRaftDBManager
-	raft  *raft.Raft
+	mtx      sync.RWMutex
+	store    *HaSqliteRaftDBManager
+	raft     *raft.Raft
+	dataPath string
 }
 
 //var _ raft.FSM = &HaSqliteRaftFSM{}
 
-func NewHaSqliteRaftFSM() (*HaSqliteRaftFSM, error) {
-	return &HaSqliteRaftFSM{}, nil
+func NewHaSqliteRaftFSM(dataPath string) (*HaSqliteRaftFSM, error) {
+	return &HaSqliteRaftFSM{dataPath: dataPath}, nil
 }
 
 func (fsm *HaSqliteRaftFSM) InitRaft(r *raft.Raft) {
-	store := NewHaSqliteRaftDBManager(r)
+	store := NewHaSqliteRaftDBManager(r, fsm.dataPath)
 	fsm.store = store
 	fsm.raft = r
 }

@@ -8,6 +8,9 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
+	"log"
+	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +43,13 @@ func init() {
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
+	dir := path.Dir(dataSourceName)
+	if dir != "" {
+		err := os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create dir")
+		}
+	}
 	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF&vfs=ha_sqlite_vfs", dataSourceName)
 	db, err := sql.Open("sqlite3", url)
 	if err != nil {
@@ -81,6 +91,9 @@ func (d *HaSqliteDB) checkWal() error {
 	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
 	defer buffer.Truncate(0)
 	b := buffer.Copy()
+	if b == nil {
+		return nil
+	}
 	err := d.onApplyWal(b)
 	if err != nil {
 		return fmt.Errorf("apply wal error:%v", err)

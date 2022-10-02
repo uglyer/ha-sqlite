@@ -232,6 +232,9 @@ func (b *MemBuffer) Len() int64 {
 func (b *MemBuffer) Copy() []byte {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
+	if b.contentLen == 0 {
+		return nil
+	}
 	cloneBytes := make([]byte, b.contentLen)
 	for i := int64(0); i < b.contentLen; i++ {
 		cloneBytes[i] = b.content[i]

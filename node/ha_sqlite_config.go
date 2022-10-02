@@ -1,5 +1,7 @@
 package node
 
+import "path"
+
 type HaSqliteConfig struct {
 	// Address TCP host+port for this node
 	Address string
@@ -15,4 +17,8 @@ type HaSqliteConfig struct {
 	RaftAdmin bool
 	// JoinAddress auto join cluster
 	JoinAddress string
+}
+
+func (c *HaSqliteConfig) NodeDataPath() string {
+	return path.Join(c.DataPath, c.RaftId)
 }

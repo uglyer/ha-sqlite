@@ -50,7 +50,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fsm, err := db.NewHaSqliteRaftFSM()
+	fsm, err := db.NewHaSqliteRaftFSM(config.NodeDataPath())
 	if err != nil {
 		return nil, err
 	}
