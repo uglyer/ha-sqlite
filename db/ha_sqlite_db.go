@@ -8,8 +8,7 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
-	"io/ioutil"
-	"os"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +20,7 @@ type HaSqliteDB struct {
 	dataSourceName string
 	sourceWalFile  string
 	txMap          map[string]*sql.Tx
+	onApplyWal     func(b []byte) error
 }
 
 var vfs *HaSqliteVFS
@@ -84,49 +84,25 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 }
 
 // InitWalHook 执行数据库命令
-func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) error {
-	conn, err := d.db.Conn(context.Background())
-	if err != nil {
-		return errors.Wrap(err, "failed to get NewHaSqliteDB conn")
-	}
-	defer conn.Close()
-	if err := conn.Raw(func(driverConn interface{}) error {
-		srcConn := driverConn.(*sqlite.SQLiteConn)
-		srcConn.RegisterWalHook(func(s string, i int) int {
-			if onApplyWal == nil {
-				return sqlite.SQLITE_OK
-			}
-			// TODO 触发应用 raft 日志
-			//_, err := ioutil.ReadFile(d.sourceWalFile)
-			//if err != nil {
-			//	log.Fatalf("Failed to get wal file:", err)
-			//}
-			//err = onApplyWal(input)
-			//if err != nil {
-			//	log.Fatalf("Failed to apply wal file:", err)
-			//}
-			// 仅txnState == SQLITE_TXN_NONE 会触发调用
-			srcConn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
-			return sqlite.SQLITE_OK
-		})
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
+	d.onApplyWal = onApplyWal
 }
 
 func (d *HaSqliteDB) checkWal() error {
-	_, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
 	if !hasWal {
 		return nil
 	}
-	// TODO 应用 wal 日志
-	var row [3]int
-	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-		return fmt.Errorf("Copy db error apply wal:%s", d.sourceWalFile)
-	} else if row[0] != 0 {
-		return fmt.Errorf("truncation checkpoint failed during restore (%d,%d,%d)", row[0], row[1], row[2])
+	if d.onApplyWal == nil {
+		return fmt.Errorf("onApplyWal is null")
+	}
+	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
+	defer buffer.Truncate(0)
+	b := buffer.Copy()
+	err := d.onApplyWal(b)
+	if err != nil {
+		log.Printf("apply error:%v", err)
+		return fmt.Errorf("apply wal error:%v", err)
 	}
 	return nil
 }
@@ -359,21 +335,33 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 
 // applyWal 应用 wal 日志
 func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
-	defer os.Remove(d.sourceWalFile)
-	err := ioutil.WriteFile(d.sourceWalFile, b, 0644)
-	if err != nil {
-		return errors.Wrap(err, "Error write wal file")
+	walBuffer, hasBuffer := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+	if hasBuffer {
+		_, err := walBuffer.WriteAt(b, 0)
+		if err != nil {
+			return errors.Wrap(err, "Error copy to wal buffer")
+		}
+	} else {
+		walFile, _, err := vfs.Open(d.sourceWalFile, sqlite.OpenCreate)
+		if err != nil {
+			return errors.Wrap(err, "Error open wal file")
+		}
+		defer walFile.Close()
+		_, err = walFile.WriteAt(b, 0)
+		if err != nil {
+			return errors.Wrap(err, "Error write wal file")
+		}
 	}
-	dbCopy, err := sql.Open("sqlite3-wal", d.dataSourceName)
-	if err != nil {
-		return errors.Wrap(err, "Error open db file when apply wal")
-	}
-	defer dbCopy.Close()
-	if _, err := dbCopy.Exec(`PRAGMA journal_mode = wal`); err != nil {
-		return errors.Wrap(err, "Failed to set db copy journal mode")
-	}
+	//dbCopy, err := sql.Open("sqlite3-wal", d.dataSourceName)
+	//if err != nil {
+	//	return errors.Wrap(err, "Error open db file when apply wal")
+	//}
+	//defer dbCopy.Close()
+	//if _, err := dbCopy.Exec(`PRAGMA journal_mode = wal`); err != nil {
+	//	return errors.Wrap(err, "Failed to set db copy journal mode")
+	//}
 	var row [3]int
-	if err := dbCopy.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
 		return errors.Wrap(err, "Failed to set db copy journal mode")
 	} else if row[0] != 0 {
 		return errors.Wrap(err, "Failed to set db copy journal mode")

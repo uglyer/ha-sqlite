@@ -39,6 +39,10 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	}
 	d.dbIndex++
 	token := d.dbIndex
+	// 模拟应用 wal
+	db.InitWalHook(func(b []byte) error {
+		return db.applyWal(context.Background(), b)
+	})
 	d.dbFilenameTokenMap[req.Dsn] = token
 	d.dbMap[token] = db
 	return &proto.OpenResponse{DbId: token}, nil

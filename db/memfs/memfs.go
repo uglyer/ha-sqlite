@@ -118,7 +118,8 @@ func (f *MemFile) Close() error {
 }
 
 func (f *MemFile) Truncate(size int64) error {
-	return f.content.Truncate(size)
+	f.content.Truncate(size)
+	return nil
 }
 
 func (f *MemFile) Sync(flag sqlite3.SyncType) error {
@@ -228,6 +229,16 @@ func (b *MemBuffer) Len() int64 {
 	return b.contentLen
 }
 
+func (b *MemBuffer) Copy() []byte {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	cloneBytes := make([]byte, b.contentLen)
+	for i := int64(0); i < b.contentLen; i++ {
+		cloneBytes[i] = b.content[i]
+	}
+	return cloneBytes
+}
+
 func (b *MemBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -271,16 +282,16 @@ func (b *MemBuffer) WriteAt(p []byte, off int64) (int, error) {
 	return int(writeLen), nil
 }
 
-func (b *MemBuffer) Truncate(size int64) error {
+func (b *MemBuffer) Truncate(size int64) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	bLen := b.contentLen
 	if bLen == size {
-		return nil
+		return
 	}
 	if size == 0 {
 		b.contentLen = size
-		return nil
+		return
 	}
 	if bLen < size {
 		// 截断更大尺寸需要考虑扩容问题
@@ -296,13 +307,13 @@ func (b *MemBuffer) Truncate(size int64) error {
 			b.content = nextBuffer
 		}
 		b.contentLen = size
-		return nil
+		return
 	}
 	b.contentLen = size
 	if size < 0 {
 		b.contentLen = 0
 	}
-	return nil
+	return
 }
 
 func (b *MemBuffer) CheckReservedLock() bool {
