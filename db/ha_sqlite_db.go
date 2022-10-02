@@ -23,7 +23,7 @@ type HaSqliteDB struct {
 	onApplyWal     func(b []byte) error
 }
 
-var vfs *HaSqliteVFS
+var vfs = NewHaSqliteVFS()
 
 func init() {
 	sql.Register("sqlite3-wal", &sqlite.SQLiteDriver{
@@ -34,7 +34,6 @@ func init() {
 			return nil
 		},
 	})
-	vfs = NewHaSqliteVFS()
 	err := sqlite.RegisterVFS("ha_sqlite_vfs", vfs)
 	if err != nil {
 		panic(fmt.Sprintf("RegisterVFS error:%v", err))
