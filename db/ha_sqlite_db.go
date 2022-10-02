@@ -31,11 +31,6 @@ func init() {
 			if err := conn.SetFileControlInt("", sqlite.SQLITE_FCNTL_PERSIST_WAL, 1); err != nil {
 				return fmt.Errorf("Unexpected error from SetFileControlInt(): %w", err)
 			}
-			//conn.RegisterWalHook(func(s string, i int) int {
-			//	// 仅txnState == SQLITE_TXN_NONE 会触发调用
-			//	conn.WalCheckpointV2("main", sqlite.SQLITE_CHECKPOINT_TRUNCATE, 0, i)
-			//	return sqlite.SQLITE_OK
-			//})
 			return nil
 		},
 	})
@@ -44,14 +39,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("RegisterVFS error:%v", err))
 	}
-
-	//rootFS := memfs.New()
-	//fn, f, err := vfs.New(rootFS)
-	//if err != nil {
-	//	panic(fmt.Sprintf("VFSRegister error:%v", err))
-	//}
-	//vfsName = fn
-	//runtime.SetFinalizer(f, (*vfs.FS).Close)
 }
 
 func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
