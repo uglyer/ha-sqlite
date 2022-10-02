@@ -9,8 +9,10 @@ import (
 	_ "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
+	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -56,10 +58,12 @@ type HaDB struct {
 
 func openDB(t *testing.T, port uint16) *HaDB {
 	store := NewRPCStore(t, port)
+	tempFile, err := ioutil.TempFile("", "ha-sqlite-driver-test")
 	go func() {
 		store.Serve()
+		os.Remove(tempFile.Name())
 	}()
-	url := fmt.Sprintf("multi:///localhost:%d/:memory:", port)
+	url := fmt.Sprintf("multi:///localhost:%d/%s", port, tempFile.Name())
 	db, err := sql.Open("ha-sqlite", url)
 	assert.Nil(t, err)
 	db.SetMaxIdleConns(runtime.NumCPU() * 2)
