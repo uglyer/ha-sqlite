@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -93,6 +94,7 @@ func (d *HaSqliteDB) checkWal() error {
 	if b == nil {
 		return nil
 	}
+	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
 	err := d.onApplyWal(b)
 	if err != nil {
 		return fmt.Errorf("apply wal error:%v", err)
@@ -334,6 +336,9 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 
 // applyWal 应用 wal 日志
 func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
+	// TODO 由 raft 触发写日志时,与 checkWal 会有200ms的时间差, wal 尺寸可能会超过200kb
+	// TODO 此过程中执行 PRAGMA wal_checkpoint(TRUNCATE); 有概率返回 disk I/O error 导致查询结果不一致
+	fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
 	walBuffer, hasBuffer := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
 	if hasBuffer {
 		_, err := walBuffer.WriteAt(b, 0)
@@ -361,8 +366,10 @@ func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
 	//}
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
 		return errors.Wrap(err, "Failed to set db copy journal mode")
 	} else if row[0] != 0 {
+		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
 		return errors.Wrap(err, "Failed to set db copy journal mode")
 	}
 	return nil

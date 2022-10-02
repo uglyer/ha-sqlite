@@ -118,6 +118,7 @@ func (f *MemFile) Close() error {
 }
 
 func (f *MemFile) Truncate(size int64) error {
+	//log.Printf("Truncate")
 	f.content.Truncate(size)
 	return nil
 }

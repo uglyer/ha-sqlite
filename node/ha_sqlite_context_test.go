@@ -271,8 +271,13 @@ func Test_SingleNodeExec(t *testing.T) {
 func Test_SingleNodeQuery(t *testing.T) {
 	db := openSingleNodeDB(t, 31300, "Test_Query", true, 0)
 	defer db.Store.Stop()
+	var id int
+	var name string
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test1")
+	db.assertQueryCount(1, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test1"), &id, &name)
+	assert.Equal(t, 1, id)
+	assert.Equal(t, "test1", name)
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	db.assertExec("INSERT INTO foo(name) VALUES(?)", "test")
@@ -281,8 +286,6 @@ func Test_SingleNodeQuery(t *testing.T) {
 	db.assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
 	db.assertQueryColumns([]string{"name"}, "SELECT name FROM `foo` WHERE name = ?", "test")
 	db.assertQueryColumns([]string{"NNN"}, "SELECT name as NNN FROM `foo` WHERE name = ?", "test")
-	var id int
-	var name string
 	db.assertQueryCount(3, db.assertQuery("SELECT id,name FROM `foo` WHERE name = ?", "test"), &id, &name)
 	db.assertQueryValues(func(i int) {
 		assert.Equal(t, i+2, id)
