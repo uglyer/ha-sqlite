@@ -168,7 +168,10 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		allResults = append(allResults, result)
 	}
 	if req.Request.TxToken == "" {
-		d.checkWal()
+		err := d.checkWal()
+		if err != nil {
+			return nil, fmt.Errorf("exec apply wal error:%v", err)
+		}
 	}
 	return &proto.ExecResponse{
 		Result: allResults,
@@ -299,9 +302,12 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	}()
 	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
 		err := tx.Commit()
-		d.checkWal()
 		if err != nil {
 			return nil, fmt.Errorf("tx commit error : %v", err)
+		}
+		err = d.checkWal()
+		if err != nil {
+			return nil, fmt.Errorf("tx commit apply wal error : %v", err)
 		}
 		return &proto.FinishTxResponse{}, nil
 	} else if req.Type == proto.FinishTxRequest_TX_TYPE_ROLLBACK {
