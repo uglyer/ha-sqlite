@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/proto"
-	"log"
 	"os"
 	"path"
 	"strings"
