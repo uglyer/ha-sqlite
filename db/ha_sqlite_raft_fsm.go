@@ -69,10 +69,6 @@ func (fsm *HaSqliteRaftFSM) applyCommand(data []byte) interface{} {
 		resp, err := fsm.store.Open(context.Background(), &req)
 		return &fsmOpenResponse{resp: resp, err: err}
 	case proto.Command_COMMAND_TYPE_APPLY_WAL:
-		if fsm.raft.State() == raft.Leader {
-			// leader 节点无需应用日志
-			return &fsmGenericResponse{error: nil}
-		}
 		err := fsm.store.ApplyWal(context.Background(), c.DbId, c.SubCommand)
 		return &fsmGenericResponse{error: err}
 	//case proto.Command_COMMAND_TYPE_BEGIN_TX:
