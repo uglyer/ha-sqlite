@@ -6,7 +6,6 @@ import (
 	"github.com/uglyer/ha-sqlite/db/memfs"
 	"log"
 	"os"
-	"strings"
 	"sync/atomic"
 )
 
@@ -43,13 +42,13 @@ func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag) (sqlite3.File,
 	if flags&sqlite3.OpenReadWrite != 0 {
 		fileFlags |= os.O_RDWR
 	}
-	if strings.HasSuffix(name, "-wal") {
-		file, err := vfs.rootMemFS.OpenFile(name, fileFlags, 0600)
-		if err != nil {
-			return nil, 0, err
-		}
-		return file, 0, nil
-	}
+	//if strings.HasSuffix(name, "-wal") {
+	//	file, err := vfs.rootMemFS.OpenFile(name, fileFlags, 0600)
+	//	if err != nil {
+	//		return nil, 0, err
+	//	}
+	//	return file, 0, nil
+	//}
 	var (
 		f   *os.File
 		err error
