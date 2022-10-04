@@ -105,6 +105,7 @@ func (d *HaSqliteDB) checkWal() error {
 			return fmt.Errorf("onApplyWal is null")
 		}
 		// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
+		// TODO checkWal 与 applyWal 存在时间差, 直接清空会导致 io 异常, 后续需实现 wal 按需拷贝应用.
 		// defer buffer.Truncate(0)
 		b := buffer.Copy()
 		if b == nil {
