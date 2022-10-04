@@ -18,6 +18,7 @@ import (
 
 type HaSqliteDB struct {
 	txMtx          sync.Mutex
+	walMtx         sync.Mutex
 	db             *sql.DB
 	dataSourceName string
 	sourceWalFile  string
@@ -81,23 +82,44 @@ func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 }
 
 func (d *HaSqliteDB) checkWal() error {
-	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
-	if !hasWal {
-		return nil
-	}
-	if d.onApplyWal == nil {
-		return fmt.Errorf("onApplyWal is null")
-	}
-	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
-	defer buffer.Truncate(0)
-	b := buffer.Copy()
-	if b == nil {
-		return nil
-	}
-	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
-	err := d.onApplyWal(b)
+	d.walMtx.Lock()
+	defer d.walMtx.Unlock()
+	conn, err := d.db.Conn(context.Background())
 	if err != nil {
-		return fmt.Errorf("apply wal error:%v", err)
+		return errors.Wrap(err, "checkWal failed to get NewHaSqliteDB conn")
+	}
+	defer conn.Close()
+	if err := conn.Raw(func(driverConn interface{}) error {
+		srcConn := driverConn.(*sqlite.SQLiteConn)
+		txnState := srcConn.TxnState("main")
+		log.Printf("txnState:%v", txnState)
+		// 仅txnState == SQLITE_TXN_NONE 会触发调用
+		if txnState != 0 {
+			return nil
+		}
+		buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+		if !hasWal {
+			return nil
+		}
+		if d.onApplyWal == nil {
+			return fmt.Errorf("onApplyWal is null")
+		}
+		// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
+		// defer buffer.Truncate(0)
+		b := buffer.Copy()
+		if b == nil {
+			return nil
+		}
+		fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
+		err := d.onApplyWal(b)
+		if err != nil {
+			// 失败的操作回滚状态
+			buffer.Truncate(0)
+			return fmt.Errorf("apply wal error:%v", err)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "checkWal failed to get raw conn")
 	}
 	return nil
 }
@@ -338,6 +360,8 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
 	// TODO 由 raft 触发写日志时,与 checkWal 会有200ms的时间差, wal 尺寸可能会超过200kb
 	// TODO 此过程中执行 PRAGMA wal_checkpoint(TRUNCATE); 有概率返回 disk I/O error 导致查询结果不一致
+	d.walMtx.Lock()
+	defer d.walMtx.Unlock()
 	fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
 	walBuffer, hasBuffer := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
 	if hasBuffer {
