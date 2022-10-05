@@ -26,6 +26,7 @@ https://github.com/uglyer/ha-sqlite
 ## 进度
 
 - [x] Open
+- [ ] Multi db
 - [x] Exec
 - [x] Query
 - [x] Driver
