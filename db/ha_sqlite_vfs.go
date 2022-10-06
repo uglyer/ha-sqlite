@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 )
 
+// HaSqliteVFS TODO 单独实现 wal 内存存储实现, 经验证 wal 文件始终以32字节为头文件, 每页 页头24字节，正文4096字节, 均为新增插入
 type HaSqliteVFS struct {
 	rootMemFS *memfs.FS
 }
