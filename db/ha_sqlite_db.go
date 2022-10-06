@@ -84,43 +84,67 @@ func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 func (d *HaSqliteDB) checkWal() error {
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
-	conn, err := d.db.Conn(context.Background())
-	if err != nil {
-		return errors.Wrap(err, "checkWal failed to get NewHaSqliteDB conn")
-	}
-	defer conn.Close()
-	if err := conn.Raw(func(driverConn interface{}) error {
-		srcConn := driverConn.(*sqlite.SQLiteConn)
-		txnState := srcConn.TxnState("main")
-		log.Printf("txnState:%v", txnState)
-		// 仅txnState == SQLITE_TXN_NONE 会触发调用
-		if txnState != 0 {
-			return nil
-		}
-		buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
-		if !hasWal {
-			return nil
-		}
-		if d.onApplyWal == nil {
-			return fmt.Errorf("onApplyWal is null")
-		}
-		// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
-		// TODO checkWal 与 applyWal 存在时间差, 直接清空会导致 io 异常, 后续需实现 wal 按需拷贝应用.
-		// defer buffer.Truncate(0)
-		b := buffer.Copy()
-		if b == nil {
-			return nil
-		}
-		fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
-		err := d.onApplyWal(b)
-		if err != nil {
-			// 失败的操作回滚状态
-			buffer.Truncate(0)
-			return fmt.Errorf("apply wal error:%v", err)
-		}
+	//conn, err := d.db.Conn(context.Background())
+	//if err != nil {
+	//	return errors.Wrap(err, "checkWal failed to get NewHaSqliteDB conn")
+	//}
+	//defer conn.Close()
+	//if err := conn.Raw(func(driverConn interface{}) error {
+	//	srcConn := driverConn.(*sqlite.SQLiteConn)
+	//	txnState := srcConn.TxnState("main")
+	//	log.Printf("txnState:%v", txnState)
+	//	// 仅txnState == SQLITE_TXN_NONE 会触发调用
+	//	if txnState != 0 {
+	//		return nil
+	//	}
+	//	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+	//	if !hasWal {
+	//		return nil
+	//	}
+	//	if d.onApplyWal == nil {
+	//		return fmt.Errorf("onApplyWal is null")
+	//	}
+	//	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
+	//	// TODO checkWal 与 applyWal 存在时间差, 直接清空会导致 io 异常, 后续需实现 wal 按需拷贝应用.
+	//	defer buffer.Truncate(0)
+	//	b := buffer.Copy()
+	//	if b == nil {
+	//		return nil
+	//	}
+	//	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
+	//
+	//	//err := d.onApplyWal(b)
+	//	//if err != nil {
+	//	//	// 失败的操作回滚状态
+	//	//	buffer.Truncate(0)
+	//	//	return fmt.Errorf("apply wal error:%v", err)
+	//	//}
+	//	return nil
+	//}); err != nil {
+	//	return errors.Wrap(err, "checkWal failed to get raw conn")
+	//}
+	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
+	if !hasWal {
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "checkWal failed to get raw conn")
+	}
+	if d.onApplyWal == nil {
+		return fmt.Errorf("onApplyWal is null")
+	}
+	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
+	// TODO checkWal 与 applyWal 存在时间差, 直接清空会导致 io 异常, 后续需实现 wal 按需拷贝应用.
+	defer buffer.Truncate(0)
+	b := buffer.Copy()
+	if b == nil {
+		return nil
+	}
+	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
+	var row [3]int
+	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
+		return errors.Wrap(err, "Failed to set db copy journal mode")
+	} else if row[0] != 0 {
+		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
+		return errors.Wrap(err, "Failed to set db copy journal mode")
 	}
 	return nil
 }
