@@ -11,6 +11,15 @@ import (
 )
 
 // HaSqliteVFS TODO 单独实现 wal 内存存储实现, 经验证 wal 文件始终以32字节为头文件, 每页 页头24字节，正文4096字节, 均为新增插入
+// wal Frame header
+// 0 4byte uint32 page_number
+// 4 4byte uint32 database_size
+//       For commit records, the size of the database file in pages
+//		 after the commit. For all other records, zero
+// 8 4byte uint32 salt 0
+// 12 4byte uint32 salt 1
+// 16 4byte uint32 checksum 0
+// 20 4byte uint32 checksum 1
 type HaSqliteVFS struct {
 	rootMemFS *memfs.FS
 }
