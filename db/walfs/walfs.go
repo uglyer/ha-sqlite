@@ -87,6 +87,25 @@ func (f *WalFS) DeleteFile(name string) {
 	delete(f.walMap, name)
 }
 
+func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	amount := len(p)
+	/* WAL header. */
+	if offset == 0 {
+		if amount != VFS__WAL_HEADER_SIZE {
+			return 0, fmt.Errorf("wal file:%s write header error: size!=VFS__WAL_HEADER_SIZE", f.name)
+		}
+		for i := 0; i < amount; i++ {
+			f.header[i] = p[i]
+		}
+		f.writeHeader = true
+		return amount, nil
+	}
+
+	return amount, nil
+}
+
 func (f *VfsWal) Close() error {
 	if f.flags&SQLITE_OPEN_DELETEONCLOSE != 0 {
 		f.fs.DeleteFile(f.name)
