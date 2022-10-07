@@ -132,12 +132,16 @@ func (d *HaSqliteDB) checkWal() error {
 	}
 	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
 	// TODO checkWal 与 applyWal 存在时间差, 直接清空会导致 io 异常, 后续需实现 wal 按需拷贝应用.
-	defer buffer.Truncate(0)
-	b := buffer.Copy()
-	if b == nil {
-		return nil
+	//defer buffer.Truncate(0)
+	//b := buffer.Copy()
+	//if b == nil {
+	//	return nil
+	//}
+	bufferSize, err := buffer.FileSize()
+	if err != nil {
+		fmt.Errorf("get buffer size error:%v", err)
 	}
-	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
+	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
 		log.Printf("wal_checkpoint TRUNCATE error:%v", err)

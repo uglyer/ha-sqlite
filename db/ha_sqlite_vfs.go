@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 	"github.com/uglyer/go-sqlite3"
-	"github.com/uglyer/ha-sqlite/db/memfs"
+	"github.com/uglyer/ha-sqlite/db/walfs"
 	"log"
 	"os"
 	"strings"
@@ -21,7 +21,7 @@ import (
 // 16 4byte uint32 checksum 0
 // 20 4byte uint32 checksum 1
 type HaSqliteVFS struct {
-	rootMemFS *memfs.FS
+	rootMemFS *walfs.WalFS
 }
 
 type HaSqliteVFSFile struct {
@@ -31,7 +31,7 @@ type HaSqliteVFSFile struct {
 }
 
 func NewHaSqliteVFS() *HaSqliteVFS {
-	rootFS := memfs.NewFS()
+	rootFS := walfs.NewWalFS()
 	return &HaSqliteVFS{rootMemFS: rootFS}
 }
 
