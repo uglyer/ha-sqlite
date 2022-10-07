@@ -33,9 +33,10 @@ type VfsWal struct {
 	mtx            sync.Mutex
 	hasWriteHeader bool
 	header         [VFS__WAL_HEADER_SIZE]byte
-	frames         map[int]*VfsFrame
-	flags          int
-	fs             *WalFS
+	// frames 帧数据, 下标从 1 开始
+	frames map[int]*VfsFrame
+	flags  int
+	fs     *WalFS
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
@@ -318,7 +319,7 @@ func (f *VfsWal) FileSize() (int64, error) {
 	size := int64(VFS__WAL_HEADER_SIZE)
 	count := len(f.frames)
 	for i := 0; i < count; i++ {
-		size += f.frames[i].FileSize()
+		size += f.frames[i+1].FileSize()
 	}
 	return size, nil
 }
