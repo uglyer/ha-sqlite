@@ -28,6 +28,7 @@ type WalFS struct {
 	mtx    sync.Mutex
 }
 
+// TODO 新增 tx 用于存放写入数据, 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到raft 并 转移至frame中
 type VfsWal struct {
 	name           string
 	mtx            sync.Mutex
