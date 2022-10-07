@@ -334,3 +334,30 @@ func Test_MemWalSqlite3Performance(t *testing.T) {
 	elapsed := time.Since(start)
 	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
 }
+
+func Test_MemWalFS(t *testing.T) {
+	store := openDB(t)
+	store.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+	count := 10000
+	start := time.Now()
+	ch := make(chan struct{}, runtime.NumCPU()*2)
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		count := i
+		ch <- struct{}{}
+		go func() {
+			if count > 10 {
+				store.query("SELECT * FROM foo where id = ?", count-5)
+			}
+			defer wg.Done()
+			resp := store.exec("INSERT INTO foo(name) VALUES(?)", "test")
+			store.exec("UPDATE foo set name = 111 where id = ?", resp.Result[0].LastInsertId-10)
+			store.query("SELECT * FROM foo where id = ?", resp.Result[0].LastInsertId-10)
+			<-ch
+		}()
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
