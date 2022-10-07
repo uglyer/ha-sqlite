@@ -19,6 +19,8 @@ const VFS__WAL_INDEX_HEADER_SIZE = 48
 /* Size of a single memory-mapped WAL index region. */
 const VFS__WAL_INDEX_REGION_SIZE = 32768
 
+const SQLITE_OPEN_DELETEONCLOSE int = 0x00000008 /* VFS only */
+
 // WalFS is an in-memory filesystem that implements wal io
 type WalFS struct {
 	walMap map[string]*VfsWal
@@ -26,10 +28,13 @@ type WalFS struct {
 }
 
 type VfsWal struct {
+	name        string
 	mtx         sync.Mutex
 	writeHeader bool
 	header      [VFS__WAL_HEADER_SIZE]byte
 	frames      []VfsFrame
+	flags       int
+	fs          *WalFS
 }
 
 type VfsFrame struct {
@@ -62,11 +67,31 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 		return b, nil
 	}
 	newFile := &VfsWal{
+		name:        name,
 		writeHeader: false,
 		frames:      []VfsFrame{},
+		flags:       flags,
 	}
 	f.walMap[name] = newFile
 	return newFile, nil
+}
+
+func (f *WalFS) DeleteFile(name string) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	b, hasFile := f.walMap[name]
+	if !hasFile {
+		return
+	}
+	b.fs = nil
+	delete(f.walMap, name)
+}
+
+func (f *VfsWal) Close() error {
+	if f.flags&SQLITE_OPEN_DELETEONCLOSE != 0 {
+		f.fs.DeleteFile(f.name)
+	}
+	return nil
 }
 
 func (f *VfsWal) Lock(elock sqlite3.LockType) error {
