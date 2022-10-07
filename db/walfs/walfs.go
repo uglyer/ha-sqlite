@@ -119,6 +119,14 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 	return frame
 }
 
+func (f *VfsWal) Truncate(size int64) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.hasWriteHeader = false
+	f.frames = map[int]*VfsFrame{}
+	return nil
+}
+
 func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
