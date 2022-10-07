@@ -8,10 +8,6 @@ import (
 	"sync"
 )
 
-/* Minumum and maximum page size. */
-const FORMAT__PAGE_SIZE_MIN = 512
-const FORMAT__PAGE_SIZE_MAX = 65536
-
 /* Write ahead log header size. */
 const VFS__WAL_HEADER_SIZE = 32
 
@@ -33,19 +29,13 @@ type WalFS struct {
 }
 
 type VfsWal struct {
-	name        string
-	mtx         sync.Mutex
-	writeHeader bool
-	header      [VFS__WAL_HEADER_SIZE]byte
-	frames      []VfsFrame
-	flags       int
-	fs          *WalFS
-}
-
-type VfsFrame struct {
-	writeHeader bool
-	header      [VFS__FRAME_HEADER_SIZE]byte
-	page        []byte
+	name           string
+	mtx            sync.Mutex
+	hasWriteHeader bool
+	header         [VFS__WAL_HEADER_SIZE]byte
+	frames         map[int]*VfsFrame
+	flags          int
+	fs             *WalFS
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
@@ -72,10 +62,10 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 		return b, nil
 	}
 	newFile := &VfsWal{
-		name:        name,
-		writeHeader: false,
-		frames:      []VfsFrame{},
-		flags:       flags,
+		name:           name,
+		hasWriteHeader: false,
+		frames:         map[int]*VfsFrame{},
+		flags:          flags,
 	}
 	f.walMap[name] = newFile
 	return newFile, nil
@@ -113,6 +103,18 @@ func (f *VfsWal) GetPageSize() uint32 {
 	return vfsParsePageSize(binary.BigEndian.Uint32(f.header[4:8]))
 }
 
+func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
+	if instance, ok := f.frames[index]; ok {
+		return instance
+	}
+	frame := &VfsFrame{
+		hasWriteHeader: false,
+		page:           make([]byte, pageSize),
+	}
+	f.frames[index] = frame
+	return frame
+}
+
 func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -125,14 +127,49 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 		for i := 0; i < amount; i++ {
 			f.header[i] = p[i]
 		}
-		f.writeHeader = true
+		f.hasWriteHeader = true
 		return amount, nil
 	}
 	pageSize := f.GetPageSize()
 	if pageSize <= 0 {
-		return 0, fmt.Errorf("wal file:%s page size error:%d", f.name, pageSize)
+		return 0, fmt.Errorf("wal file:%s page size error#1:%d", f.name, pageSize)
 	}
+	/* This is a WAL frame write. We expect either a frame
+	 * header or page write. */
+	if amount == FORMAT__WAL_FRAME_HDR_SIZE {
+		/* Frame header write. */
+		if ((int(offset) - VFS__WAL_HEADER_SIZE) %
+			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
+			return 0, fmt.Errorf("wal file:%s page size error#2:%d", f.name, pageSize)
+		}
 
+		index := formatWalCalcFrameIndex(int(pageSize), int(offset))
+
+		frame := f.getWalFrameInstanceInLock(index, int(pageSize))
+		err := frame.writeHeader(p)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		/* Frame page write. */
+		//assert(amount == (int)
+		//page_size)
+		//assert(((offset - VFS__WAL_HEADER_SIZE -
+		//	FORMAT__WAL_FRAME_HDR_SIZE) %
+		//	(page_size + FORMAT__WAL_FRAME_HDR_SIZE)) == 0)
+		//
+		//index = formatWalCalcFrameIndex(page_size, (unsigned)
+		//offset)
+		//
+		///* The header for the this frame must already
+		// * have been written, so the page is there. */
+		//frame = vfsWalFrameLookup(w, index)
+		//
+		//assert(frame != NULL)
+		//
+		//memcpy(frame- > page, buf, (size_t)
+		//amount)
+	}
 	return amount, nil
 }
 
@@ -160,7 +197,7 @@ func (f *VfsWal) CheckReservedLock() (bool, error) {
 func (f *VfsWal) FileSize() (int64, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
-	if !f.writeHeader {
+	if !f.hasWriteHeader {
 		return 0, nil
 	}
 	size := int64(VFS__WAL_HEADER_SIZE)
