@@ -110,6 +110,7 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 	}
 	frame := &VfsFrame{
 		hasWriteHeader: false,
+		hasWritePage:   false,
 		header:         [VFS__FRAME_HEADER_SIZE]byte{},
 		page:           make([]byte, pageSize),
 		pageSize:       pageSize,
@@ -210,13 +211,6 @@ func (f *VfsWal) FileSize() (int64, error) {
 		size += f.frames[i].FileSize()
 	}
 	return size, nil
-}
-
-func (f *VfsFrame) FileSize() int64 {
-	if !f.hasWriteHeader {
-		return 0
-	}
-	return int64(len(f.page))
 }
 
 func (f *VfsWal) SectorSize() int64 {
