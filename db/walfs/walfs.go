@@ -1,11 +1,16 @@
 package walfs
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/uglyer/go-sqlite3"
 	"os"
 	"sync"
 )
+
+/* Minumum and maximum page size. */
+const FORMAT__PAGE_SIZE_MIN = 512
+const FORMAT__PAGE_SIZE_MAX = 65536
 
 /* Write ahead log header size. */
 const VFS__WAL_HEADER_SIZE = 32
@@ -87,6 +92,27 @@ func (f *WalFS) DeleteFile(name string) {
 	delete(f.walMap, name)
 }
 
+/* Parse the page size ("Must be a power of two between 512 and 32768
+ * inclusive, or the value 1 representing a page size of 65536").
+ *
+ * Return 0 if the page size is out of bound. */
+func vfsParsePageSize(page_size uint32) uint32 {
+	if page_size == 1 {
+		page_size = FORMAT__PAGE_SIZE_MAX
+	} else if page_size < FORMAT__PAGE_SIZE_MIN {
+		page_size = 0
+	} else if page_size > (FORMAT__PAGE_SIZE_MAX / 2) {
+		page_size = 0
+	} else if ((page_size - 1) & page_size) != 0 {
+		page_size = 0
+	}
+	return page_size
+}
+
+func (f *VfsWal) GetPageSize() uint32 {
+	return vfsParsePageSize(binary.BigEndian.Uint32(f.header[4:8]))
+}
+
 func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -101,6 +127,10 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 		}
 		f.writeHeader = true
 		return amount, nil
+	}
+	pageSize := f.GetPageSize()
+	if pageSize <= 0 {
+		return 0, fmt.Errorf("wal file:%s page size error:%d", f.name, pageSize)
 	}
 
 	return amount, nil
