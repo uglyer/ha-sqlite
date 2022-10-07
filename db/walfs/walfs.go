@@ -127,6 +127,10 @@ func (f *VfsWal) Truncate(size int64) error {
 	return nil
 }
 
+func (f *VfsWal) Sync(flag sqlite3.SyncType) error {
+	return nil
+}
+
 func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
