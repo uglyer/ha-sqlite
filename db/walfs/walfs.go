@@ -172,7 +172,7 @@ func (f *VfsWal) FileSize() (int64, error) {
 }
 
 func (f *VfsFrame) FileSize() int64 {
-	if !f.writeHeader {
+	if !f.hasWriteHeader {
 		return 0
 	}
 	return int64(len(f.page))
