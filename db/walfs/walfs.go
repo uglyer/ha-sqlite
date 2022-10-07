@@ -101,7 +101,7 @@ func vfsParsePageSize(page_size uint32) uint32 {
 }
 
 func (f *VfsWal) GetPageSize() uint32 {
-	return vfsParsePageSize(binary.BigEndian.Uint32(f.header[4:8]))
+	return vfsParsePageSize(binary.BigEndian.Uint32(f.header[8:12]))
 }
 
 func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
