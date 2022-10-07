@@ -73,6 +73,13 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 	return newFile, nil
 }
 
+func (f *WalFS) GetFileBuffer(name string) (buf *VfsWal, hasFile bool) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	buf, hasFile = f.walMap[name]
+	return
+}
+
 func (f *WalFS) DeleteFile(name string) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
