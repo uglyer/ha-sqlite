@@ -26,13 +26,16 @@ type WalFS struct {
 }
 
 type VfsWal struct {
-	header [VFS__WAL_HEADER_SIZE]byte
-	frames []VfsFrame
+	mtx         sync.Mutex
+	writeHeader bool
+	header      [VFS__WAL_HEADER_SIZE]byte
+	frames      []VfsFrame
 }
 
 type VfsFrame struct {
-	header [VFS__FRAME_HEADER_SIZE]byte
-	page   []byte
+	writeHeader bool
+	header      [VFS__FRAME_HEADER_SIZE]byte
+	page        []byte
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
@@ -58,7 +61,10 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 	if hasFile {
 		return b, nil
 	}
-	newFile := &VfsWal{frames: []VfsFrame{}}
+	newFile := &VfsWal{
+		writeHeader: false,
+		frames:      []VfsFrame{},
+	}
 	f.walMap[name] = newFile
 	return newFile, nil
 }
@@ -75,4 +81,33 @@ func (f *VfsWal) Unlock(elock sqlite3.LockType) error {
 // journal mode, so it doesn't matter.
 func (f *VfsWal) CheckReservedLock() (bool, error) {
 	return true, nil
+}
+
+func (f *VfsWal) FileSize() (int64, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	if !f.writeHeader {
+		return 0, nil
+	}
+	size := int64(VFS__WAL_HEADER_SIZE)
+	count := len(f.frames)
+	for i := 0; i < count; i++ {
+		size += f.frames[i].FileSize()
+	}
+	return size, nil
+}
+
+func (f *VfsFrame) FileSize() int64 {
+	if !f.writeHeader {
+		return 0
+	}
+	return int64(len(f.page))
+}
+
+func (f *VfsWal) SectorSize() int64 {
+	return 0
+}
+
+func (f *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
+	return 0
 }
