@@ -119,6 +119,104 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 	return frame
 }
 
+func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	amount := len(p)
+	/* WAL header. */
+	if offset == 0 {
+		if f.hasWriteHeader {
+			return 0, fmt.Errorf("wal file:%s read header error: header is null", f.name)
+		}
+		if amount != VFS__WAL_HEADER_SIZE {
+			return 0, fmt.Errorf("wal file:%s read header error: size!=VFS__WAL_HEADER_SIZE", f.name)
+		}
+		for i := 0; i < amount; i++ {
+			p[i] = f.header[i]
+		}
+		return amount, nil
+	}
+	if len(f.frames) == 0 {
+		return 0, fmt.Errorf("wal file:%s read page error: frame is zero", f.name)
+	}
+	pageSize := f.GetPageSize()
+	if pageSize <= 0 {
+		return 0, fmt.Errorf("wal file:%s read page size error#1:%d", f.name, pageSize)
+	}
+	var index int
+	/* For any other frame, we expect either a header read,
+	 * a checksum read, a page read or a full frame read. */
+	if amount == FORMAT__WAL_FRAME_HDR_SIZE {
+		if ((int(offset) - VFS__WAL_HEADER_SIZE) %
+			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
+			return 0, fmt.Errorf("wal file:%s read page size error#2:%d", f.name, pageSize)
+		}
+		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
+	} else if amount == 8 {
+		// sizeof(uint32_t) * 2
+		if offset == FORMAT__WAL_FRAME_HDR_SIZE {
+			/* Read the checksum from the WAL
+			 * header. */
+			for i := 0; i < amount; i++ {
+				p[i] = f.header[i+int(offset)]
+			}
+			return amount, nil
+		}
+		if ((int(offset) - 16 - VFS__WAL_HEADER_SIZE) %
+			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
+			return 0, fmt.Errorf("wal file:%s read page size error#3:%d", f.name, pageSize)
+		}
+		index = (int(offset)-16-VFS__WAL_HEADER_SIZE)/
+			(int(pageSize)+FORMAT__WAL_FRAME_HDR_SIZE) + 1
+	} else if amount == int(pageSize) {
+		if ((int(offset) - VFS__WAL_HEADER_SIZE -
+			FORMAT__WAL_FRAME_HDR_SIZE) %
+			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
+			return 0, fmt.Errorf("wal file:%s read page size error#4:%d", f.name, pageSize)
+		}
+		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
+	} else {
+		if amount != (FORMAT__WAL_FRAME_HDR_SIZE + int(pageSize)) {
+			return 0, fmt.Errorf("wal file:%s read page size error#5:%d", f.name, pageSize)
+		}
+		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
+	}
+	if index == 0 {
+		// This is an attempt to read a page that was
+		// never written.
+		//memset(buf, 0, (size_t)amount);
+		return 0, fmt.Errorf("wal file:%s read page error:this is an attempt to read a page that was never written", f.name)
+	}
+	frame, ok := f.frames[index]
+
+	if !ok {
+		return 0, fmt.Errorf("wal file:%s read page error: frame is null:%d", f.name, index)
+	}
+
+	if amount == FORMAT__WAL_FRAME_HDR_SIZE {
+		for i := 0; i < amount; i++ {
+			p[i] = frame.header[i]
+		}
+	} else if amount == 8 {
+		// sizeof(uint32_t)*2
+		for i := 0; i < amount; i++ {
+			p[i] = frame.header[i+16]
+		}
+	} else if amount == int(pageSize) {
+		for i := 0; i < amount; i++ {
+			p[i] = frame.page[i]
+		}
+	} else {
+		for i := 0; i < FORMAT__WAL_FRAME_HDR_SIZE; i++ {
+			p[i] = frame.header[i]
+		}
+		for i := 0; i < frame.pageSize; i++ {
+			p[i+FORMAT__WAL_FRAME_HDR_SIZE] = frame.page[i]
+		}
+	}
+	return amount, nil
+}
+
 func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -136,7 +234,7 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	}
 	pageSize := f.GetPageSize()
 	if pageSize <= 0 {
-		return 0, fmt.Errorf("wal file:%s page size error#1:%d", f.name, pageSize)
+		return 0, fmt.Errorf("wal file:%s write page size error#1:%d", f.name, pageSize)
 	}
 	/* This is a WAL frame write. We expect either a frame
 	 * header or page write. */
