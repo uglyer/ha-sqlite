@@ -123,10 +123,12 @@ func (d *HaSqliteDB) checkWal() error {
 	//}); err != nil {
 	//	return errors.Wrap(err, "checkWal failed to get raw conn")
 	//}
-	vfs.rootMemFS.VfsPoll(d.sourceWalFile)
-	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
-	if !hasWal {
+	buffer, err, needApplyLog := vfs.rootMemFS.VfsPoll(d.sourceWalFile)
+	if !needApplyLog {
 		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("vfs poll error:%v", err)
 	}
 	if d.onApplyWal == nil {
 		return fmt.Errorf("onApplyWal is null")
@@ -138,11 +140,11 @@ func (d *HaSqliteDB) checkWal() error {
 	//if b == nil {
 	//	return nil
 	//}
-	bufferSize, err := buffer.FileSize()
+	bufferSize := len(buffer)
 	if err != nil {
-		fmt.Errorf("get buffer size error:%v", err)
+		return fmt.Errorf("get buffer size error:%v", err)
 	}
-	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
+	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
 	if bufferSize < 4096 {
 		return nil
 	}

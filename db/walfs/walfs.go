@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/uglyer/go-sqlite3"
+	"github.com/uglyer/ha-sqlite/proto"
+	gProto "google.golang.org/protobuf/proto"
 	"os"
 	"sync"
 )
@@ -36,9 +38,11 @@ type VfsWal struct {
 	// frames 帧数据, 下标从 1 开始
 	frames map[int]*VfsFrame
 	// tx 用于存放未提交到 raft 的数据
-	tx    map[int]*VfsFrame
-	flags int
-	fs    *WalFS
+	tx map[int]*VfsFrame
+	// tx 最后一个写入的 id
+	txLastIndex int
+	flags       int
+	fs          *WalFS
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
@@ -70,6 +74,7 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 		header:         [VFS__WAL_HEADER_SIZE]byte{},
 		frames:         map[int]*VfsFrame{},
 		tx:             map[int]*VfsFrame{},
+		txLastIndex:    0,
 		flags:          flags,
 	}
 	f.walMap[name] = newFile
@@ -84,14 +89,14 @@ func (f *WalFS) GetFileBuffer(name string) (buf *VfsWal, hasFile bool) {
 }
 
 // VfsPoll 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到 raft 并 转移至 frame 中
-func (f *WalFS) VfsPoll(name string) {
+func (f *WalFS) VfsPoll(name string) ([]byte, error, bool) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	wal, hasFile := f.walMap[name]
 	if !hasFile {
-		return
+		return nil, nil, false
 	}
-	wal.walTxPoll()
+	return wal.walTxPoll()
 }
 
 func (f *WalFS) DeleteFile(name string) {
@@ -141,6 +146,7 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 		pageSize:       pageSize,
 	}
 	f.tx[index] = frame
+	f.txLastIndex = index
 	return frame
 }
 
@@ -160,6 +166,7 @@ func (f *VfsWal) Truncate(size int64) error {
 	f.hasWriteHeader = false
 	f.frames = map[int]*VfsFrame{}
 	f.tx = map[int]*VfsFrame{}
+	f.txLastIndex = 0
 	return nil
 }
 
@@ -369,15 +376,44 @@ func (f *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 	return 0
 }
 
-// walPoll 未提交日志遍历, TODO 返回序列化的指令
-func (f *VfsWal) walTxPoll() {
+// walPoll 未提交日志遍历, 返回序列化的指令 (WalCommand, error info, 是否需要提交日志(当值为true但 error != nil 时表示出现重大错误 需要中断服务))
+func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
+	txCount := len(f.tx)
+	if txCount == 0 {
+		// 无新增
+		return nil, nil, false
+	}
+	/* Check if the last frame in the transaction has the commit marker. */
+	lastFrame, ok := f.tx[f.txLastIndex]
+	if !ok || !lastFrame.hasWriteHeader || !lastFrame.hasWritePage {
+		return nil, nil, false
+	}
+	if lastFrame.Commit() == 0 {
+		return nil, nil, false
+	}
+	frames := make([]*proto.WalFrame, txCount)
+	index := 0
 	for k, v := range f.tx {
-		if !v.hasWritePage || !v.hasWriteHeader {
-			continue
+		if !v.hasWriteHeader || !v.hasWritePage {
+			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false
+		}
+		frames[index] = &proto.WalFrame{
+			Data:       v.page,
+			PageNumber: v.PageNumber(),
 		}
 		f.frames[k] = v
 		delete(f.tx, k)
+		index++
 	}
+	cmd := &proto.WalCommand{
+		Frames: frames,
+	}
+	b, err := gProto.Marshal(cmd)
+	if err != nil {
+		// 出差直接结束
+		return nil, fmt.Errorf("walTxPoll Marshal error :%v", err), true
+	}
+	return b, nil, true
 }

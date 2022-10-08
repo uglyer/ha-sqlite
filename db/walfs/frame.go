@@ -1,6 +1,9 @@
 package walfs
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 type VfsFrame struct {
 	hasWriteHeader bool
@@ -40,4 +43,14 @@ func (f *VfsFrame) FileSize() int64 {
 		return VFS__FRAME_HEADER_SIZE
 	}
 	return int64(f.pageSize) + VFS__FRAME_HEADER_SIZE
+}
+
+// Commit 调用前需要确保头数据已经写入
+func (f *VfsFrame) Commit() uint32 {
+	return binary.BigEndian.Uint32(f.header[4:8])
+}
+
+// PageNumber 调用前需要确保头数据已经写入
+func (f *VfsFrame) PageNumber() uint32 {
+	return binary.BigEndian.Uint32(f.header[0:4])
 }
