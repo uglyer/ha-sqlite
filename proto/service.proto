@@ -26,8 +26,13 @@ message Command {
   uint64 db_id = 4;
 }
 
+message WalCommand {
+  uint32 page_number = 1;
+  bytes data = 2;
+}
+
 message PingRequest {
-   int64 timestamp = 1;
+  int64 timestamp = 1;
 }
 
 message PingResponse {
