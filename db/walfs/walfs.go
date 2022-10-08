@@ -99,6 +99,18 @@ func (f *WalFS) VfsPoll(name string) ([]byte, error, bool) {
 	return wal.walTxPoll()
 }
 
+// VfsApplyLog 应用来自 raft 中的日志
+func (f *WalFS) VfsApplyLog(name string, buffer []byte) error {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	wal, hasFile := f.walMap[name]
+	if !hasFile {
+		// todo 创建一个文件用于应用日志
+		return fmt.Errorf("without wal file:%s", name)
+	}
+	return wal.walApplyLog(buffer)
+}
+
 func (f *WalFS) DeleteFile(name string) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -412,8 +424,59 @@ func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
 	}
 	b, err := gProto.Marshal(cmd)
 	if err != nil {
-		// 出差直接结束
 		return nil, fmt.Errorf("walTxPoll Marshal error :%v", err), true
 	}
 	return b, nil, true
+}
+
+func (f *VfsWal) walApplyLog(buffer []byte) error {
+	var cmd proto.WalCommand
+	err := gProto.Unmarshal(buffer, &cmd)
+	if err != nil {
+		return fmt.Errorf("walApplyLog Unmarshal error :%v", err)
+	}
+	if len(cmd.Frames) == 0 {
+		return nil
+	}
+	/* If there's no page size set in the WAL header, it must mean that WAL
+	 * file was never written. In that case we need to initialize the WAL
+	 * header. */
+	if f.hasWriteHeader == false {
+		pageSize := len(cmd.Frames[0].Data)
+		err = f.vfsWalStartHeader(pageSize)
+		if err != nil {
+			return fmt.Errorf("walApplyLog vfsWalStartHeader error :%v", err)
+		}
+	}
+	//for _, frame := range cmd.Frames {
+	//
+	//}
+	return fmt.Errorf("todo impl VfsApplyLog")
+}
+
+func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
+	//assert(page_size > 0);
+	//uint32_t checksum[2] = {0, 0};
+	///* SQLite calculates checksums for the WAL header and frames either
+	// * using little endian or big endian byte order when adding up 32-bit
+	// * words. The byte order that should be used is recorded in the WAL file
+	// * header by setting the least significant bit of the magic value stored
+	// * in the first 32 bits. This allows portability of the WAL file across
+	// * hosts with different native byte order.
+	// *
+	// * When creating a brand new WAL file, SQLite will set the byte order
+	// * bit to match the host's native byte order, so checksums are a bit
+	// * more efficient.
+	// *
+	// * In Dqlite the WAL file image is always generated at run time on the
+	// * host, so we can always use the native byte order. */
+	//vfsPut32(VFS__WAL_MAGIC | VFS__BIGENDIAN, &w->hdr[0]);
+	//vfsPut32(VFS__WAL_VERSION, &w->hdr[4]);
+	//vfsPut32(page_size, &w->hdr[8]);
+	//vfsPut32(0, &w->hdr[12]);
+	//sqlite3_randomness(8, &w->hdr[16]);
+	//vfsChecksum(w->hdr, 24, checksum, checksum);
+	//vfsPut32(checksum[0], w->hdr + 24);
+	//vfsPut32(checksum[1], w->hdr + 28);
+	return fmt.Errorf("todo impl vfsWalStartHeader")
 }

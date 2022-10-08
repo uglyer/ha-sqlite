@@ -140,22 +140,22 @@ func (d *HaSqliteDB) checkWal() error {
 	//if b == nil {
 	//	return nil
 	//}
-	bufferSize := len(buffer)
+	err = d.onApplyWal(buffer)
 	if err != nil {
-		return fmt.Errorf("get buffer size error:%v", err)
+		return fmt.Errorf("onApplyWal error:%v", err)
 	}
 	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
-	if bufferSize < 4096 {
-		return nil
-	}
-	var row [3]int
-	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
-		return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
-	} else if row[0] != 0 {
-		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
-		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
-	}
+	//if bufferSize < 4096 {
+	//	return nil
+	//}
+	//var row [3]int
+	//if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+	//	log.Printf("wal_checkpoint TRUNCATE error:%v", err)
+	//	return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
+	//} else if row[0] != 0 {
+	//	log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
+	//	return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
+	//}
 	return nil
 }
 
