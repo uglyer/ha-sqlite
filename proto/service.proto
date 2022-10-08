@@ -27,6 +27,10 @@ message Command {
 }
 
 message WalCommand {
+  repeated WalFrame frames = 1;
+}
+
+message WalFrame {
   uint32 page_number = 1;
   bytes data = 2;
 }
