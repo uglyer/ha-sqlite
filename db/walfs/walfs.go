@@ -184,7 +184,7 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 		}
 		return amount, nil
 	}
-	if len(f.frames) == 0 {
+	if len(f.frames) == 0 && len(f.tx) == 0 {
 		return 0, fmt.Errorf("wal file:%s read page error: frame is zero", f.name)
 	}
 	pageSize := f.GetPageSize()
