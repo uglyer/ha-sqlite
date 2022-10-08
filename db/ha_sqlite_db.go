@@ -123,6 +123,7 @@ func (d *HaSqliteDB) checkWal() error {
 	//}); err != nil {
 	//	return errors.Wrap(err, "checkWal failed to get raw conn")
 	//}
+	vfs.rootMemFS.VfsPoll(d.sourceWalFile)
 	buffer, hasWal := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
 	if !hasWal {
 		return nil
@@ -142,13 +143,16 @@ func (d *HaSqliteDB) checkWal() error {
 		fmt.Errorf("get buffer size error:%v", err)
 	}
 	fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
+	if bufferSize < 4096 {
+		return nil
+	}
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
 		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
-		return errors.Wrap(err, "Failed to set db copy journal mode")
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
 	} else if row[0] != 0 {
 		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
-		return errors.Wrap(err, "Failed to set db copy journal mode")
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
 	}
 	return nil
 }

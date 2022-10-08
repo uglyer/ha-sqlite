@@ -28,7 +28,6 @@ type WalFS struct {
 	mtx    sync.Mutex
 }
 
-// TODO 新增 tx 用于存放写入数据, 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到raft 并 转移至frame中
 type VfsWal struct {
 	name           string
 	mtx            sync.Mutex
@@ -82,6 +81,17 @@ func (f *WalFS) GetFileBuffer(name string) (buf *VfsWal, hasFile bool) {
 	defer f.mtx.Unlock()
 	buf, hasFile = f.walMap[name]
 	return
+}
+
+// VfsPoll 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到 raft 并 转移至 frame 中
+func (f *WalFS) VfsPoll(name string) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	wal, hasFile := f.walMap[name]
+	if !hasFile {
+		return
+	}
+	wal.walTxPoll()
 }
 
 func (f *WalFS) DeleteFile(name string) {
@@ -357,4 +367,17 @@ func (f *VfsWal) SectorSize() int64 {
 
 func (f *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 	return 0
+}
+
+// walPoll 未提交日志遍历, TODO 返回序列化的指令
+func (f *VfsWal) walTxPoll() {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	for k, v := range f.tx {
+		if !v.hasWritePage || !v.hasWriteHeader {
+			continue
+		}
+		f.frames[k] = v
+		delete(f.tx, k)
+	}
 }
