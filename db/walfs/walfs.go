@@ -36,8 +36,10 @@ type VfsWal struct {
 	header         [VFS__WAL_HEADER_SIZE]byte
 	// frames 帧数据, 下标从 1 开始
 	frames map[int]*VfsFrame
-	flags  int
-	fs     *WalFS
+	// tx 用于存放未提交到 raft 的数据
+	tx    map[int]*VfsFrame
+	flags int
+	fs    *WalFS
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
@@ -68,6 +70,7 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 		hasWriteHeader: false,
 		header:         [VFS__WAL_HEADER_SIZE]byte{},
 		frames:         map[int]*VfsFrame{},
+		tx:             map[int]*VfsFrame{},
 		flags:          flags,
 	}
 	f.walMap[name] = newFile
