@@ -117,6 +117,9 @@ func (f *VfsWal) GetPageSize() uint32 {
 }
 
 func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
+	if instance, ok := f.tx[index]; ok {
+		return instance
+	}
 	if instance, ok := f.frames[index]; ok {
 		return instance
 	}
@@ -127,8 +130,18 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 		page:           make([]byte, pageSize),
 		pageSize:       pageSize,
 	}
-	f.frames[index] = frame
+	f.tx[index] = frame
 	return frame
+}
+
+func (f *VfsWal) lookUpWalFrameInstanceInLock(index int) (*VfsFrame, bool) {
+	if instance, ok := f.tx[index]; ok {
+		return instance, ok
+	}
+	if instance, ok := f.frames[index]; ok {
+		return instance, ok
+	}
+	return nil, false
 }
 
 func (f *VfsWal) Truncate(size int64) error {
@@ -136,6 +149,7 @@ func (f *VfsWal) Truncate(size int64) error {
 	defer f.mtx.Unlock()
 	f.hasWriteHeader = false
 	f.frames = map[int]*VfsFrame{}
+	f.tx = map[int]*VfsFrame{}
 	return nil
 }
 
@@ -211,7 +225,7 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 		//memset(buf, 0, (size_t)amount);
 		return 0, fmt.Errorf("wal file:%s read page error:this is an attempt to read a page that was never written", f.name)
 	}
-	frame, ok := f.frames[index]
+	frame, ok := f.lookUpWalFrameInstanceInLock(index)
 
 	if !ok {
 		return 0, fmt.Errorf("wal file:%s read page error: frame is null:%d", f.name, index)
@@ -288,7 +302,7 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 		}
 
 		index := formatWalCalcFrameIndex(int(pageSize), int(offset))
-		frame, hasFrame := f.frames[index]
+		frame, hasFrame := f.lookUpWalFrameInstanceInLock(index)
 		if !hasFrame {
 			return 0, fmt.Errorf("wal file:%s get frame error:%d", f.name, index)
 		}
@@ -328,9 +342,11 @@ func (f *VfsWal) FileSize() (int64, error) {
 		return 0, nil
 	}
 	size := int64(VFS__WAL_HEADER_SIZE)
-	count := len(f.frames)
-	for i := 0; i < count; i++ {
-		size += f.frames[i+1].FileSize()
+	for _, v := range f.frames {
+		size += v.FileSize()
+	}
+	for _, v := range f.tx {
+		size += v.FileSize()
 	}
 	return size, nil
 }
