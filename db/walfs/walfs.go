@@ -501,10 +501,7 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 }
 
 func (wal *VfsWal) putHeaderUint32(v uint32, offset int) {
-	wal.header[offset] = byte(v >> 24)
-	wal.header[offset+1] = byte(v >> 16)
-	wal.header[offset+2] = byte(v >> 8)
-	wal.header[offset+3] = byte(v)
+	bigEndPutUint32(wal.header[:], v, offset)
 }
 
 // VfsChecksum 生成校验位
@@ -543,9 +540,9 @@ func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
 	}
 
 	for true {
-		s1 += BigEndUint32(b, cur) + s2
+		s1 += bigEndGetUint32(b, cur) + s2
 		cur += 4
-		s2 += BigEndUint32(b, cur) + s1
+		s2 += bigEndGetUint32(b, cur) + s1
 		cur += 4
 		if !(cur < end) {
 			break
@@ -556,6 +553,13 @@ func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
 	return nil
 }
 
-func BigEndUint32(b []byte, offset int) uint32 {
+func bigEndPutUint32(b []byte, v uint32, offset int) {
+	b[offset] = byte(v >> 24)
+	b[offset+1] = byte(v >> 16)
+	b[offset+2] = byte(v >> 8)
+	b[offset+3] = byte(v)
+}
+
+func bigEndGetUint32(b []byte, offset int) uint32 {
 	return uint32(b[3+offset]) | uint32(b[2+offset])<<8 | uint32(b[1+offset])<<16 | uint32(b[0+offset])<<24
 }
