@@ -443,7 +443,7 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	 * header. */
 	if wal.hasWriteHeader == false {
 		pageSize := len(cmd.Frames[0].Data)
-		err = wal.vfsWalStartHeader(pageSize)
+		err = wal.vfsWalInitHeader(pageSize)
 		if err != nil {
 			return fmt.Errorf("walApplyLog vfsWalStartHeader error :%v", err)
 		}
@@ -454,11 +454,12 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	return fmt.Errorf("todo impl VfsApplyLog")
 }
 
-func (wal *VfsWal) vfsWalStartHeader(pageSize int) error {
+func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	if pageSize <= 0 {
 		return fmt.Errorf("page size is :%d", pageSize)
 	}
-	//uint32_t checksum[2] = {0, 0};
+	// uint32_t checksum[2] = {0, 0};
+	checksum := []uint32{0, 0}
 	///* SQLite calculates checksums for the WAL header and frames either
 	// * using little endian or big endian byte order when adding up 32-bit
 	// * words. The byte order that should be used is recorded in the WAL file
@@ -481,9 +482,21 @@ func (wal *VfsWal) vfsWalStartHeader(pageSize int) error {
 	//vfsPut32(0, &w->hdr[12]);
 	wal.putHeaderUint32(0, 12)
 	//sqlite3_randomness(8, &w->hdr[16]);
+	randCount := 8
+	b := make([]byte, randCount)
+	sqlite3.Sqlite3Randomness(randCount, b, 0)
+	for i := 0; i < randCount; i++ {
+		wal.header[16+i] = b[i]
+	}
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
+	err := VfsChecksum(wal.header[:], 24, checksum, checksum)
+	if err != nil {
+		return fmt.Errorf("vfsWalInitHeader VfsChecksum error:%d", pageSize)
+	}
 	//vfsPut32(checksum[0], w->hdr + 24);
+	wal.putHeaderUint32(checksum[0], 24)
 	//vfsPut32(checksum[1], w->hdr + 28);
+	wal.putHeaderUint32(checksum[1], 28)
 	return fmt.Errorf("todo impl vfsWalStartHeader")
 }
 
@@ -492,4 +505,57 @@ func (wal *VfsWal) putHeaderUint32(v uint32, offset int) {
 	wal.header[offset+1] = byte(v >> 16)
 	wal.header[offset+2] = byte(v >> 8)
 	wal.header[offset+3] = byte(v)
+}
+
+// VfsChecksum 生成校验位
+// translate from dqlite
+// Generate or extend an 8 byte checksum based on the data in array data[] and
+// the initial values of in[0] and in[1] (or initial values of 0 and 0 if
+// in==NULL).
+//
+// The checksum is written back into out[] before returning.
+//
+// n must be a positive multiple of 8.
+func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
+	if len(b)%4 != 0 {
+		return fmt.Errorf("VfsChecksum /assert((((uintptr_t)data)  sizeof(uint32_t)) == 0), but got:%d", len(b)%4)
+	}
+	cur := 0
+	end := int(n / 4)
+
+	var s1, s2 uint32
+	if in != nil {
+		s1 = in[0]
+		s2 = in[1]
+	} else {
+		s1 = 0
+		s2 = 0
+	}
+
+	if n <= 8 {
+		return fmt.Errorf("VfsChecksum assert(n >= 8);, but got:%d", n)
+	}
+	if (n & 0x00000007) != 0 {
+		return fmt.Errorf("VfsChecksum assert (n & 0x00000007) == 0, but got:%d", n)
+	}
+	if n > 65536 {
+		return fmt.Errorf("VfsChecksum assert(n <= 65536), but got:%d", n)
+	}
+
+	for true {
+		s1 += BigEndUint32(b, cur) + s2
+		cur += 4
+		s2 += BigEndUint32(b, cur) + s1
+		cur += 4
+		if !(cur < end) {
+			break
+		}
+	}
+	out[0] = s1
+	out[1] = s2
+	return nil
+}
+
+func BigEndUint32(b []byte, offset int) uint32 {
+	return uint32(b[3+offset]) | uint32(b[2+offset])<<8 | uint32(b[1+offset])<<16 | uint32(b[0+offset])<<24
 }
