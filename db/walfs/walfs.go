@@ -435,6 +435,8 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 }
 
 func (wal *VfsWal) walApplyLog(buffer []byte) error {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
 	var cmd proto.WalCommand
 	err := gProto.Unmarshal(buffer, &cmd)
 	if err != nil {
@@ -459,6 +461,7 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	return fmt.Errorf("todo impl VfsApplyLog")
 }
 
+// vfsWalInitHeader 需要在持有锁时调用
 func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	if pageSize <= 0 {
 		return fmt.Errorf("page size is :%d", pageSize)
@@ -502,6 +505,7 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	wal.putHeaderUint32(checksum[0], 24)
 	//vfsPut32(checksum[1], w->hdr + 28);
 	wal.putHeaderUint32(checksum[1], 28)
+	wal.hasWriteHeader = true
 	return nil
 }
 
