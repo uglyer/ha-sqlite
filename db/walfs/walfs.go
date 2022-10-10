@@ -139,15 +139,15 @@ func vfsParsePageSize(page_size uint32) uint32 {
 	return page_size
 }
 
-func (f *VfsWal) GetPageSize() uint32 {
-	return vfsParsePageSize(binary.BigEndian.Uint32(f.header[8:12]))
+func (wal *VfsWal) GetPageSize() uint32 {
+	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[8:12]))
 }
 
-func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
-	if instance, ok := f.tx[index]; ok {
+func (wal *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
+	if instance, ok := wal.tx[index]; ok {
 		return instance
 	}
-	if instance, ok := f.frames[index]; ok {
+	if instance, ok := wal.frames[index]; ok {
 		return instance
 	}
 	frame := &VfsFrame{
@@ -157,58 +157,58 @@ func (f *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 		page:           make([]byte, pageSize),
 		pageSize:       pageSize,
 	}
-	f.tx[index] = frame
-	f.txLastIndex = index
+	wal.tx[index] = frame
+	wal.txLastIndex = index
 	return frame
 }
 
-func (f *VfsWal) lookUpWalFrameInstanceInLock(index int) (*VfsFrame, bool) {
-	if instance, ok := f.tx[index]; ok {
+func (wal *VfsWal) lookUpWalFrameInstanceInLock(index int) (*VfsFrame, bool) {
+	if instance, ok := wal.tx[index]; ok {
 		return instance, ok
 	}
-	if instance, ok := f.frames[index]; ok {
+	if instance, ok := wal.frames[index]; ok {
 		return instance, ok
 	}
 	return nil, false
 }
 
-func (f *VfsWal) Truncate(size int64) error {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	f.hasWriteHeader = false
-	f.frames = map[int]*VfsFrame{}
-	f.tx = map[int]*VfsFrame{}
-	f.txLastIndex = 0
+func (wal *VfsWal) Truncate(size int64) error {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
+	wal.hasWriteHeader = false
+	wal.frames = map[int]*VfsFrame{}
+	wal.tx = map[int]*VfsFrame{}
+	wal.txLastIndex = 0
 	return nil
 }
 
-func (f *VfsWal) Sync(flag sqlite3.SyncType) error {
+func (wal *VfsWal) Sync(flag sqlite3.SyncType) error {
 	return nil
 }
 
-func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+func (wal *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
 	amount := len(p)
 	/* WAL header. */
 	if offset == 0 {
-		if f.hasWriteHeader {
-			return 0, fmt.Errorf("wal file:%s read header error: header is null", f.name)
+		if wal.hasWriteHeader {
+			return 0, fmt.Errorf("wal file:%s read header error: header is null", wal.name)
 		}
 		if amount != VFS__WAL_HEADER_SIZE {
-			return 0, fmt.Errorf("wal file:%s read header error: size!=VFS__WAL_HEADER_SIZE", f.name)
+			return 0, fmt.Errorf("wal file:%s read header error: size!=VFS__WAL_HEADER_SIZE", wal.name)
 		}
 		for i := 0; i < amount; i++ {
-			p[i] = f.header[i]
+			p[i] = wal.header[i]
 		}
 		return amount, nil
 	}
-	if len(f.frames) == 0 && len(f.tx) == 0 {
-		return 0, fmt.Errorf("wal file:%s read page error: frame is zero", f.name)
+	if len(wal.frames) == 0 && len(wal.tx) == 0 {
+		return 0, fmt.Errorf("wal file:%s read page error: frame is zero", wal.name)
 	}
-	pageSize := f.GetPageSize()
+	pageSize := wal.GetPageSize()
 	if pageSize <= 0 {
-		return 0, fmt.Errorf("wal file:%s read page size error#1:%d", f.name, pageSize)
+		return 0, fmt.Errorf("wal file:%s read page size error#1:%d", wal.name, pageSize)
 	}
 	var index int
 	/* For any other frame, we expect either a header read,
@@ -216,7 +216,7 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 	if amount == FORMAT__WAL_FRAME_HDR_SIZE {
 		if ((int(offset) - VFS__WAL_HEADER_SIZE) %
 			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
-			return 0, fmt.Errorf("wal file:%s read page size error#2:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s read page size error#2:%d", wal.name, pageSize)
 		}
 		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
 	} else if amount == 8 {
@@ -225,13 +225,13 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 			/* Read the checksum from the WAL
 			 * header. */
 			for i := 0; i < amount; i++ {
-				p[i] = f.header[i+int(offset)]
+				p[i] = wal.header[i+int(offset)]
 			}
 			return amount, nil
 		}
 		if ((int(offset) - 16 - VFS__WAL_HEADER_SIZE) %
 			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
-			return 0, fmt.Errorf("wal file:%s read page size error#3:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s read page size error#3:%d", wal.name, pageSize)
 		}
 		index = (int(offset)-16-VFS__WAL_HEADER_SIZE)/
 			(int(pageSize)+FORMAT__WAL_FRAME_HDR_SIZE) + 1
@@ -239,12 +239,12 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 		if ((int(offset) - VFS__WAL_HEADER_SIZE -
 			FORMAT__WAL_FRAME_HDR_SIZE) %
 			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
-			return 0, fmt.Errorf("wal file:%s read page size error#4:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s read page size error#4:%d", wal.name, pageSize)
 		}
 		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
 	} else {
 		if amount != (FORMAT__WAL_FRAME_HDR_SIZE + int(pageSize)) {
-			return 0, fmt.Errorf("wal file:%s read page size error#5:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s read page size error#5:%d", wal.name, pageSize)
 		}
 		index = formatWalCalcFrameIndex(int(pageSize), int(offset))
 	}
@@ -252,12 +252,12 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 		// This is an attempt to read a page that was
 		// never written.
 		//memset(buf, 0, (size_t)amount);
-		return 0, fmt.Errorf("wal file:%s read page error:this is an attempt to read a page that was never written", f.name)
+		return 0, fmt.Errorf("wal file:%s read page error:this is an attempt to read a page that was never written", wal.name)
 	}
-	frame, ok := f.lookUpWalFrameInstanceInLock(index)
+	frame, ok := wal.lookUpWalFrameInstanceInLock(index)
 
 	if !ok {
-		return 0, fmt.Errorf("wal file:%s read page error: frame is null:%d", f.name, index)
+		return 0, fmt.Errorf("wal file:%s read page error: frame is null:%d", wal.name, index)
 	}
 
 	if amount == FORMAT__WAL_FRAME_HDR_SIZE {
@@ -284,24 +284,24 @@ func (f *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 	return amount, nil
 }
 
-func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+func (wal *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
 	amount := len(p)
 	/* WAL header. */
 	if offset == 0 {
 		if amount != VFS__WAL_HEADER_SIZE {
-			return 0, fmt.Errorf("wal file:%s write header error: size!=VFS__WAL_HEADER_SIZE", f.name)
+			return 0, fmt.Errorf("wal file:%s write header error: size!=VFS__WAL_HEADER_SIZE", wal.name)
 		}
 		for i := 0; i < amount; i++ {
-			f.header[i] = p[i]
+			wal.header[i] = p[i]
 		}
-		f.hasWriteHeader = true
+		wal.hasWriteHeader = true
 		return amount, nil
 	}
-	pageSize := f.GetPageSize()
+	pageSize := wal.GetPageSize()
 	if pageSize <= 0 {
-		return 0, fmt.Errorf("wal file:%s write page size error#1:%d", f.name, pageSize)
+		return 0, fmt.Errorf("wal file:%s write page size error#1:%d", wal.name, pageSize)
 	}
 	/* This is a WAL frame write. We expect either a frame
 	 * header or page write. */
@@ -309,12 +309,12 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 		/* Frame header write. */
 		if ((int(offset) - VFS__WAL_HEADER_SIZE) %
 			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
-			return 0, fmt.Errorf("wal file:%s page size error#2:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s page size error#2:%d", wal.name, pageSize)
 		}
 
 		index := formatWalCalcFrameIndex(int(pageSize), int(offset))
 
-		frame := f.getWalFrameInstanceInLock(index, int(pageSize))
+		frame := wal.getWalFrameInstanceInLock(index, int(pageSize))
 		err := frame.writeHeader(p)
 		if err != nil {
 			return 0, err
@@ -322,18 +322,18 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	} else {
 		/* Frame page write. */
 		if amount != int(pageSize) {
-			return 0, fmt.Errorf("wal file:%s page size error#3:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s page size error#3:%d", wal.name, pageSize)
 		}
 		if ((int(offset) - VFS__WAL_HEADER_SIZE -
 			FORMAT__WAL_FRAME_HDR_SIZE) %
 			(int(pageSize) + FORMAT__WAL_FRAME_HDR_SIZE)) != 0 {
-			return 0, fmt.Errorf("wal file:%s page size error#4:%d", f.name, pageSize)
+			return 0, fmt.Errorf("wal file:%s page size error#4:%d", wal.name, pageSize)
 		}
 
 		index := formatWalCalcFrameIndex(int(pageSize), int(offset))
-		frame, hasFrame := f.lookUpWalFrameInstanceInLock(index)
+		frame, hasFrame := wal.lookUpWalFrameInstanceInLock(index)
 		if !hasFrame {
-			return 0, fmt.Errorf("wal file:%s get frame error:%d", f.name, index)
+			return 0, fmt.Errorf("wal file:%s get frame error:%d", wal.name, index)
 		}
 		err := frame.writePage(p)
 		if err != nil {
@@ -343,62 +343,62 @@ func (f *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 	return amount, nil
 }
 
-func (f *VfsWal) Close() error {
-	if f.flags&SQLITE_OPEN_DELETEONCLOSE != 0 {
-		f.fs.DeleteFile(f.name)
+func (wal *VfsWal) Close() error {
+	if wal.flags&SQLITE_OPEN_DELETEONCLOSE != 0 {
+		wal.fs.DeleteFile(wal.name)
 	}
 	return nil
 }
 
-func (f *VfsWal) Lock(elock sqlite3.LockType) error {
+func (wal *VfsWal) Lock(elock sqlite3.LockType) error {
 	return nil
 }
 
-func (f *VfsWal) Unlock(elock sqlite3.LockType) error {
+func (wal *VfsWal) Unlock(elock sqlite3.LockType) error {
 	return nil
 }
 
 // CheckReservedLock We always report that a lock is held. This routine should be used only in
 // journal mode, so it doesn't matter.
-func (f *VfsWal) CheckReservedLock() (bool, error) {
+func (wal *VfsWal) CheckReservedLock() (bool, error) {
 	return true, nil
 }
 
-func (f *VfsWal) FileSize() (int64, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	if !f.hasWriteHeader {
+func (wal *VfsWal) FileSize() (int64, error) {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
+	if !wal.hasWriteHeader {
 		return 0, nil
 	}
 	size := int64(VFS__WAL_HEADER_SIZE)
-	for _, v := range f.frames {
+	for _, v := range wal.frames {
 		size += v.FileSize()
 	}
-	for _, v := range f.tx {
+	for _, v := range wal.tx {
 		size += v.FileSize()
 	}
 	return size, nil
 }
 
-func (f *VfsWal) SectorSize() int64 {
+func (wal *VfsWal) SectorSize() int64 {
 	return 0
 }
 
-func (f *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
+func (wal *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 	return 0
 }
 
 // walPoll 未提交日志遍历, 返回序列化的指令 (WalCommand, error info, 是否需要提交日志(当值为true但 error != nil 时表示出现重大错误 需要中断服务))
-func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
-	txCount := len(f.tx)
+func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
+	txCount := len(wal.tx)
 	if txCount == 0 {
 		// 无新增
 		return nil, nil, false
 	}
 	/* Check if the last frame in the transaction has the commit marker. */
-	lastFrame, ok := f.tx[f.txLastIndex]
+	lastFrame, ok := wal.tx[wal.txLastIndex]
 	if !ok || !lastFrame.hasWriteHeader || !lastFrame.hasWritePage {
 		return nil, nil, false
 	}
@@ -407,7 +407,7 @@ func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
 	}
 	frames := make([]*proto.WalFrame, txCount)
 	index := 0
-	for k, v := range f.tx {
+	for k, v := range wal.tx {
 		if !v.hasWriteHeader || !v.hasWritePage {
 			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false
 		}
@@ -415,8 +415,8 @@ func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
 			Data:       v.page,
 			PageNumber: v.PageNumber(),
 		}
-		f.frames[k] = v
-		delete(f.tx, k)
+		wal.frames[k] = v
+		delete(wal.tx, k)
 		index++
 	}
 	cmd := &proto.WalCommand{
@@ -429,7 +429,7 @@ func (f *VfsWal) walTxPoll() ([]byte, error, bool) {
 	return b, nil, true
 }
 
-func (f *VfsWal) walApplyLog(buffer []byte) error {
+func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	var cmd proto.WalCommand
 	err := gProto.Unmarshal(buffer, &cmd)
 	if err != nil {
@@ -441,9 +441,9 @@ func (f *VfsWal) walApplyLog(buffer []byte) error {
 	/* If there's no page size set in the WAL header, it must mean that WAL
 	 * file was never written. In that case we need to initialize the WAL
 	 * header. */
-	if f.hasWriteHeader == false {
+	if wal.hasWriteHeader == false {
 		pageSize := len(cmd.Frames[0].Data)
-		err = f.vfsWalStartHeader(pageSize)
+		err = wal.vfsWalStartHeader(pageSize)
 		if err != nil {
 			return fmt.Errorf("walApplyLog vfsWalStartHeader error :%v", err)
 		}
@@ -454,7 +454,7 @@ func (f *VfsWal) walApplyLog(buffer []byte) error {
 	return fmt.Errorf("todo impl VfsApplyLog")
 }
 
-func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
+func (wal *VfsWal) vfsWalStartHeader(pageSize int) error {
 	if pageSize <= 0 {
 		return fmt.Errorf("page size is :%d", pageSize)
 	}
@@ -473,13 +473,13 @@ func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
 	// * In Dqlite the WAL file image is always generated at run time on the
 	// * host, so we can always use the native byte order. */
 	//vfsPut32(VFS__WAL_MAGIC | VFS__BIGENDIAN, &w->hdr[0]);
-	f.putHeaderUint32(VFS__WAL_MAGIC|VFS__BIGENDIAN, 0)
+	wal.putHeaderUint32(VFS__WAL_MAGIC|VFS__BIGENDIAN, 0)
 	//vfsPut32(VFS__WAL_VERSION, &w->hdr[4]);
-	f.putHeaderUint32(VFS__WAL_VERSION, 4)
+	wal.putHeaderUint32(VFS__WAL_VERSION, 4)
 	//vfsPut32(page_size, &w->hdr[8]);
-	f.putHeaderUint32(uint32(pageSize), 8)
+	wal.putHeaderUint32(uint32(pageSize), 8)
 	//vfsPut32(0, &w->hdr[12]);
-	f.putHeaderUint32(0, 12)
+	wal.putHeaderUint32(0, 12)
 	//sqlite3_randomness(8, &w->hdr[16]);
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
 	//vfsPut32(checksum[0], w->hdr + 24);
@@ -487,9 +487,9 @@ func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
 	return fmt.Errorf("todo impl vfsWalStartHeader")
 }
 
-func (f *VfsWal) putHeaderUint32(v uint32, offset int) {
-	f.header[offset] = byte(v >> 24)
-	f.header[offset+1] = byte(v >> 16)
-	f.header[offset+2] = byte(v >> 8)
-	f.header[offset+3] = byte(v)
+func (wal *VfsWal) putHeaderUint32(v uint32, offset int) {
+	wal.header[offset] = byte(v >> 24)
+	wal.header[offset+1] = byte(v >> 16)
+	wal.header[offset+2] = byte(v >> 8)
+	wal.header[offset+3] = byte(v)
 }
