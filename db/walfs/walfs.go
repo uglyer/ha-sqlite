@@ -102,12 +102,17 @@ func (f *WalFS) VfsPoll(name string) ([]byte, error, bool) {
 // VfsApplyLog 应用来自 raft 中的日志
 func (f *WalFS) VfsApplyLog(name string, buffer []byte) error {
 	f.mtx.Lock()
-	defer f.mtx.Unlock()
 	wal, hasFile := f.walMap[name]
 	if !hasFile {
-		// todo 创建一个文件用于应用日志
-		return fmt.Errorf("without wal file:%s", name)
+		// 创建一个文件用于应用日志
+		f.mtx.Unlock()
+		wal, err := f.OpenFile(name, os.O_CREATE, 0660)
+		if err != nil {
+			return fmt.Errorf("VfsApplyLog error:%v", err)
+		}
+		return wal.walApplyLog(buffer)
 	}
+	defer f.mtx.Unlock()
 	return wal.walApplyLog(buffer)
 }
 
@@ -497,7 +502,7 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	wal.putHeaderUint32(checksum[0], 24)
 	//vfsPut32(checksum[1], w->hdr + 28);
 	wal.putHeaderUint32(checksum[1], 28)
-	return fmt.Errorf("todo impl vfsWalStartHeader")
+	return nil
 }
 
 func (wal *VfsWal) putHeaderUint32(v uint32, offset int) {
