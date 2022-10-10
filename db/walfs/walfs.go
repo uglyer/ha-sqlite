@@ -455,7 +455,9 @@ func (f *VfsWal) walApplyLog(buffer []byte) error {
 }
 
 func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
-	//assert(page_size > 0);
+	if pageSize <= 0 {
+		return fmt.Errorf("page size is :%d", pageSize)
+	}
 	//uint32_t checksum[2] = {0, 0};
 	///* SQLite calculates checksums for the WAL header and frames either
 	// * using little endian or big endian byte order when adding up 32-bit
@@ -471,12 +473,23 @@ func (f *VfsWal) vfsWalStartHeader(pageSize int) error {
 	// * In Dqlite the WAL file image is always generated at run time on the
 	// * host, so we can always use the native byte order. */
 	//vfsPut32(VFS__WAL_MAGIC | VFS__BIGENDIAN, &w->hdr[0]);
+	f.putHeaderUint32(VFS__WAL_MAGIC|VFS__BIGENDIAN, 0)
 	//vfsPut32(VFS__WAL_VERSION, &w->hdr[4]);
+	f.putHeaderUint32(VFS__WAL_VERSION, 4)
 	//vfsPut32(page_size, &w->hdr[8]);
+	f.putHeaderUint32(uint32(pageSize), 8)
 	//vfsPut32(0, &w->hdr[12]);
+	f.putHeaderUint32(0, 12)
 	//sqlite3_randomness(8, &w->hdr[16]);
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
 	//vfsPut32(checksum[0], w->hdr + 24);
 	//vfsPut32(checksum[1], w->hdr + 28);
 	return fmt.Errorf("todo impl vfsWalStartHeader")
+}
+
+func (f *VfsWal) putHeaderUint32(v uint32, offset int) {
+	f.header[offset] = byte(v >> 24)
+	f.header[offset+1] = byte(v >> 16)
+	f.header[offset+2] = byte(v >> 8)
+	f.header[offset+3] = byte(v)
 }
