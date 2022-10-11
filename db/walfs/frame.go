@@ -23,8 +23,41 @@ func NewVfsFrame(pageSize int) *VfsFrame {
 	}
 }
 
-func (f *VfsFrame) FrameFill(pageNumber uint32, databaseSize uint32, salt [2]uint32, checksum [2]uint32, page []byte, pageSize uint32) {
+func (f *VfsFrame) FrameFill(pageNumber uint32, databaseSize uint32, salt [2]uint32, checksum []uint32, page []byte, pageSize uint32) error {
+	//vfsPut32(page_number, &f->header[0]);
+	bigEndPutUint32(f.header[:], pageNumber, 0)
+	//vfsPut32(database_size, &f->header[4]);
+	bigEndPutUint32(f.header[:], pageNumber, 4)
 
+	//vfsChecksum(f->header, 8, checksum, checksum);
+	err := VfsChecksum(f.header[:], 8, checksum, checksum)
+	if err != nil {
+		return fmt.Errorf("FrameFill VfsChecksum error#1:%v", err)
+	}
+	//vfsChecksum(page, page_size, checksum, checksum);
+	err = VfsChecksum(page, pageSize, checksum, checksum)
+	if err != nil {
+		return fmt.Errorf("FrameFill VfsChecksum error#2:%v", err)
+	}
+
+	//memcpy(&f->header[8], &salt[0], sizeof salt[0]);
+	bigEndPutUint32(f.header[:], salt[0], 8)
+	//memcpy(&f->header[12], &salt[1], sizeof salt[1]);
+	bigEndPutUint32(f.header[:], salt[1], 12)
+
+	//vfsPut32(checksum[0], &f->header[16]);
+	bigEndPutUint32(f.header[:], checksum[0], 16)
+	//vfsPut32(checksum[1], &f->header[20]);
+	bigEndPutUint32(f.header[:], checksum[1], 20)
+
+	//memcpy(f->page, page, page_size);
+	size := int(pageSize)
+	for i := 0; i < size; i++ {
+		f.page[i] = page[i]
+	}
+	f.hasWriteHeader = true
+	f.hasWritePage = true
+	return nil
 }
 
 func (f *VfsFrame) writeHeader(p []byte) error {

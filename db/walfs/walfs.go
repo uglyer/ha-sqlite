@@ -471,7 +471,7 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 	pageSize := wal.GetPageSize()
 	/* Get the salt from the WAL header. */
 	salt := [2]uint32{wal.GetSalt1(), wal.GetSalt2()}
-	checksum := [2]uint32{}
+	checksum := make([]uint32, 2)
 
 	/* If there are currently no frames in the WAL, the starting database
 	 * size will be equal to the current number of pages in the main
