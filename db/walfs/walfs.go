@@ -480,7 +480,8 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 	 * will be the ones stored in the last frame of the WAL. */
 	var databaseSize uint32
 	cmdFrameLen := len(cmd.Frames)
-	if len(wal.frames) == 0 {
+	walFrameLen := len(wal.frames)
+	if walFrameLen == 0 {
 		databaseSize = uint32(cmdFrameLen)
 		checksum[0] = wal.getChecksum1()
 		checksum[1] = wal.getChecksum2()
@@ -502,8 +503,18 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 		if i == cmdFrameLen-1 {
 			commit = databaseSize
 		}
-		frame.FrameFill(pageNumber, commit, salt, checksum, cmdFrame.Data, pageSize)
-		wal.frames[len(wal.frames)+1] = frame
+		err := frame.FrameFill(pageNumber, commit, salt, checksum, cmdFrame.Data, pageSize)
+		if err != nil {
+			// 如果失败, 清空 tx 内容
+			wal.tx = make(map[int]*VfsFrame)
+			return fmt.Errorf("walAppend FrameFill error :%v", err)
+		}
+		wal.tx[walFrameLen+i] = frame
+	}
+	// 无错误,应用至 frame
+	for k, frame := range wal.tx {
+		wal.frames[k] = frame
+		delete(wal.tx, k)
 	}
 	return nil
 }
