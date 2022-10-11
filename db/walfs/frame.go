@@ -27,7 +27,7 @@ func (f *VfsFrame) FrameFill(pageNumber uint32, databaseSize uint32, salt [2]uin
 	//vfsPut32(page_number, &f->header[0]);
 	bigEndPutUint32(f.header[:], pageNumber, 0)
 	//vfsPut32(database_size, &f->header[4]);
-	bigEndPutUint32(f.header[:], pageNumber, 4)
+	bigEndPutUint32(f.header[:], databaseSize, 4)
 
 	//vfsChecksum(f->header, 8, checksum, checksum);
 	err := VfsChecksum(f.header[:], 8, checksum, checksum)
