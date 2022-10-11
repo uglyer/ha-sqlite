@@ -604,8 +604,8 @@ func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
 		s2 = 0
 	}
 
-	if n <= 8 {
-		return fmt.Errorf("VfsChecksum assert(n >= 8);, but got:%d", n)
+	if n < 8 {
+		return fmt.Errorf("VfsChecksum assert(n >= 8), but got:%d", n)
 	}
 	if (n & 0x00000007) != 0 {
 		return fmt.Errorf("VfsChecksum assert (n & 0x00000007) == 0, but got:%d", n)

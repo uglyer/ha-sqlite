@@ -55,7 +55,7 @@ func TestVfsWalApplyLog(t *testing.T) {
 			assert.NotEqual(t, 0, walFile.header[i])
 		}
 
-		assert.Equal(t, len(cmd.Frames), walFile.frames)
+		assert.Equal(t, len(cmd.Frames), len(walFile.frames))
 
 		for index, frame := range cmd.Frames {
 			walFrame := walFile.frames[index]
@@ -64,7 +64,7 @@ func TestVfsWalApplyLog(t *testing.T) {
 			assert.Equal(t, pageSize, walFrame.pageSize)
 
 			for i := 0; i < pageSize; i++ {
-				assert.Equal(t, frame.Data[i], walFile.frames[i])
+				assert.Equal(t, frame.Data[i], walFile.frames[index].page[i])
 			}
 		}
 	})
