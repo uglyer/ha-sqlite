@@ -149,11 +149,11 @@ func (wal *VfsWal) GetPageSize() uint32 {
 }
 
 func (wal *VfsWal) GetSalt1() uint32 {
-	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[16:20]))
+	return binary.BigEndian.Uint32(wal.header[16:20])
 }
 
 func (wal *VfsWal) GetSalt2() uint32 {
-	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[20:24]))
+	return binary.BigEndian.Uint32(wal.header[20:24])
 }
 
 func (wal *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
