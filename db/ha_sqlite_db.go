@@ -142,20 +142,21 @@ func (d *HaSqliteDB) checkWal() error {
 	//}
 	err = d.onApplyWal(buffer)
 	if err != nil {
+		// TODO 回滚 tx
 		return fmt.Errorf("onApplyWal error:%v", err)
 	}
 	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
 	//if bufferSize < 4096 {
 	//	return nil
 	//}
-	//var row [3]int
-	//if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-	//	log.Printf("wal_checkpoint TRUNCATE error:%v", err)
-	//	return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
-	//} else if row[0] != 0 {
-	//	log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
-	//	return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
-	//}
+	var row [3]int
+	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
+	} else if row[0] != 0 {
+		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
+	}
 	return nil
 }
 
@@ -391,29 +392,16 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	panic(fmt.Sprintf("unknow tx type :%s", req.Type.String()))
 }
 
-// applyWal 应用 wal 日志
-func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
+// ApplyWal 应用 wal 日志
+func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
 	// TODO 由 raft 触发写日志时,与 checkWal 会有200ms的时间差, wal 尺寸可能会超过200kb
 	// TODO 此过程中执行 PRAGMA wal_checkpoint(TRUNCATE); 有概率返回 disk I/O error 导致查询结果不一致
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
 	fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
-	walBuffer, hasBuffer := vfs.rootMemFS.GetFileBuffer(d.sourceWalFile)
-	if hasBuffer {
-		_, err := walBuffer.WriteAt(b, 0)
-		if err != nil {
-			return errors.Wrap(err, "Error copy to wal buffer")
-		}
-	} else {
-		walFile, _, err := vfs.Open(d.sourceWalFile, sqlite.OpenCreate)
-		if err != nil {
-			return errors.Wrap(err, "Error open wal file")
-		}
-		defer walFile.Close()
-		_, err = walFile.WriteAt(b, 0)
-		if err != nil {
-			return errors.Wrap(err, "Error write wal file")
-		}
+	err := vfs.rootMemFS.VfsApplyLog(d.sourceWalFile, b)
+	if err != nil {
+		return errors.Wrap(err, "Error VfsApplyLog")
 	}
 	//dbCopy, err := sql.Open("sqlite3-wal", d.dataSourceName)
 	//if err != nil {
@@ -425,11 +413,11 @@ func (d *HaSqliteDB) applyWal(c context.Context, b []byte) error {
 	//}
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
-		return errors.Wrap(err, "Failed to set db copy journal mode")
+		log.Printf("ApplyWal wal_checkpoint TRUNCATE error#1:%v", err)
+		return errors.Wrap(err, "ApplyWal Fwal_checkpoint TRUNCATE error#1")
 	} else if row[0] != 0 {
-		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
-		return errors.Wrap(err, "Failed to set db copy journal mode")
+		log.Printf("ApplyWal wal_checkpoint TRUNCATE error#2:%v", row[0])
+		return errors.Wrap(err, "ApplyWal wal_checkpoint TRUNCATE error#2")
 	}
 	return nil
 }
