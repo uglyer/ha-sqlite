@@ -51,6 +51,10 @@ func (store *Store) cloneConn() *Store {
 	return &Store{db: store.db, id: store.id, t: store.t}
 }
 
+func (store *Store) getDB() (*db.HaSqliteDB, bool) {
+	return store.db.GetDB(store.id)
+}
+
 func (store *Store) exec(sql string, args ...driver.Value) *proto.ExecResponse {
 	req := store.buildRequest(sql, args...)
 	resp, err := store.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
@@ -360,4 +364,22 @@ func Test_MemWalFS(t *testing.T) {
 	wg.Wait()
 	elapsed := time.Since(start)
 	log.Printf("异步插入%d条记录耗时:%v,qps:%d", count, elapsed, int64(float64(count)/elapsed.Seconds()))
+}
+
+func Test_DBWalCopy(t *testing.T) {
+	store1 := openDB(t)
+	store2 := openDB(t)
+	db1, ok1 := store1.getDB()
+	db2, ok2 := store2.getDB()
+	assert.Equal(t, true, ok1)
+	assert.Equal(t, true, ok2)
+	db1.InitWalHook(func(b []byte) error {
+		return db2.ApplyWal(context.Background(), b)
+	})
+	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+	store1.exec("INSERT INTO foo(name) VALUES(?)", "test")
+	resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
+	resp = store2.query("SELECT * FROM foo WHERE name = ?", "test")
+	assert.Equal(t, 1, len(resp.Result[0].Values))
 }
