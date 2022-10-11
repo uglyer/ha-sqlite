@@ -13,6 +13,20 @@ type VfsFrame struct {
 	pageSize       int
 }
 
+func NewVfsFrame(pageSize int) *VfsFrame {
+	return &VfsFrame{
+		hasWriteHeader: false,
+		hasWritePage:   false,
+		header:         [VFS__FRAME_HEADER_SIZE]byte{},
+		page:           make([]byte, pageSize),
+		pageSize:       pageSize,
+	}
+}
+
+func (f *VfsFrame) FrameFill(pageNumber uint32, databaseSize uint32, salt [2]uint32, checksum [2]uint32, page []byte, pageSize uint32) {
+
+}
+
 func (f *VfsFrame) writeHeader(p []byte) error {
 	if len(p) != VFS__FRAME_HEADER_SIZE {
 		return fmt.Errorf("header size error:%d", p)
@@ -53,4 +67,19 @@ func (f *VfsFrame) Commit() uint32 {
 // PageNumber 调用前需要确保头数据已经写入
 func (f *VfsFrame) PageNumber() uint32 {
 	return binary.BigEndian.Uint32(f.header[0:4])
+}
+
+// DatabaseSize 调用前需要确保头数据已经写入
+func (f *VfsFrame) DatabaseSize() uint32 {
+	return binary.BigEndian.Uint32(f.header[4:8])
+}
+
+// getChecksum1 调用前需要确保头数据已经写入
+func (f *VfsFrame) getChecksum1() uint32 {
+	return binary.BigEndian.Uint32(f.header[16:20])
+}
+
+// getChecksum2 调用前需要确保头数据已经写入
+func (f *VfsFrame) getChecksum2() uint32 {
+	return binary.BigEndian.Uint32(f.header[20:24])
 }

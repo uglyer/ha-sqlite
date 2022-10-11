@@ -148,6 +148,14 @@ func (wal *VfsWal) GetPageSize() uint32 {
 	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[8:12]))
 }
 
+func (wal *VfsWal) GetSalt1() uint32 {
+	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[16:20]))
+}
+
+func (wal *VfsWal) GetSalt2() uint32 {
+	return vfsParsePageSize(binary.BigEndian.Uint32(wal.header[20:24]))
+}
+
 func (wal *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame {
 	if instance, ok := wal.tx[index]; ok {
 		return instance
@@ -155,13 +163,7 @@ func (wal *VfsWal) getWalFrameInstanceInLock(index int, pageSize int) *VfsFrame 
 	if instance, ok := wal.frames[index]; ok {
 		return instance
 	}
-	frame := &VfsFrame{
-		hasWriteHeader: false,
-		hasWritePage:   false,
-		header:         [VFS__FRAME_HEADER_SIZE]byte{},
-		page:           make([]byte, pageSize),
-		pageSize:       pageSize,
-	}
+	frame := NewVfsFrame(pageSize)
 	wal.tx[index] = frame
 	wal.txLastIndex = index
 	return frame
@@ -455,10 +457,55 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 			return fmt.Errorf("walApplyLog vfsWalStartHeader error :%v", err)
 		}
 	}
-	//for _, frame := range cmd.Frames {
-	//
-	//}
-	return fmt.Errorf("todo impl VfsApplyLog")
+	err = wal.walFramesAppend(&cmd)
+	if err != nil {
+		return fmt.Errorf("walApplyLog walAppend error :%v", err)
+	}
+	return nil
+}
+
+func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
+	if len(wal.tx) > 0 {
+		return fmt.Errorf("walAppend assert(w->n_tx == 0) No pending transactions")
+	}
+	pageSize := wal.GetPageSize()
+	/* Get the salt from the WAL header. */
+	salt := [2]uint32{wal.GetSalt1(), wal.GetSalt2()}
+	checksum := [2]uint32{}
+
+	/* If there are currently no frames in the WAL, the starting database
+	 * size will be equal to the current number of pages in the main
+	 * database, and the starting checksum should be set to the one stored
+	 * in the WAL header. Otherwise, the starting database size and checksum
+	 * will be the ones stored in the last frame of the WAL. */
+	var databaseSize uint32
+	cmdFrameLen := len(cmd.Frames)
+	if len(wal.frames) == 0 {
+		databaseSize = uint32(cmdFrameLen)
+		checksum[0] = wal.getChecksum1()
+		checksum[1] = wal.getChecksum2()
+	} else {
+		frame := wal.frames[len(wal.frames)-1]
+		checksum[0] = frame.getChecksum1()
+		checksum[1] = frame.getChecksum2()
+		databaseSize = frame.DatabaseSize()
+	}
+	for i, cmdFrame := range cmd.Frames {
+		frame := NewVfsFrame(int(pageSize))
+		pageNumber := cmdFrame.PageNumber
+		if pageNumber > databaseSize {
+			databaseSize = pageNumber
+		}
+		/* For commit records, the size of the database file in pages
+		 * after the commit. For all other records, zero. */
+		commit := uint32(0)
+		if i == cmdFrameLen-1 {
+			commit = databaseSize
+		}
+		frame.FrameFill(pageNumber, commit, salt, checksum, cmdFrame.Data, pageSize)
+		wal.frames[len(wal.frames)+1] = frame
+	}
+	return nil
 }
 
 // vfsWalInitHeader 需要在持有锁时调用
@@ -511,6 +558,14 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 
 func (wal *VfsWal) putHeaderUint32(v uint32, offset int) {
 	bigEndPutUint32(wal.header[:], v, offset)
+}
+
+func (wal *VfsWal) getChecksum1() uint32 {
+	return binary.BigEndian.Uint32(wal.header[24:28])
+}
+
+func (wal *VfsWal) getChecksum2() uint32 {
+	return binary.BigEndian.Uint32(wal.header[28:32])
 }
 
 // VfsChecksum 生成校验位
