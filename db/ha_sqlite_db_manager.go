@@ -39,16 +39,15 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	}
 	d.dbIndex++
 	token := d.dbIndex
-	// 模拟应用 wal
 	db.InitWalHook(func(b []byte) error {
-		return db.applyWal(context.Background(), b)
+		return nil
 	})
 	d.dbFilenameTokenMap[req.Dsn] = token
 	d.dbMap[token] = db
 	return &proto.OpenResponse{DbId: token}, nil
 }
 
-func (d *HaSqliteDBManager) getDB(dbId uint64) (*HaSqliteDB, bool) {
+func (d *HaSqliteDBManager) GetDB(dbId uint64) (*HaSqliteDB, bool) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	db, ok := d.dbMap[dbId]
@@ -64,7 +63,7 @@ func (ctx *HaSqliteDBManager) Ping(c context.Context, req *proto.PingRequest) (*
 
 // Exec 执行数据库命令
 func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	db, ok := d.getDB(req.Request.DbId)
+	db, ok := d.GetDB(req.Request.DbId)
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
@@ -73,7 +72,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 
 // Query 查询记录
 func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	db, ok := d.getDB(req.Request.DbId)
+	db, ok := d.GetDB(req.Request.DbId)
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
 	}
@@ -82,7 +81,7 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	db, ok := d.getDB(req.DbId)
+	db, ok := d.GetDB(req.DbId)
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
@@ -91,7 +90,7 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 
 // FinishTx 开始事务执行
 func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	db, ok := d.getDB(req.DbId)
+	db, ok := d.GetDB(req.DbId)
 	if !ok {
 		return nil, fmt.Errorf("get db error : %d", req.DbId)
 	}
@@ -100,9 +99,9 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 
 // ApplyWal 开始事务执行
 func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId uint64, b []byte) error {
-	db, ok := d.getDB(dbId)
+	db, ok := d.GetDB(dbId)
 	if !ok {
 		return fmt.Errorf("get db error : %d", dbId)
 	}
-	return db.applyWal(c, b)
+	return db.ApplyWal(c, b)
 }
