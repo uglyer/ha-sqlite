@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"unsafe"
 )
 
 // HaSqliteVFS TODO 单独实现 wal 内存存储实现, 经验证 wal 文件始终以32字节为头文件, 每页 页头24字节，正文4096字节, 均为新增插入
@@ -76,6 +77,10 @@ func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag) (sqlite3.File,
 
 func (vfs *HaSqliteVFS) Delete(name string, dirSync bool) error {
 	log.Printf("vfs.delete:%s", name)
+	if strings.HasSuffix(name, "-wal") {
+		vfs.rootMemFS.DeleteFile(name)
+		return nil
+	}
 	return os.Remove(name)
 }
 
