@@ -85,6 +85,13 @@ func (vfs *HaSqliteVFS) Delete(name string, dirSync bool) error {
 }
 
 func (vfs *HaSqliteVFS) Access(name string, flag sqlite3.AccessFlag) (bool, error) {
+	//log.Printf("vfs.Access:%s", name)
+	if strings.HasSuffix(name, "-wal") {
+		return true, nil
+	}
+	if strings.HasSuffix(name, "-journal") {
+		return false, nil
+	}
 	exists := true
 	_, err := os.Stat(name)
 	if err != nil && os.IsNotExist(err) {
