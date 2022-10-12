@@ -45,7 +45,7 @@ func TestVfsWalApplyLog(t *testing.T) {
 		err := walFS.VfsApplyLog("test", logBuffer)
 		assert.NoError(t, err)
 
-		walFile, err := walFS.OpenFile("test", os.O_RDWR, 0660)
+		walFile, err := walFS.OpenFile("test", os.O_RDWR, nil)
 		assert.NoError(t, err)
 
 		assert.Equal(t, true, walFile.hasWriteHeader)

@@ -6,8 +6,10 @@ import (
 	"github.com/uglyer/go-sqlite3"
 	"github.com/uglyer/ha-sqlite/proto"
 	gProto "google.golang.org/protobuf/proto"
+	"log"
 	"os"
 	"sync"
+	"unsafe"
 )
 
 /* Write ahead log header size. */
@@ -26,8 +28,9 @@ const SQLITE_OPEN_DELETEONCLOSE int = 0x00000008 /* VFS only */
 
 // WalFS is an in-memory filesystem that implements wal io
 type WalFS struct {
-	walMap map[string]*VfsWal
-	mtx    sync.Mutex
+	walMap   map[string]*VfsWal
+	mtx      sync.Mutex
+	cfileMap map[string]unsafe.Pointer
 }
 
 type VfsWal struct {
@@ -43,12 +46,14 @@ type VfsWal struct {
 	txLastIndex int
 	flags       int
 	fs          *WalFS
+	cfile       unsafe.Pointer
 }
 
 // NewWalFS creates a new in-memory wal FileSystem.
 func NewWalFS() *WalFS {
 	return &WalFS{
-		walMap: make(map[string]*VfsWal),
+		walMap:   make(map[string]*VfsWal),
+		cfileMap: make(map[string]unsafe.Pointer),
 	}
 }
 
@@ -58,7 +63,7 @@ func NewWalFS() *WalFS {
 // is passed, it is created with mode perm (before umask). If successful,
 // methods on the returned MemFile can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, error) {
+func (f *WalFS) OpenFile(name string, flags int, cfile unsafe.Pointer) (*VfsWal, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	b, hasFile := f.walMap[name]
@@ -76,6 +81,7 @@ func (f *WalFS) OpenFile(name string, flags int, perm os.FileMode) (*VfsWal, err
 		tx:             map[int]*VfsFrame{},
 		txLastIndex:    0,
 		flags:          flags,
+		cfile:          cfile,
 	}
 	f.walMap[name] = newFile
 	return newFile, nil
@@ -86,6 +92,18 @@ func (f *WalFS) GetFileBuffer(name string) (buf *VfsWal, hasFile bool) {
 	defer f.mtx.Unlock()
 	buf, hasFile = f.walMap[name]
 	return
+}
+
+func (f *WalFS) SetCFile(name string, cfile unsafe.Pointer) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	f.cfileMap[name] = cfile
+}
+
+func (f *WalFS) RemoveCFile(name string) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	delete(f.cfileMap, name)
 }
 
 // VfsPoll 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到 raft 并 转移至 frame 中
@@ -104,9 +122,13 @@ func (f *WalFS) VfsApplyLog(name string, buffer []byte) error {
 	f.mtx.Lock()
 	wal, hasFile := f.walMap[name]
 	if !hasFile {
+		cfile, ok := f.cfileMap[name[:len(name)-4]]
+		if !ok {
+			panic(fmt.Sprintf("no wal cfile:%s", name))
+		}
 		// 创建一个文件用于应用日志
 		f.mtx.Unlock()
-		wal, err := f.OpenFile(name, os.O_CREATE, 0660)
+		wal, err := f.OpenFile(name, os.O_CREATE, cfile)
 		if err != nil {
 			return fmt.Errorf("VfsApplyLog error:%v", err)
 		}
@@ -180,6 +202,7 @@ func (wal *VfsWal) lookUpWalFrameInstanceInLock(index int) (*VfsFrame, bool) {
 }
 
 func (wal *VfsWal) Truncate(size int64) error {
+	log.Printf("wal.Truncate:%s", wal.name)
 	wal.mtx.Lock()
 	defer wal.mtx.Unlock()
 	wal.hasWriteHeader = false
@@ -194,12 +217,13 @@ func (wal *VfsWal) Sync(flag sqlite3.SyncType) error {
 }
 
 func (wal *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
+	log.Printf("wal.readAt:%d,len:%d,name:%s", offset, len(p), wal.name)
 	wal.mtx.Lock()
 	defer wal.mtx.Unlock()
 	amount := len(p)
 	/* WAL header. */
 	if offset == 0 {
-		if wal.hasWriteHeader {
+		if !wal.hasWriteHeader {
 			return 0, fmt.Errorf("wal file:%s read header error: header is null", wal.name)
 		}
 		if amount != VFS__WAL_HEADER_SIZE {
@@ -288,6 +312,7 @@ func (wal *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 			p[i+FORMAT__WAL_FRAME_HDR_SIZE] = frame.page[i]
 		}
 	}
+	log.Printf("wal.readAt result:%d,name:%s", amount, wal.name)
 	return amount, nil
 }
 
@@ -461,6 +486,8 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	if err != nil {
 		return fmt.Errorf("walApplyLog walAppend error :%v", err)
 	}
+	// 重置shm头数据
+	sqlite3.GoVfsInvalidateWalIndexHeaderByFile(wal.cfile)
 	return nil
 }
 
@@ -540,7 +567,7 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	// * In Dqlite the WAL file image is always generated at run time on the
 	// * host, so we can always use the native byte order. */
 	//vfsPut32(VFS__WAL_MAGIC | VFS__BIGENDIAN, &w->hdr[0]);
-	wal.putHeaderUint32(VFS__WAL_MAGIC|VFS__BIGENDIAN, 0)
+	wal.putHeaderUint32(VFS__WAL_MAGIC, 0)
 	//vfsPut32(VFS__WAL_VERSION, &w->hdr[4]);
 	wal.putHeaderUint32(VFS__WAL_VERSION, 4)
 	//vfsPut32(page_size, &w->hdr[8]);
