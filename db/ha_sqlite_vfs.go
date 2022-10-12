@@ -27,8 +27,10 @@ type HaSqliteVFS struct {
 
 type HaSqliteVFSFile struct {
 	*os.File
+	name      string
 	lockCount int64
 	f         *os.File
+	vfs       *HaSqliteVFS
 }
 
 func NewHaSqliteVFS() *HaSqliteVFS {
@@ -36,7 +38,7 @@ func NewHaSqliteVFS() *HaSqliteVFS {
 	return &HaSqliteVFS{rootMemFS: rootFS}
 }
 
-func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag) (sqlite3.File, sqlite3.OpenFlag, error) {
+func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag, cfile unsafe.Pointer) (sqlite3.File, sqlite3.OpenFlag, error) {
 	log.Printf("vfs.open:%s", name)
 	if name == "" {
 		return nil, flags, fmt.Errorf("")
@@ -55,12 +57,12 @@ func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag) (sqlite3.File,
 		fileFlags |= os.O_RDWR
 	}
 	if strings.HasSuffix(name, "-wal") {
-		file, err := vfs.rootMemFS.OpenFile(name, fileFlags, 0600)
+		file, err := vfs.rootMemFS.OpenFile(name, fileFlags, cfile)
 		if err != nil {
 			log.Printf("open wal error:%s", err)
 			return nil, 0, err
 		}
-		return file, 0, nil
+		return file, sqlite3.OpenWAL, nil
 	}
 	var (
 		f   *os.File
@@ -70,8 +72,8 @@ func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag) (sqlite3.File,
 	if err != nil {
 		return nil, 0, sqlite3.CantOpenError
 	}
-
-	tf := &HaSqliteVFSFile{f: f}
+	vfs.rootMemFS.SetCFile(name, cfile)
+	tf := &HaSqliteVFSFile{f: f, vfs: vfs, name: name}
 	return tf, flags, nil
 }
 
@@ -81,7 +83,12 @@ func (vfs *HaSqliteVFS) Delete(name string, dirSync bool) error {
 		vfs.rootMemFS.DeleteFile(name)
 		return nil
 	}
+	vfs.rootMemFS.RemoveCFile(name)
 	return os.Remove(name)
+}
+
+func (vfs *HaSqliteVFS) removeCFile(name string) {
+	vfs.rootMemFS.RemoveCFile(name)
 }
 
 func (vfs *HaSqliteVFS) Access(name string, flag sqlite3.AccessFlag) (bool, error) {
@@ -111,6 +118,7 @@ func (vfs *HaSqliteVFS) FullPathname(name string) string {
 }
 
 func (tf *HaSqliteVFSFile) Close() error {
+	tf.vfs.removeCFile(tf.name)
 	return tf.f.Close()
 }
 
