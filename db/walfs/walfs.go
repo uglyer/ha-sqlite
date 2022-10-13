@@ -57,7 +57,6 @@ import (
 	"github.com/uglyer/go-sqlite3"
 	"github.com/uglyer/ha-sqlite/proto"
 	gProto "google.golang.org/protobuf/proto"
-	"log"
 	"os"
 	"sort"
 	"sync"
@@ -254,7 +253,7 @@ func (wal *VfsWal) lookUpWalFrameInstanceInLock(index int) (*VfsFrame, bool) {
 }
 
 func (wal *VfsWal) Truncate(size int64) error {
-	log.Printf("wal.Truncate:%s", wal.name)
+	//log.Printf("wal.Truncate:%s", wal.name)
 	wal.mtx.Lock()
 	defer wal.mtx.Unlock()
 	wal.hasWriteHeader = false
@@ -269,7 +268,7 @@ func (wal *VfsWal) Sync(flag sqlite3.SyncType) error {
 }
 
 func (wal *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
-	log.Printf("wal.readAt:%d,len:%d,name:%s", offset, len(p), wal.name)
+	//log.Printf("wal.readAt:%d,len:%d,name:%s", offset, len(p), wal.name)
 	wal.mtx.Lock()
 	defer wal.mtx.Unlock()
 	amount := len(p)
@@ -364,11 +363,12 @@ func (wal *VfsWal) ReadAt(p []byte, offset int64) (int, error) {
 			p[i+FORMAT__WAL_FRAME_HDR_SIZE] = frame.page[i]
 		}
 	}
-	log.Printf("wal.readAt result:%d,name:%s", amount, wal.name)
+	//log.Printf("wal.readAt result:%d,name:%s", amount, wal.name)
 	return amount, nil
 }
 
 func (wal *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
+	//log.Printf("wal.writeAt:%d,len:%d,name:%s", offset, len(p), wal.name)
 	wal.mtx.Lock()
 	defer wal.mtx.Unlock()
 	amount := len(p)

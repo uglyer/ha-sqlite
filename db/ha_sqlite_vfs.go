@@ -39,7 +39,7 @@ func NewHaSqliteVFS() *HaSqliteVFS {
 }
 
 func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag, cfile unsafe.Pointer) (sqlite3.File, sqlite3.OpenFlag, error) {
-	log.Printf("vfs.open:%s", name)
+	//log.Printf("vfs.open:%s", name)
 	if name == "" {
 		return nil, flags, fmt.Errorf("")
 	}
@@ -78,7 +78,7 @@ func (vfs *HaSqliteVFS) Open(name string, flags sqlite3.OpenFlag, cfile unsafe.P
 }
 
 func (vfs *HaSqliteVFS) Delete(name string, dirSync bool) error {
-	log.Printf("vfs.delete:%s", name)
+	//log.Printf("vfs.delete:%s", name)
 	if strings.HasSuffix(name, "-wal") {
 		vfs.rootMemFS.DeleteFile(name)
 		return nil
