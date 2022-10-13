@@ -27,12 +27,14 @@ message Command {
 }
 
 message WalCommand {
-  repeated WalFrame frames = 1;
+  bytes header = 1;
+  repeated WalFrame frames = 2;
 }
 
 message WalFrame {
   uint32 page_number = 1;
-  bytes data = 2;
+  bytes header = 2;
+  bytes data = 3;
 }
 
 message PingRequest {
