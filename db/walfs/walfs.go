@@ -593,7 +593,8 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 		//	wal.tx = make(map[int]*VfsFrame)
 		//	return fmt.Errorf("walAppend FrameFill error :%v", err)
 		//}
-		pageNumber := uint32(walFrameLen + i + 1)
+		// 头数据的页码
+		pageNumber := cmdFrame.PageNumber
 		if pageNumber > databaseSize {
 			databaseSize = pageNumber
 		}
@@ -609,7 +610,7 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 			wal.tx = make(map[int]*VfsFrame)
 			return fmt.Errorf("walAppend FrameFill error :%v", err)
 		}
-		wal.tx[int(pageNumber)] = frame
+		wal.tx[walFrameLen+i+1] = frame
 	}
 	// 无错误,应用至 frame
 	for k, frame := range wal.tx {
