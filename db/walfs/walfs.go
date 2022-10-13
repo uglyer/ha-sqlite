@@ -496,7 +496,7 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false
 		}
 		frames[index] = &proto.WalFrame{
-			Header:     v.header[:],
+			// 不传递 头数据
 			Data:       v.page,
 			PageNumber: v.PageNumber(),
 		}
@@ -508,7 +508,7 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 		return frames[i].PageNumber < frames[j].PageNumber
 	})
 	cmd := &proto.WalCommand{
-		Header: wal.header[:],
+		// 不传递 头数据
 		Frames: frames,
 	}
 	b, err := gProto.Marshal(cmd)
