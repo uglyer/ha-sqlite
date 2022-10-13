@@ -17,10 +17,11 @@ import (
 )
 
 type Store struct {
-	db      *db.HaSqliteDBManager
-	id      uint64
-	t       *testing.T
-	txToken string
+	db       *db.HaSqliteDBManager
+	id       uint64
+	t        *testing.T
+	txToken  string
+	fileName string
 }
 
 func (store *Store) buildRequest(sql string, args ...driver.Value) *proto.Request {
@@ -134,7 +135,7 @@ func openDB(t *testing.T) *Store {
 	openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: tempFile.Name()})
 	//openResp, err := store.Open(context.Background(), &proto.OpenRequest{Dsn: "test.db"})
 	assert.NoError(t, err)
-	return &Store{db: store, id: openResp.DbId, t: t}
+	return &Store{db: store, id: openResp.DbId, t: t, fileName: tempFile.Name()}
 }
 
 func Test_OpenDB(t *testing.T) {
@@ -367,19 +368,40 @@ func Test_MemWalFS(t *testing.T) {
 }
 
 func Test_DBWalCopy(t *testing.T) {
-	store1 := openDB(t)
-	store2 := openDB(t)
-	db1, ok1 := store1.getDB()
-	db2, ok2 := store2.getDB()
-	assert.Equal(t, true, ok1)
-	assert.Equal(t, true, ok2)
-	db1.InitWalHook(func(b []byte) error {
-		return db2.ApplyWal(context.Background(), b)
-	})
-	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
-	store1.exec("INSERT INTO foo(name) VALUES(?)", "test")
-	resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
-	assert.Equal(t, 1, len(resp.Result[0].Values))
-	resp = store2.query("SELECT * FROM foo WHERE name = ?", "test")
-	assert.Equal(t, 1, len(resp.Result[0].Values))
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		store1 := openDB(t)
+		store2 := openDB(t)
+		//log.Printf("read only db:%s", store2.fileName)
+		db1, ok1 := store1.getDB()
+		db2, ok2 := store2.getDB()
+		assert.Equal(t, true, ok1)
+		assert.Equal(t, true, ok2)
+		db1.InitWalHook(func(b []byte) error {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := db2.ApplyWal(context.Background(), b)
+				assert.NoError(t, err)
+			}()
+			return nil
+		})
+		count := 0
+		store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+		for j := 0; j < 100; j++ {
+			count += 3
+			store1.exec("INSERT INTO foo(name) VALUES(?)", "test")
+			store1.exec("INSERT INTO foo(name) VALUES(?)", "test")
+			store1.exec("INSERT INTO foo(name) VALUES(?)", "test")
+			resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
+			assert.Equal(t, count, len(resp.Result[0].Values))
+			wg.Wait()
+			if len(resp.Result[0].Values) != count {
+				// 执行频率较高时可能尚未同步完成, 暂时通过休眠解决
+				time.Sleep(time.Duration(500) * time.Millisecond)
+				resp = store2.query("SELECT * FROM foo WHERE name = ?", "test")
+				assert.Equal(t, count, len(resp.Result[0].Values))
+			}
+		}
+	}
 }
