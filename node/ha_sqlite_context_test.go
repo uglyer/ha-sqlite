@@ -69,9 +69,9 @@ type ThreeNodeDB struct {
 }
 
 func openThreeNodeDB(t *testing.T, nodePrefix string, deleteLog bool) *ThreeNodeDB {
-	db1 := openSingleNodeDB(t, 31300, fmt.Sprintf("multi_%s_NodeA", nodePrefix), true, 0)
-	db2 := openSingleNodeDB(t, 31301, fmt.Sprintf("multi_%s_NodeB", nodePrefix), true, 31300)
-	db3 := openSingleNodeDB(t, 31302, fmt.Sprintf("multi_%s_NodeC", nodePrefix), true, 31300)
+	db1 := openSingleNodeDB(t, 31200, fmt.Sprintf("multi_%s_NodeA", nodePrefix), true, 0)
+	db2 := openSingleNodeDB(t, 31201, fmt.Sprintf("multi_%s_NodeB", nodePrefix), true, 31200)
+	db3 := openSingleNodeDB(t, 31202, fmt.Sprintf("multi_%s_NodeC", nodePrefix), true, 31200)
 	//db1.Store.ctx.WaitHasLeader()
 	db2.Store.ctx.WaitHasLeader()
 	db3.Store.ctx.WaitHasLeader()
@@ -253,7 +253,7 @@ func Test_SingleNodOpenDB(t *testing.T) {
 }
 
 func Test_SingleNodeExec(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_Exec", true, 0)
+	db := openSingleNodeDB(t, 31301, "Test_Exec", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 1},
@@ -269,7 +269,7 @@ func Test_SingleNodeExec(t *testing.T) {
 }
 
 func Test_SingleNodeQuery(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_Query", true, 0)
+	db := openSingleNodeDB(t, 31302, "Test_Query", true, 0)
 	defer db.Store.Stop()
 	var id int
 	var name string
@@ -328,7 +328,7 @@ func Test_ThreeNodeQuery(t *testing.T) {
 }
 
 func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
-	db := openSingleNodeDB(t, 31300, "Test_ExecPerformanceAsync", true, 0)
+	db := openSingleNodeDB(t, 31303, "Test_ExecPerformanceAsync", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	count := 1000
@@ -353,7 +353,7 @@ func Test_SingleNodeExecPerformanceAsync(t *testing.T) {
 func Test_SingleNodeTx(t *testing.T) {
 	var id int
 	var name string
-	db := openSingleNodeDB(t, 31300, "Test_SingleNodeTx", true, 0)
+	db := openSingleNodeDB(t, 31304, "Test_SingleNodeTx", true, 0)
 	defer db.Store.Stop()
 	db.assertExec("CREATE TABLE foo (id integer not null primary key, name text)")
 	db.beginTx()
@@ -371,7 +371,8 @@ func Test_SingleNodeTx(t *testing.T) {
 func Test_SingleNodeTxBatch(t *testing.T) {
 	var id int
 	var name string
-	store := openSingleNodeDB(t, 31300, "Test_SingleNodeTxBatch", true, 0)
+	store := openSingleNodeDB(t, 31305, "Test_SingleNodeTxBatch", true, 0)
+	defer store.Store.Stop()
 	var wg sync.WaitGroup
 	count := 100
 	wg.Add(count)
