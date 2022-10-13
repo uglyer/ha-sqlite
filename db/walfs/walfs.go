@@ -1,6 +1,7 @@
 package walfs
 
 /*
+// #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
 //
@@ -87,7 +88,7 @@ type VfsWal struct {
 	name           string
 	mtx            sync.Mutex
 	hasWriteHeader bool
-	header         [VFS__WAL_HEADER_SIZE]byte
+	header         []byte
 	// frames 帧数据, 下标从 1 开始
 	frames map[int]*VfsFrame
 	// tx 用于存放未提交到 raft 的数据
@@ -126,7 +127,7 @@ func (f *WalFS) OpenFile(name string, flags int, cfile unsafe.Pointer) (*VfsWal,
 	newFile := &VfsWal{
 		name:           name,
 		hasWriteHeader: false,
-		header:         [VFS__WAL_HEADER_SIZE]byte{},
+		header:         make([]byte, VFS__WAL_HEADER_SIZE),
 		frames:         map[int]*VfsFrame{},
 		tx:             map[int]*VfsFrame{},
 		txLastIndex:    0,
@@ -651,7 +652,7 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int, cmdHeader []byte) error {
 		wal.header[16+i] = cmdHeader[16+i]
 	}
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
-	err := VfsChecksum(wal.header[:], 24, checksum, checksum)
+	err := VfsChecksum(wal.header, 24, checksum, checksum)
 	if err != nil {
 		return fmt.Errorf("vfsWalInitHeader VfsChecksum error:%d", pageSize)
 	}
