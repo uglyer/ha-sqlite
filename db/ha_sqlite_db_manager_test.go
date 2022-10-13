@@ -408,6 +408,34 @@ func Test_DBWalCopy(t *testing.T) {
 	}
 }
 
+func Test_DBWalTxSingleThread(t *testing.T) {
+	store1 := openDB(t)
+	db1, ok1 := store1.getDB()
+	assert.Equal(t, true, ok1)
+
+	rowsCount := int32(-1) // 创建表指令也会计数+1
+	needError := true
+	db1.InitWalHook(func(b []byte) error {
+		needError = !needError
+		log.Printf("needError:%v", needError)
+		if needError {
+			return errors.New("mock error")
+		}
+		atomic.AddInt32(&rowsCount, 1)
+		return nil
+	})
+
+	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+	for i := 0; i < 5; i++ {
+		req := store1.buildRequest("INSERT INTO foo(name) VALUES(?)", "test")
+		// 不校验错误
+		store1.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+		resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
+		count := atomic.LoadInt32(&rowsCount)
+		assert.Equal(t, count, int32(len(resp.Result[0].Values)))
+	}
+}
+
 func Test_DBWalTx(t *testing.T) {
 	store1 := openDB(t)
 	db1, ok1 := store1.getDB()
