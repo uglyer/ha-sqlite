@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
+	"github.com/uglyer/ha-sqlite/db/walfs"
 	"github.com/uglyer/ha-sqlite/proto"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -123,14 +123,17 @@ func (d *HaSqliteDB) checkWal() error {
 	//}); err != nil {
 	//	return errors.Wrap(err, "checkWal failed to get raw conn")
 	//}
-	buffer, err, needApplyLog := vfs.rootMemFS.VfsPoll(d.sourceWalFile)
+	buffer, err, needApplyLog, unlockFunc := vfs.rootMemFS.VfsPoll(d.sourceWalFile)
 	if !needApplyLog {
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
 		return nil
 	}
 	if err != nil {
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_ROLLBACK)
 		return fmt.Errorf("vfs poll error:%v", err)
 	}
 	if d.onApplyWal == nil {
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_ROLLBACK)
 		return fmt.Errorf("onApplyWal is null")
 	}
 	// 无论如何都置空(对于成功的事件,置空操作无任何副作用,对于失败的操作 与回滚一致)
@@ -142,7 +145,8 @@ func (d *HaSqliteDB) checkWal() error {
 	//}
 	err = d.onApplyWal(buffer)
 	if err != nil {
-		// TODO 回滚 tx
+		// 提交日志失败 回滚
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_ROLLBACK)
 		return fmt.Errorf("onApplyWal error:%v", err)
 	}
 	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(buffer))
@@ -151,12 +155,16 @@ func (d *HaSqliteDB) checkWal() error {
 	//}
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-		log.Printf("wal_checkpoint TRUNCATE error:%v", err)
+		//log.Printf("wal_checkpoint TRUNCATE error:%v", err)
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
 		return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
 	} else if row[0] != 0 {
-		log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
+		unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
+		//log.Printf("wal_checkpoint TRUNCATE error#1:%v", row[0])
 		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
 	}
+	// 已经在 通过 wal_checkpoint 应用成功, 无需处理 tx 内容
+	unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
 	return nil
 }
 

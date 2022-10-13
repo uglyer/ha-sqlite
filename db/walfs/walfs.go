@@ -100,6 +100,14 @@ type VfsWal struct {
 	cfile       unsafe.Pointer
 }
 
+type WalUnlockEvent uint8
+
+const (
+	WAL_UNLOCK_EVENT_NONE     WalUnlockEvent = 0
+	WAL_UNLOCK_EVENT_ROLLBACK WalUnlockEvent = 1
+	WAL_UNLOCK_EVENT_COMMIT   WalUnlockEvent = 2
+)
+
 // NewWalFS creates a new in-memory wal FileSystem.
 func NewWalFS() *WalFS {
 	return &WalFS{
@@ -158,12 +166,14 @@ func (f *WalFS) RemoveCFile(name string) {
 }
 
 // VfsPoll 在 checkWal 中执行 vfsPoll, 拷贝tx中的所有数据提交到 raft 并 转移至 frame 中
-func (f *WalFS) VfsPoll(name string) ([]byte, error, bool) {
+func (f *WalFS) VfsPoll(name string) ([]byte, error, bool, func(event WalUnlockEvent)) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	wal, hasFile := f.walMap[name]
 	if !hasFile {
-		return nil, nil, false
+		return nil, nil, false, func(event WalUnlockEvent) {
+
+		}
 	}
 	return wal.walTxPoll()
 }
@@ -428,6 +438,8 @@ func (wal *VfsWal) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (wal *VfsWal) Close() error {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
 	if wal.flags&SQLITE_OPEN_DELETEONCLOSE != 0 {
 		wal.fs.DeleteFile(wal.name)
 	}
@@ -473,27 +485,39 @@ func (wal *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 }
 
 // walPoll 未提交日志遍历, 返回序列化的指令 (WalCommand, error info, 是否需要提交日志(当值为true但 error != nil 时表示出现重大错误 需要中断服务))
-func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
+func (wal *VfsWal) walTxPoll() ([]byte, error, bool, func(event WalUnlockEvent)) {
 	wal.mtx.Lock()
-	defer wal.mtx.Unlock()
+	unlockFunc := func(event WalUnlockEvent) {
+		if event == WAL_UNLOCK_EVENT_NONE {
+			wal.mtx.Unlock()
+			return
+		}
+		for k, v := range wal.tx {
+			if event == WAL_UNLOCK_EVENT_COMMIT {
+				wal.frames[k] = v
+			}
+			delete(wal.tx, k)
+		}
+		wal.mtx.Unlock()
+	}
 	txCount := len(wal.tx)
 	if txCount == 0 {
 		// 无新增
-		return nil, nil, false
+		return nil, nil, false, unlockFunc
 	}
 	/* Check if the last frame in the transaction has the commit marker. */
 	lastFrame, ok := wal.tx[wal.txLastIndex]
 	if !ok || !lastFrame.hasWriteHeader || !lastFrame.hasWritePage {
-		return nil, nil, false
+		return nil, nil, false, unlockFunc
 	}
 	if lastFrame.Commit() == 0 {
-		return nil, nil, false
+		return nil, nil, false, unlockFunc
 	}
 	frames := make([]*proto.WalFrame, txCount)
 	index := 0
 	for k, v := range wal.tx {
 		if !v.hasWriteHeader || !v.hasWritePage {
-			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false
+			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false, unlockFunc
 		}
 		frames[index] = &proto.WalFrame{
 			// 不传递 头数据
@@ -513,9 +537,9 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 	}
 	b, err := gProto.Marshal(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("walTxPoll Marshal error :%v", err), true
+		return nil, fmt.Errorf("walTxPoll Marshal error :%v", err), true, unlockFunc
 	}
-	return b, nil, true
+	return b, nil, true, unlockFunc
 }
 
 func (wal *VfsWal) walApplyLog(buffer []byte) error {
