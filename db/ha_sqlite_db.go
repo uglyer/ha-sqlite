@@ -145,7 +145,7 @@ func (d *HaSqliteDB) checkWal() error {
 		// TODO 回滚 tx
 		return fmt.Errorf("onApplyWal error:%v", err)
 	}
-	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), bufferSize)
+	//fmt.Printf("checkWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(buffer))
 	//if bufferSize < 4096 {
 	//	return nil
 	//}
@@ -398,7 +398,7 @@ func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
 	// TODO 此过程中执行 PRAGMA wal_checkpoint(TRUNCATE); 有概率返回 disk I/O error 导致查询结果不一致
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
-	fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
+	//fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
 	err := vfs.rootMemFS.VfsApplyLog(d.sourceWalFile, b)
 	if err != nil {
 		return errors.Wrap(err, "Error VfsApplyLog")
@@ -411,12 +411,18 @@ func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
 	//if _, err := dbCopy.Exec(`PRAGMA journal_mode = wal`); err != nil {
 	//	return errors.Wrap(err, "Failed to set db copy journal mode")
 	//}
+	// 直接执行 wal_checkpoint 会处于死锁状态, 但先执行查询预计并执行 Scan 功能正常, 原因未知
+	var count int
+	if err := d.db.QueryRow("select count(*) from sqlite_master").Scan(&count); err != nil {
+		// 如果错误, wal_checkpoint 一定失败, TODO 回滚
+		return errors.Wrap(err, "Check sqlite_master VfsApplyLog")
+	}
 	var row [3]int
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
-		log.Printf("ApplyWal wal_checkpoint TRUNCATE error#1:%v", err)
+		//log.Printf("ApplyWal wal_checkpoint TRUNCATE error#1:%v", err)
 		return errors.Wrap(err, "ApplyWal Fwal_checkpoint TRUNCATE error#1")
 	} else if row[0] != 0 {
-		log.Printf("ApplyWal wal_checkpoint TRUNCATE error#2:%v", row[0])
+		//log.Printf("ApplyWal wal_checkpoint TRUNCATE error#2:%v", row[0])
 		return errors.Wrap(err, "ApplyWal wal_checkpoint TRUNCATE error#2")
 	}
 	return nil
