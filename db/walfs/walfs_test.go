@@ -1,6 +1,7 @@
 package walfs
 
 import (
+	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/proto"
 	gProto "google.golang.org/protobuf/proto"
@@ -20,6 +21,23 @@ func TestVfsChecksum(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, checksum[0], 0)
 	assert.NotEqual(t, checksum[1], 0)
+}
+
+func TestVfsChecksum2(t *testing.T) {
+	headerBuffer := []byte{55, 127, 6, 130, 0, 45, 226, 24, 0, 0, 16, 0, 0, 0, 0, 0, 77, 12, 4, 129, 153, 189, 205, 69, 85, 235, 15, 96, 83, 160, 164, 158}
+	checksum := []uint32{0, 0}
+	checkCount := 24
+	err := VfsChecksum(headerBuffer, uint32(checkCount), checksum, checksum)
+	assert.NoError(t, err)
+	sum := []byte{0, 0, 0, 0}
+	binary.BigEndian.PutUint32(sum, checksum[0])
+	for i := 0; i < 4; i++ {
+		assert.Equal(t, headerBuffer[i+24], sum[i])
+	}
+	binary.BigEndian.PutUint32(sum, checksum[1])
+	for i := 0; i < 4; i++ {
+		assert.Equal(t, headerBuffer[i+28], sum[i])
+	}
 }
 
 func TestVfsWalApplyLog(t *testing.T) {

@@ -1,5 +1,55 @@
 package walfs
 
+/*
+#include <stdint.h>
+#include <assert.h>
+//
+//  Generate or extend an 8 byte checksum based on the data in array data[] and
+//  the initial values of in[0] and in[1] (or initial values of 0 and 0 if
+//  in==NULL).
+//
+//  The checksum is written back into out[] before returning.
+//
+//  n must be a positive multiple of 8.
+void vfsChecksum(
+	uint8_t *data, // Content to be checksummed
+	unsigned n,    // Bytes of content in a[].  Must be a multiple of 8.
+	const uint32_t in[2], // Initial checksum value input
+	uint32_t out[2]       // OUT: Final checksum value output
+)
+{
+    //printf("c:data n:%d\n", in[0]);
+	assert((((uintptr_t)data) % sizeof(uint32_t)) == 0);
+
+	uint32_t s1, s2;
+	uint32_t *cur = (uint32_t *)__builtin_assume_aligned(data, sizeof(uint32_t));
+	uint32_t *end = (uint32_t *)__builtin_assume_aligned(&data[n], sizeof(uint32_t));
+
+	if (in) {
+		s1 = in[0];
+		s2 = in[1];
+	} else {
+		s1 = s2 = 0;
+	}
+
+	assert(n >= 8);
+	assert((n & 0x00000007) == 0);
+	assert(n <= 65536);
+
+	do {
+	s1 += *cur++ + s2;
+	s2 += *cur++ + s1;
+	} while (cur < end);
+
+	out[0] = s1;
+	out[1] = s2;
+    //printf("c:data0:%d\n",data[0]);
+    //printf("c:data1:%d\n",data[1]);
+    //printf("c:sum0:%d",s1);
+	// printf(s2);
+}
+*/
+import "C"
 import (
 	"encoding/binary"
 	"fmt"
@@ -444,6 +494,7 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 			return nil, fmt.Errorf("walTxPoll Marshal tx hasWriteHeader :%v,hasWritePage:%v", v.hasWriteHeader, v.hasWritePage), false
 		}
 		frames[index] = &proto.WalFrame{
+			Header:     v.header[:],
 			Data:       v.page,
 			PageNumber: v.PageNumber(),
 		}
@@ -452,6 +503,7 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 		index++
 	}
 	cmd := &proto.WalCommand{
+		Header: wal.header[:],
 		Frames: frames,
 	}
 	b, err := gProto.Marshal(cmd)
@@ -477,11 +529,15 @@ func (wal *VfsWal) walApplyLog(buffer []byte) error {
 	 * header. */
 	if wal.hasWriteHeader == false {
 		pageSize := len(cmd.Frames[0].Data)
-		err = wal.vfsWalInitHeader(pageSize)
+		err = wal.vfsWalInitHeader(pageSize, cmd.Header)
 		if err != nil {
 			return fmt.Errorf("walApplyLog vfsWalStartHeader error :%v", err)
 		}
 	}
+	//for i := 0; i < VFS__WAL_HEADER_SIZE; i++ {
+	//	wal.header[i] = cmd.Header[i]
+	//}
+	//wal.hasWriteHeader = true
 	err = wal.walFramesAppend(&cmd)
 	if err != nil {
 		return fmt.Errorf("walApplyLog walAppend error :%v", err)
@@ -520,6 +576,18 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 	}
 	for i, cmdFrame := range cmd.Frames {
 		frame := NewVfsFrame(int(pageSize))
+		//err := frame.writeHeader(cmdFrame.Header)
+		//if err != nil {
+		//	// 如果失败, 清空 tx 内容
+		//	wal.tx = make(map[int]*VfsFrame)
+		//	return fmt.Errorf("walAppend FrameFill error :%v", err)
+		//}
+		//err = frame.writePage(cmdFrame.Data)
+		//if err != nil {
+		//	// 如果失败, 清空 tx 内容
+		//	wal.tx = make(map[int]*VfsFrame)
+		//	return fmt.Errorf("walAppend FrameFill error :%v", err)
+		//}
 		pageNumber := cmdFrame.PageNumber
 		if pageNumber > databaseSize {
 			databaseSize = pageNumber
@@ -547,7 +615,7 @@ func (wal *VfsWal) walFramesAppend(cmd *proto.WalCommand) error {
 }
 
 // vfsWalInitHeader 需要在持有锁时调用
-func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
+func (wal *VfsWal) vfsWalInitHeader(pageSize int, cmdHeader []byte) error {
 	if pageSize <= 0 {
 		return fmt.Errorf("page size is :%d", pageSize)
 	}
@@ -579,7 +647,8 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int) error {
 	b := make([]byte, randCount)
 	sqlite3.Sqlite3Randomness(randCount, b, 0)
 	for i := 0; i < randCount; i++ {
-		wal.header[16+i] = b[i]
+		//wal.header[16+i] = b[i]
+		wal.header[16+i] = cmdHeader[16+i]
 	}
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
 	err := VfsChecksum(wal.header[:], 24, checksum, checksum)
@@ -606,7 +675,7 @@ func (wal *VfsWal) getChecksum2() uint32 {
 	return binary.BigEndian.Uint32(wal.header[28:32])
 }
 
-// VfsChecksum 生成校验位
+// VfsChecksum 生成校验位（废弃）
 // translate from dqlite
 // Generate or extend an 8 byte checksum based on the data in array data[] and
 // the initial values of in[0] and in[1] (or initial values of 0 and 0 if
@@ -615,7 +684,7 @@ func (wal *VfsWal) getChecksum2() uint32 {
 // The checksum is written back into out[] before returning.
 //
 // n must be a positive multiple of 8.
-func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
+func _VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
 	if len(b)%4 != 0 {
 		return fmt.Errorf("VfsChecksum /assert((((uintptr_t)data)  sizeof(uint32_t)) == 0), but got:%d", len(b)%4)
 	}
@@ -652,6 +721,24 @@ func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
 	}
 	out[0] = s1
 	out[1] = s2
+	return nil
+}
+
+// VfsChecksum 生成校验位
+func VfsChecksum(b []byte, n uint32, in []uint32, out []uint32) error {
+	if len(b)%4 != 0 {
+		return fmt.Errorf("VfsChecksum /assert((((uintptr_t)data)  sizeof(uint32_t)) == 0), but got:%d", len(b)%4)
+	}
+	if n < 8 {
+		return fmt.Errorf("VfsChecksum assert(n >= 8), but got:%d", n)
+	}
+	if (n & 0x00000007) != 0 {
+		return fmt.Errorf("VfsChecksum assert (n & 0x00000007) == 0, but got:%d", n)
+	}
+	if n > 65536 {
+		return fmt.Errorf("VfsChecksum assert(n <= 65536), but got:%d", n)
+	}
+	C.vfsChecksum((*C.uchar)(unsafe.Pointer(&b[0])), C.uint(n), (*C.uint)(unsafe.Pointer(&in[0])), (*C.uint)(unsafe.Pointer(&out[0])))
 	return nil
 }
 
