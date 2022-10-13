@@ -59,6 +59,7 @@ import (
 	gProto "google.golang.org/protobuf/proto"
 	"log"
 	"os"
+	"sort"
 	"sync"
 	"unsafe"
 )
@@ -503,6 +504,9 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool) {
 		delete(wal.tx, k)
 		index++
 	}
+	sort.SliceStable(frames, func(i, j int) bool {
+		return frames[i].PageNumber < frames[j].PageNumber
+	})
 	cmd := &proto.WalCommand{
 		Header: wal.header[:],
 		Frames: frames,
