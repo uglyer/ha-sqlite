@@ -47,7 +47,15 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 		if err != nil {
 			return errors.Wrap(err, "error encode wal file")
 		}
-		d.raft.Apply(cmdBytes, applyTimeout)
+		af := d.raft.Apply(cmdBytes, applyTimeout)
+		err = af.Error()
+		if err != nil {
+			return err
+		}
+		r := af.Response().(*fsmGenericResponse)
+		if r.error != nil {
+			return r.error
+		}
 		return nil
 	})
 	d.dbFilenameTokenMap[req.Dsn] = token
