@@ -653,8 +653,8 @@ func (wal *VfsWal) vfsWalInitHeader(pageSize int, cmdHeader []byte) error {
 	b := make([]byte, randCount)
 	sqlite3.Sqlite3Randomness(randCount, b, 0)
 	for i := 0; i < randCount; i++ {
-		//wal.header[16+i] = b[i]
-		wal.header[16+i] = cmdHeader[16+i]
+		wal.header[16+i] = b[i]
+		//wal.header[16+i] = cmdHeader[16+i]
 	}
 	//vfsChecksum(w->hdr, 24, checksum, checksum);
 	err := VfsChecksum(wal.header, 24, checksum, checksum)
