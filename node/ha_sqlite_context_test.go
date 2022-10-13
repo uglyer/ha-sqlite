@@ -306,6 +306,8 @@ func Test_ThreeNodeQuery(t *testing.T) {
 	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
 	n.getDB().assertExec("INSERT INTO foo(name) VALUES(?)", "test")
+	// 执行频率较高时可能尚未同步完成, 暂时通过休眠确保同步完成
+	time.Sleep(time.Duration(500) * time.Millisecond)
 	n.getDB().assertQueryColumns([]string{"id", "name"}, "SELECT * FROM `foo` WHERE name = ?", "test")
 	n.getDB().assertQueryColumns([]string{"id", "name"}, "SELECT id,name FROM `foo` WHERE name = ?", "test")
 	n.getDB().assertQueryColumns([]string{"id"}, "SELECT id FROM `foo` WHERE name = ?", "test")
