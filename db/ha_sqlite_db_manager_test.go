@@ -465,8 +465,6 @@ func Test_DBWalTx(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	// 执行频率较高时可能尚未同步完成, 暂时通过休眠确保同步完成
-	time.Sleep(time.Duration(5000) * time.Millisecond)
 	resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
 	count := atomic.LoadInt32(&rowsCount)
 	assert.Equal(t, count, int32(len(resp.Result[0].Values)))
