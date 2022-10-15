@@ -347,10 +347,8 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	panic(fmt.Sprintf("unknow tx type :%s", req.Type.String()))
 }
 
-// ApplyWal 应用 wal 日志
+// ApplyWal 应用 wal 日志 由 raft 触发写日志时,与 checkWal 会有200ms的时间差
 func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
-	// TODO 由 raft 触发写日志时,与 checkWal 会有200ms的时间差, wal 尺寸可能会超过200kb
-	// TODO 此过程中执行 PRAGMA wal_checkpoint(TRUNCATE); 有概率返回 disk I/O error 导致查询结果不一致
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
 	//fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
