@@ -498,6 +498,7 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool, func(event WalUnlockEvent))
 			}
 			delete(wal.tx, k)
 		}
+		// TODO 更新 shm 使得回滚生效
 		wal.mtx.Unlock()
 	}
 	txCount := len(wal.tx)
