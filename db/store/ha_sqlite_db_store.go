@@ -179,6 +179,14 @@ func (s *HaSqliteDBStore) GetDBPathById(id int64) (path string, err error) {
 	return
 }
 
+// GetDBUpdateTimeById 通过 id 获取库最后一次更新时间
+func (s *HaSqliteDBStore) GetDBUpdateTimeById(id int64) (updateTime int64, err error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	err = s.db.QueryRow("select update_time from ha_sqlite where id = ? limit 1 ", id).Scan(&updateTime)
+	return
+}
+
 // CreateDBByPath 通过路径创建数据库并返回 id
 func (s *HaSqliteDBStore) CreateDBByPath(path string) (int64, error) {
 	s.mtx.Lock()
@@ -193,4 +201,16 @@ func (s *HaSqliteDBStore) CreateDBByPath(path string) (int64, error) {
 		return 0, fmt.Errorf("CreateDBByPath get LastInsertId error:%v", err)
 	}
 	return insertId, nil
+}
+
+// RefDBUpdateTimeById 通过 id 刷新更新时间
+func (s *HaSqliteDBStore) RefDBUpdateTimeById(id int64) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	unix := time.Now().UnixMilli()
+	_, err := s.db.Exec("UPDATE ha_sqlite SET update_time = ? WHERE id = ?", unix, id)
+	if err != nil {
+		return fmt.Errorf("CreateDBByPath exec error:%v", err)
+	}
+	return nil
 }

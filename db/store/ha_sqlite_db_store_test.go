@@ -3,6 +3,7 @@ package store
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func newStore(t *testing.T) *HaSqliteDBStore {
@@ -50,4 +51,20 @@ func TestGetDbPath(t *testing.T) {
 	queryPath, err := store.GetDBPathById(id)
 	assert.NoError(t, err)
 	assert.Equal(t, path, queryPath)
+}
+
+func TestRefDBUpdateTime(t *testing.T) {
+	store := newStore(t)
+	path := "test.db"
+	id, err := store.CreateDBByPath(path)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, id)
+	beforeUpdateTime, err := store.GetDBUpdateTimeById(id)
+	assert.NoError(t, err)
+	time.Sleep(time.Duration(1) * time.Millisecond)
+	err = store.RefDBUpdateTimeById(id)
+	assert.NoError(t, err)
+	afterUpdateTime, err := store.GetDBUpdateTimeById(id)
+	assert.NoError(t, err)
+	assert.NotEqual(t, beforeUpdateTime, afterUpdateTime)
 }
