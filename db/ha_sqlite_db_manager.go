@@ -4,25 +4,30 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/uglyer/ha-sqlite/db/store"
 	"github.com/uglyer/ha-sqlite/proto"
 	"sync"
 	"time"
 )
 
 type HaSqliteDBManager struct {
-	mtx                sync.Mutex
-	dbIndex            int64
-	dbFilenameTokenMap map[string]int64
-	dbMap              map[int64]*HaSqliteDB
+	mtx   sync.Mutex
+	store *store.HaSqliteDBStore
+	//dbIndex            int64
+	//dbFilenameTokenMap map[string]int64
+	dbMap map[int64]*HaSqliteDB
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
 
 func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
+	store, err := store.NewHaSqliteDBStore()
+	if err != nil {
+		return nil, err
+	}
 	return &HaSqliteDBManager{
-		dbIndex:            0,
-		dbFilenameTokenMap: make(map[string]int64),
-		dbMap:              make(map[int64]*HaSqliteDB),
+		store: store,
+		dbMap: make(map[int64]*HaSqliteDB),
 	}, nil
 }
 
@@ -30,19 +35,24 @@ func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if token, ok := d.dbFilenameTokenMap[req.Dsn]; ok {
+	token, ok, err := d.store.GetDBIdByPath(req.Dsn)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to GetDBIdByPath NewHaSqliteDBManager")
+	}
+	if ok {
 		return &proto.OpenResponse{DbId: token}, nil
 	}
 	db, err := newHaSqliteDB(req.Dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
-	d.dbIndex++
-	token := d.dbIndex
+	token, err = d.store.CreateDBByPath(req.Dsn)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to CreateDBByPath NewHaSqliteDBManager")
+	}
 	db.InitWalHook(func(b []byte) error {
 		return nil
 	})
-	d.dbFilenameTokenMap[req.Dsn] = token
 	d.dbMap[token] = db
 	return &proto.OpenResponse{DbId: token}, nil
 }

@@ -31,7 +31,10 @@ func NewHaSqliteRaftFSM(dataPath string) (*HaSqliteRaftFSM, error) {
 }
 
 func (fsm *HaSqliteRaftFSM) InitRaft(r *raft.Raft) {
-	store := NewHaSqliteRaftDBManager(r, fsm.dataPath)
+	store, err := NewHaSqliteRaftDBManager(r, fsm.dataPath)
+	if err != nil {
+		panic(fmt.Sprintf("fail to NewHaSqliteRaftDBManager:%v", err))
+	}
 	fsm.store = store
 	fsm.raft = r
 }
