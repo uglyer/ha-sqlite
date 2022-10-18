@@ -26,14 +26,14 @@ https://github.com/uglyer/ha-sqlite
 ## 进度
 
 - [x] Open
-- [ ] Multi db
+- [ ] Multi db (Developing)
 - [x] Exec
 - [x] Query
 - [x] Driver
 - [x] Prepare
-- [ ] Transaction isolation (Developing)
+- [x] Transaction isolation
 - [ ] CI (Developing)
-- [ ] Wal copy (Developing)
+- [x] Wal copy
 - [ ] Snapshot
 - [ ] Restore
 - [ ] S3
