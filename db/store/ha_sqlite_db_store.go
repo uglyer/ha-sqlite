@@ -1,4 +1,4 @@
-package db
+package store
 
 import "C"
 import (
@@ -25,7 +25,7 @@ const dbName = "ha_sqlite"
 
 // NewHaSqliteDBStore 创建新的数仓，会自动创建数据库
 func NewHaSqliteDBStore() (*HaSqliteDBStore, error) {
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func CreateHaSqliteDBStoreFromSnapshot(b []byte) (*HaSqliteDBStore, error) {
 	if !validSQLiteFile(b) {
 		return nil, fmt.Errorf("bytes is not a SQLite file")
 	}
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		return nil, err
 	}
