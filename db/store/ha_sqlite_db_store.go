@@ -210,7 +210,7 @@ func (s *HaSqliteDBStore) RefDBUpdateTimeById(id int64) error {
 	unix := time.Now().UnixMilli()
 	_, err := s.db.Exec("UPDATE ha_sqlite SET update_time = ? WHERE id = ?", unix, id)
 	if err != nil {
-		return fmt.Errorf("CreateDBByPath exec error:%v", err)
+		return fmt.Errorf("RefDBUpdateTimeById exec error:%v", err)
 	}
 	return nil
 }
