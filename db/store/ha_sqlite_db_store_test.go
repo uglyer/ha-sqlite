@@ -27,3 +27,16 @@ func TestCreateDb(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, id, queryId)
 }
+
+func TestCreateSameDb(t *testing.T) {
+	store := newStore(t)
+	id, err := store.createDBByPath("test.db")
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, id)
+	_, err = store.createDBByPath("test.db")
+	assert.Error(t, err)
+	queryId, ok, err := store.getDBIdByPath("test.db")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, id, queryId)
+}
