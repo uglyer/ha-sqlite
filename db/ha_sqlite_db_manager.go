@@ -31,7 +31,7 @@ func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 	}, nil
 }
 
-// Open 打开数据库
+// Open 打开数据库(不存在则创建)
 func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -61,6 +61,9 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	db, ok := d.dbMap[dbId]
+	if ok {
+		d.store.RefDBUpdateTimeById(dbId)
+	}
 	return db, ok
 }
 

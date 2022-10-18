@@ -12,7 +12,6 @@ import (
 
 type HaSqliteRaftDBManager struct {
 	HaSqliteDBManager
-	store    *store.HaSqliteDBStore
 	queueMap map[int64]*HaSqliteCmdQueue
 	raft     *raft.Raft
 	dataPath string
@@ -27,13 +26,13 @@ func NewHaSqliteRaftDBManager(raft *raft.Raft, dataPath string) (*HaSqliteRaftDB
 		raft:     raft,
 		queueMap: make(map[int64]*HaSqliteCmdQueue),
 		dataPath: dataPath,
-		store:    store,
 	}
+	manager.store = store
 	manager.dbMap = make(map[int64]*HaSqliteDB)
 	return manager, nil
 }
 
-// Open 打开数据库
+// Open 打开数据库(不存在则创建)
 func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
