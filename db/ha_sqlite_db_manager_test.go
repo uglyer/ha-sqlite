@@ -417,7 +417,6 @@ func Test_DBWalTxSingleThread(t *testing.T) {
 	needError := true
 	db1.InitWalHook(func(b []byte) error {
 		needError = !needError
-		log.Printf("needError:%v", needError)
 		if needError {
 			return errors.New("mock error")
 		}
@@ -445,7 +444,6 @@ func Test_DBWalTx(t *testing.T) {
 	needError := true
 	db1.InitWalHook(func(b []byte) error {
 		needError = !needError
-		log.Printf("needError:%v", needError)
 		if needError {
 			return errors.New("mock error")
 		}
