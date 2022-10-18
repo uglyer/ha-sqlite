@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,15 +19,15 @@ type HaSqliteDBStore struct {
 }
 
 type HaSqliteDBStoreDBItem struct {
-	Id              uint64 `sqlite:"id"`
-	Path            string `sqlite:"path"`
-	DBVersion       uint64 `sqlite:"db_version"`
-	SnapshotVersion uint64 `sqlite:"snapshot_version"`
-	CreateTime      int64  `sqlite:"create_time"`
-	UpdateTime      int64  `sqlite:"update_time"`
+	Id              uint64 `sqlite3_field:"id" sqlite3_default:"NOT NULL PRIMARY KEY AUTOINCREMENT" sqlite3_index:"UNIQUE INDEX"`
+	Path            string `sqlite3_field:"path" sqlite3_default:"not null" sqlite3_index:"UNIQUE INDEX"`
+	DBVersion       uint64 `sqlite3_field:"db_version" sqlite3_default:"not null default 0" sqlite3_index:"INDEX"`
+	SnapshotVersion uint64 `sqlite3_field:"snapshot_version" sqlite3_default:"not null default 0" sqlite3_index:"INDEX"`
+	CreateTime      int64  `sqlite3_field:"create_time" sqlite3_default:"not null" sqlite3_index:"INDEX"`
+	UpdateTime      int64  `sqlite3_field:"update_time" sqlite3_default:"not null" sqlite3_index:"INDEX"`
 }
 
-const dbName = "ha_sqlite"
+const tableName = "ha_sqlite"
 
 // NewHaSqliteDBStore 创建新的数仓，会自动创建数据库
 func NewHaSqliteDBStore() (*HaSqliteDBStore, error) {
@@ -35,11 +37,7 @@ func NewHaSqliteDBStore() (*HaSqliteDBStore, error) {
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec("create table ha_sqlite(id integer not null primary key, path text, db_version text,snapshot_version text,create_time integer,update_time integer)")
-	if err != nil {
-		return nil, err
-	}
-	return &HaSqliteDBStore{db: db}, nil
+	return (&HaSqliteDBStore{db: db}).init()
 }
 
 // CreateHaSqliteDBStoreFromSnapshot 从快照中恢复数仓
@@ -117,7 +115,48 @@ func validSQLiteFile(b []byte) bool {
 	return len(b) > 13 && string(b[0:13]) == "SQLite format"
 }
 
-// getDBIdByPath 通过路径获取数据库 id
+// init 初始化表结构
+func (s *HaSqliteDBStore) init() (*HaSqliteDBStore, error) {
+	input := HaSqliteDBStoreDBItem{}
+	vType := reflect.TypeOf(input)
+	var fields []string
+	var indexSqlArray []string
+	for i := 0; i < vType.NumField(); i++ {
+		fieldValue := vType.Field(i).Tag.Get("sqlite3_field")
+		if fieldValue == "" || fieldValue == "-" {
+			continue
+		}
+		sqliteType := getSqliteTypeFromKindName(vType.Field(i).Type.String())
+		if sqliteType == "" {
+			continue
+		}
+		fieldSql := fmt.Sprintf(`"%s" %s`, fieldValue, sqliteType)
+		fieldDefault := vType.Field(i).Tag.Get("sqlite3_default")
+		if fieldValue != "-" && fieldDefault != "" {
+			fieldSql += " " + fieldDefault
+		}
+		fields = append(fields, fieldSql)
+		fieldIndex := vType.Field(i).Tag.Get("sqlite3_index")
+		if fieldValue == "" || fieldValue == "-" {
+			continue
+		}
+		indexSql := fmt.Sprintf("CREATE %s \"%s_%s\" ON \"%s\" (\"%s\");", fieldIndex, tableName, fieldValue, tableName, fieldValue)
+		indexSqlArray = append(indexSqlArray, indexSql)
+	}
+	sqlText := fmt.Sprintf("CREATE TABLE %s (%s)", tableName, strings.Join(fields, ","))
+	_, err := s.db.Exec(sqlText)
+	if err != nil {
+		return nil, err
+	}
+	for _, sqlText := range indexSqlArray {
+		_, err := s.db.Exec(sqlText)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
+}
+
 func (s *HaSqliteDBStore) getDBIdByPath(path string) (int64, bool, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
