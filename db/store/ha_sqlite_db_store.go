@@ -4,16 +4,19 @@ import "C"
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
+	"sync"
 )
 
 // HaSqliteDBStore 使用系统信息管理 db(memory or disk)
 // 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
 type HaSqliteDBStore struct {
-	db *sql.DB
+	mtx sync.Mutex
+	db  *sql.DB
 }
 
 type HaSqliteDBStoreDBItem struct {
-	Id              string `sqlite:"id"`
+	Id              uint64 `sqlite:"id"`
 	Path            string `sqlite:"path"`
 	DBVersion       uint64 `sqlite:"db_version"`
 	SnapshotVersion uint64 `sqlite:"snapshot_version"`
@@ -31,7 +34,7 @@ func NewHaSqliteDBStore() (*HaSqliteDBStore, error) {
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec("create table ? (id integer not null primary key, path text, db_version text,snapshot_version text,create_time integer,update_time integer)", dbName)
+	_, err = db.Exec("create table ha_sqlite(id integer not null primary key, path text, db_version text,snapshot_version text,create_time integer,update_time integer)")
 	if err != nil {
 		return nil, err
 	}
@@ -111,4 +114,18 @@ func Deserialize(b []byte, schema string) error {
 // file. See https://www.sqlite.org/fileformat.html
 func validSQLiteFile(b []byte) bool {
 	return len(b) > 13 && string(b[0:13]) == "SQLite format"
+}
+
+// getDBIdByPath 通过路径获取数据库 id
+func (s *HaSqliteDBStore) getDBIdByPath(path string) (uint64, bool, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	var id uint64
+	if err := s.db.QueryRow("select id from ha_sqlite where path = ? order by id asc limit 1 ", path).Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, false, nil
+		}
+		return id, false, fmt.Errorf("getDBIdByPath error:%v", err)
+	}
+	return id, true, nil
 }
