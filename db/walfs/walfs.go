@@ -488,6 +488,16 @@ func (wal *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 func (wal *VfsWal) walTxPoll() ([]byte, error, bool, func(event WalUnlockEvent)) {
 	wal.mtx.Lock()
 	unlockFunc := func(event WalUnlockEvent) {
+		// 更新 shm 使得回滚生效
+		if event == WAL_UNLOCK_EVENT_ROLLBACK {
+			wal.hasWriteHeader = false
+			wal.frames = map[int]*VfsFrame{}
+			wal.tx = map[int]*VfsFrame{}
+			wal.txLastIndex = 0
+			sqlite3.GoVfsInvalidateWalIndexHeaderByFile(wal.cfile)
+			wal.mtx.Unlock()
+			return
+		}
 		if event == WAL_UNLOCK_EVENT_NONE {
 			wal.mtx.Unlock()
 			return
@@ -498,7 +508,6 @@ func (wal *VfsWal) walTxPoll() ([]byte, error, bool, func(event WalUnlockEvent))
 			}
 			delete(wal.tx, k)
 		}
-		// TODO 更新 shm 使得回滚生效
 		wal.mtx.Unlock()
 	}
 	txCount := len(wal.tx)
