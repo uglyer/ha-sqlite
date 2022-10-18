@@ -157,7 +157,8 @@ func (s *HaSqliteDBStore) init() (*HaSqliteDBStore, error) {
 	return s, nil
 }
 
-func (s *HaSqliteDBStore) getDBIdByPath(path string) (int64, bool, error) {
+// GetDBIdByPath 通过路径获取数据库 id
+func (s *HaSqliteDBStore) GetDBIdByPath(path string) (int64, bool, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	var id int64
@@ -165,31 +166,31 @@ func (s *HaSqliteDBStore) getDBIdByPath(path string) (int64, bool, error) {
 		if err == sql.ErrNoRows {
 			return 0, false, nil
 		}
-		return id, false, fmt.Errorf("getDBIdByPath error:%v", err)
+		return id, false, fmt.Errorf("GetDBIdByPath error:%v", err)
 	}
 	return id, true, nil
 }
 
-// getDBPathById 通过 id 获取库文件路径
-func (s *HaSqliteDBStore) getDBPathById(id int64) (path string, err error) {
+// GetDBPathById 通过 id 获取库文件路径
+func (s *HaSqliteDBStore) GetDBPathById(id int64) (path string, err error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	err = s.db.QueryRow("select path from ha_sqlite where id = ? limit 1 ", id).Scan(&path)
 	return
 }
 
-// createDBByPath 通过路径创建数据库并返回 id
-func (s *HaSqliteDBStore) createDBByPath(path string) (int64, error) {
+// CreateDBByPath 通过路径创建数据库并返回 id
+func (s *HaSqliteDBStore) CreateDBByPath(path string) (int64, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	unix := time.Now().UnixMilli()
 	r, err := s.db.Exec("INSERT INTO ha_sqlite(path,db_version,snapshot_version,create_time,update_time) VALUES(?,?,?,?,?)", path, 0, 0, unix, unix)
 	if err != nil {
-		return 0, fmt.Errorf("createDBByPath exec error:%v", err)
+		return 0, fmt.Errorf("CreateDBByPath exec error:%v", err)
 	}
 	insertId, err := r.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("createDBByPath get LastInsertId error:%v", err)
+		return 0, fmt.Errorf("CreateDBByPath get LastInsertId error:%v", err)
 	}
 	return insertId, nil
 }
