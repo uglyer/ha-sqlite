@@ -81,9 +81,8 @@ func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 	d.onApplyWal = onApplyWal
 }
 
+// checkWal 调用前需要确保 wal 持有锁
 func (d *HaSqliteDB) checkWal() error {
-	d.walMtx.Lock()
-	defer d.walMtx.Unlock()
 	buffer, err, needApplyLog, unlockFunc := vfs.rootMemFS.VfsPoll(d.sourceWalFile)
 	if !needApplyLog {
 		unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
@@ -134,6 +133,9 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 			return nil, fmt.Errorf("get tx error:%s", req.Request.TxToken)
 		}
 		tx = dbTx
+	} else {
+		d.walMtx.Lock()
+		defer d.walMtx.Unlock()
 	}
 	// Execute each statement.
 	for _, stmt := range req.Request.Statements {
@@ -332,6 +334,9 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 		if err != nil {
 			return nil, fmt.Errorf("tx commit error : %v", err)
 		}
+		// TODO 仅在提交时持有锁可能在极端情况下会导致事务过程中提交数据被错误回滚
+		d.walMtx.Lock()
+		defer d.walMtx.Unlock()
 		err = d.checkWal()
 		if err != nil {
 			return nil, fmt.Errorf("tx commit apply wal error : %v", err)
