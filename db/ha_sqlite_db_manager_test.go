@@ -20,7 +20,7 @@ import (
 
 type Store struct {
 	db       *db.HaSqliteDBManager
-	id       uint64
+	id       int64
 	t        *testing.T
 	txToken  string
 	fileName string

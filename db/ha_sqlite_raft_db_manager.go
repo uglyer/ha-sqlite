@@ -11,7 +11,7 @@ import (
 
 type HaSqliteRaftDBManager struct {
 	HaSqliteDBManager
-	queueMap map[uint64]*HaSqliteCmdQueue
+	queueMap map[int64]*HaSqliteCmdQueue
 	raft     *raft.Raft
 	dataPath string
 }
@@ -19,12 +19,12 @@ type HaSqliteRaftDBManager struct {
 func NewHaSqliteRaftDBManager(raft *raft.Raft, dataPath string) *HaSqliteRaftDBManager {
 	manager := &HaSqliteRaftDBManager{
 		raft:     raft,
-		queueMap: make(map[uint64]*HaSqliteCmdQueue),
+		queueMap: make(map[int64]*HaSqliteCmdQueue),
 		dataPath: dataPath,
 	}
 	manager.dbIndex = 0
-	manager.dbFilenameTokenMap = make(map[string]uint64)
-	manager.dbMap = make(map[uint64]*HaSqliteDB)
+	manager.dbFilenameTokenMap = make(map[string]int64)
+	manager.dbMap = make(map[int64]*HaSqliteDB)
 	return manager
 }
 
@@ -65,7 +65,7 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 }
 
 // queueApplyRaftLog 队列应用日志
-func (d *HaSqliteRaftDBManager) queueApplyRaftLog(c context.Context, t cmdType, req *[]byte, dbId uint64, txToken string) (interface{}, error) {
+func (d *HaSqliteRaftDBManager) queueApplyRaftLog(c context.Context, t cmdType, req *[]byte, dbId int64, txToken string) (interface{}, error) {
 	d.mtx.Lock()
 	queue, ok := d.queueMap[dbId]
 	d.mtx.Unlock()

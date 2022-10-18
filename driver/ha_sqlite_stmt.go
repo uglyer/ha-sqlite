@@ -11,12 +11,12 @@ type HaSqliteStmt struct {
 	driver.Stmt
 	query   string
 	txToken string
-	dbId    uint64
+	dbId    int64
 	client  proto.DBClient
 }
 
 // NewHaSqliteStmt TODO 实现真实的预编译动作
-func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId uint64, txToken string, query string) (*HaSqliteStmt, error) {
+func NewHaSqliteStmt(ctx context.Context, client proto.DBClient, dbId int64, txToken string, query string) (*HaSqliteStmt, error) {
 	return &HaSqliteStmt{
 		query:   query,
 		dbId:    dbId,

@@ -21,7 +21,7 @@ type HaSqliteConn struct {
 	// conn 数据库连接对象
 	conn *grpc.ClientConn
 	// 打开成功后返回的数据库id
-	dbId   uint64
+	dbId   int64
 	Client proto.DBClient
 	// 事务
 	txToken string
@@ -178,7 +178,7 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 }
 
 // ExecContextWithDbId 通过外部的数据库id执行sql语句
-func (c *HaSqliteConn) ExecContextWithDbId(ctx context.Context, dbId uint64, query string, args []driver.NamedValue) (driver.Result, error) {
+func (c *HaSqliteConn) ExecContextWithDbId(ctx context.Context, dbId int64, query string, args []driver.NamedValue) (driver.Result, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
@@ -209,7 +209,7 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 }
 
 // QueryContextWithDbId 通过外部的数据库id查询sql语句
-func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId uint64, query string, args []driver.NamedValue) (driver.Rows, error) {
+func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId int64, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}

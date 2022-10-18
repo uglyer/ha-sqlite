@@ -11,9 +11,9 @@ import (
 
 type HaSqliteDBManager struct {
 	mtx                sync.Mutex
-	dbIndex            uint64
-	dbFilenameTokenMap map[string]uint64
-	dbMap              map[uint64]*HaSqliteDB
+	dbIndex            int64
+	dbFilenameTokenMap map[string]int64
+	dbMap              map[int64]*HaSqliteDB
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
@@ -21,8 +21,8 @@ type HaSqliteDBManager struct {
 func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 	return &HaSqliteDBManager{
 		dbIndex:            0,
-		dbFilenameTokenMap: make(map[string]uint64),
-		dbMap:              make(map[uint64]*HaSqliteDB),
+		dbFilenameTokenMap: make(map[string]int64),
+		dbMap:              make(map[int64]*HaSqliteDB),
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	return &proto.OpenResponse{DbId: token}, nil
 }
 
-func (d *HaSqliteDBManager) GetDB(dbId uint64) (*HaSqliteDB, bool) {
+func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	db, ok := d.dbMap[dbId]
@@ -98,7 +98,7 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 }
 
 // ApplyWal 开始事务执行
-func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId uint64, b []byte) error {
+func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) error {
 	db, ok := d.GetDB(dbId)
 	if !ok {
 		return fmt.Errorf("get db error : %d", dbId)

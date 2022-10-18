@@ -23,7 +23,7 @@ message Command {
   Type type = 1;
   bytes sub_command = 2;
   bool compressed = 3;
-  uint64 db_id = 4;
+  int64 db_id = 4;
 }
 
 message WalCommand {
@@ -62,7 +62,7 @@ message Statement {
 }
 
 message Request {
-  uint64 db_id = 1;
+  int64 db_id = 1;
   string tx_token = 2;
   repeated Statement statements = 3;
 }
@@ -72,7 +72,7 @@ message OpenRequest {
 }
 
 message OpenResponse {
-  uint64 dbId = 1;
+  int64 db_id = 1;
 }
 
 message ExecRequest {
@@ -124,7 +124,7 @@ message BeginTxRequest {
   }
   Type type = 1;
   bool readonly = 2;
-  uint64 db_id = 3;
+  int64 db_id = 3;
 }
 
 message BeginTxResponse {
@@ -138,7 +138,7 @@ message FinishTxRequest {
   }
   Type type = 1;
   string tx_token = 2;
-  uint64 db_id = 3;
+  int64 db_id = 3;
 }
 
 message FinishTxResponse {
