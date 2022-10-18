@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"sync"
+	"time"
 )
 
 // HaSqliteDBStore 使用系统信息管理 db(memory or disk)
@@ -117,10 +118,10 @@ func validSQLiteFile(b []byte) bool {
 }
 
 // getDBIdByPath 通过路径获取数据库 id
-func (s *HaSqliteDBStore) getDBIdByPath(path string) (uint64, bool, error) {
+func (s *HaSqliteDBStore) getDBIdByPath(path string) (int64, bool, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	var id uint64
+	var id int64
 	if err := s.db.QueryRow("select id from ha_sqlite where path = ? order by id asc limit 1 ", path).Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
 			return 0, false, nil
@@ -128,4 +129,20 @@ func (s *HaSqliteDBStore) getDBIdByPath(path string) (uint64, bool, error) {
 		return id, false, fmt.Errorf("getDBIdByPath error:%v", err)
 	}
 	return id, true, nil
+}
+
+// createDBByPath 通过路径创建数据库并返回 id
+func (s *HaSqliteDBStore) createDBByPath(path string) (int64, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	unix := time.Now().UnixMilli()
+	r, err := s.db.Exec("INSERT INTO ha_sqlite(path,db_version,snapshot_version,create_time,update_time) VALUES(?,?,?,?,?)", path, 0, 0, unix, unix)
+	if err != nil {
+		return 0, fmt.Errorf("createDBByPath exec error:%v", err)
+	}
+	insertId, err := r.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("createDBByPath get LastInsertId error:%v", err)
+	}
+	return insertId, nil
 }

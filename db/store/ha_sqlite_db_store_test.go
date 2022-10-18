@@ -2,7 +2,6 @@ package store
 
 import (
 	"github.com/stretchr/testify/assert"
-	"log"
 	"testing"
 )
 
@@ -14,7 +13,17 @@ func newStore(t *testing.T) *HaSqliteDBStore {
 
 func TestGetDbId(t *testing.T) {
 	store := newStore(t)
-	id, ok, err := store.getDBIdByPath("test.db")
+	_, _, err := store.getDBIdByPath("test.db")
 	assert.NoError(t, err)
-	log.Printf("id:%d,%v", id, ok)
+}
+
+func TestCreateDb(t *testing.T) {
+	store := newStore(t)
+	id, err := store.createDBByPath("test.db")
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, id)
+	queryId, ok, err := store.getDBIdByPath("test.db")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, id, queryId)
 }
