@@ -170,6 +170,14 @@ func (s *HaSqliteDBStore) getDBIdByPath(path string) (int64, bool, error) {
 	return id, true, nil
 }
 
+// getDBPathById 通过 id 获取库文件路径
+func (s *HaSqliteDBStore) getDBPathById(id int64) (path string, err error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	err = s.db.QueryRow("select path from ha_sqlite where id = ? limit 1 ", id).Scan(&path)
+	return
+}
+
 // createDBByPath 通过路径创建数据库并返回 id
 func (s *HaSqliteDBStore) createDBByPath(path string) (int64, error) {
 	s.mtx.Lock()
