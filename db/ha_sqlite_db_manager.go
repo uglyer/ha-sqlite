@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/db/store"
 	"github.com/uglyer/ha-sqlite/proto"
+	"log"
 	"sync"
 	"time"
 )
@@ -66,8 +67,38 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
+		return db, ok, nil
 	}
-	return db, ok, nil
+	path, err := d.store.GetDBPathById(dbId)
+	if err != nil {
+		return nil, false, err
+	}
+	db, err = newHaSqliteDB(path)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
+	}
+	db.InitWalHook(func(b []byte) error {
+		return nil
+	})
+	d.dbMap[dbId] = db
+	return db, true, nil
+}
+
+// TryClose 尝试关闭库释放内存
+func (d *HaSqliteDBManager) TryClose(dbId int64) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	db, ok := d.dbMap[dbId]
+	if !ok {
+		return
+	}
+	ok, err := db.TryClose()
+	if ok {
+		delete(d.dbMap, dbId)
+		if err != nil {
+			log.Printf("TryClose error(%d):%v", dbId, err)
+		}
+	}
 }
 
 // Ping 验证服务连通性
@@ -83,6 +114,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
+	defer d.TryClose(req.Request.DbId)
 	return db.exec(c, req)
 }
 
@@ -92,6 +124,7 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
+	defer d.TryClose(req.Request.DbId)
 	return db.query(c, req)
 }
 
@@ -110,6 +143,7 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
+	defer d.TryClose(req.DbId)
 	return db.finishTx(c, req)
 }
 
@@ -119,5 +153,6 @@ func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) er
 	if !ok || err != nil {
 		return fmt.Errorf("get db error : %d,err:%v", dbId, err)
 	}
+	defer d.TryClose(dbId)
 	return db.ApplyWal(c, b)
 }
