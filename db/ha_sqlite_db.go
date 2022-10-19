@@ -79,10 +79,12 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 // TryClose 尝试关闭
 func (d *HaSqliteDB) TryClose() (bool, error) {
 	success := d.txMtx.TryLock()
+	defer d.txMtx.Unlock()
 	if !success {
 		return false, fmt.Errorf("db tx is locked")
 	}
 	success = d.walMtx.TryLock()
+	defer d.walMtx.Unlock()
 	if !success {
 		return false, fmt.Errorf("db wal is locked")
 	}
