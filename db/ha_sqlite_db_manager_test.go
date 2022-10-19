@@ -127,7 +127,9 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 	for i, res := range resp.Result {
 		assert.Emptyf(store.t, res.Error, "Error exec #(%d):%s,sql:%s", i, res.Error, sql)
 		assert.Equal(store.t, target.RowsAffected, res.RowsAffected, "预期的RowsAffected不一致，期望：%d,实际：%d，sql: %s", target.RowsAffected, res.RowsAffected, sql)
-		assert.Equal(store.t, target.LastInsertId, res.LastInsertId, "预期的LastInsertId不一致，期望：%d,实际：%d，sql: %s", target.LastInsertId, res.LastInsertId, sql)
+		if res.LastInsertId != 0 {
+			assert.Equal(store.t, target.LastInsertId, res.LastInsertId, "预期的LastInsertId不一致，期望：%d,实际：%d，sql: %s", target.LastInsertId, res.LastInsertId, sql)
+		}
 	}
 }
 
@@ -157,9 +159,11 @@ func Test_Exec(t *testing.T) {
 		"INSERT INTO foo(name) VALUES(?)", "test2")
 	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
 		"INSERT INTO foo(name) VALUES(?)", "test3")
-	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+	resp := store.query("SELECT * FROM foo")
+	assert.Equal(t, 3, len(resp.Result[0].Values))
+	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 0},
 		"UPDATE foo set name=? where id = ?", "update test1", 1)
-	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+	store.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 0},
 		"DELETE from foo where id = ?", 3)
 }
 
