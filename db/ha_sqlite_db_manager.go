@@ -57,14 +57,17 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	return &proto.OpenResponse{DbId: token}, nil
 }
 
-func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool) {
+func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	db, ok := d.dbMap[dbId]
 	if ok {
-		d.store.RefDBUpdateTimeById(dbId)
+		err := d.store.RefDBUpdateTimeById(dbId)
+		if err != nil {
+			return nil, false, err
+		}
 	}
-	return db, ok
+	return db, ok, nil
 }
 
 // Ping 验证服务连通性
@@ -76,45 +79,45 @@ func (ctx *HaSqliteDBManager) Ping(c context.Context, req *proto.PingRequest) (*
 
 // Exec 执行数据库命令
 func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	db, ok := d.GetDB(req.Request.DbId)
-	if !ok {
-		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request.DbId)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	return db.exec(c, req)
 }
 
 // Query 查询记录
 func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	db, ok := d.GetDB(req.Request.DbId)
-	if !ok {
-		return nil, fmt.Errorf("get db error : %d", req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request.DbId)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	return db.query(c, req)
 }
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	db, ok := d.GetDB(req.DbId)
-	if !ok {
-		return nil, fmt.Errorf("get db error : %d", req.DbId)
+	db, ok, err := d.GetDB(req.DbId)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
 	return db.beginTx(c, req)
 }
 
 // FinishTx 开始事务执行
 func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	db, ok := d.GetDB(req.DbId)
-	if !ok {
-		return nil, fmt.Errorf("get db error : %d", req.DbId)
+	db, ok, err := d.GetDB(req.DbId)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
 	return db.finishTx(c, req)
 }
 
-// ApplyWal 开始事务执行
+// ApplyWal 应用日志
 func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) error {
-	db, ok := d.GetDB(dbId)
-	if !ok {
-		return fmt.Errorf("get db error : %d", dbId)
+	db, ok, err := d.GetDB(dbId)
+	if !ok || err != nil {
+		return fmt.Errorf("get db error : %d,err:%v", dbId, err)
 	}
 	return db.ApplyWal(c, b)
 }
