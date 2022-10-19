@@ -76,6 +76,22 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	}, nil
 }
 
+// TryClose 尝试关闭
+func (d *HaSqliteDB) TryClose() (bool, error) {
+	success := d.txMtx.TryLock()
+	if !success {
+		return false, fmt.Errorf("db tx is locked")
+	}
+	success = d.walMtx.TryLock()
+	if !success {
+		return false, fmt.Errorf("db wal is locked")
+	}
+	d.onApplyWal = nil
+	err := d.db.Close()
+	d.db = nil
+	return true, err
+}
+
 // InitWalHook 执行数据库命令
 func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 	d.onApplyWal = onApplyWal
