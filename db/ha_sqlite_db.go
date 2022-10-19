@@ -88,6 +88,9 @@ func (d *HaSqliteDB) TryClose() (bool, error) {
 	if !success {
 		return false, fmt.Errorf("db wal is locked")
 	}
+	if len(d.txMap) > 0 {
+		return false, fmt.Errorf("has tx")
+	}
 	hasWal := vfs.rootMemFS.VfsHasWal(d.sourceWalFile)
 	if hasWal {
 		return false, fmt.Errorf("has wal data")
@@ -152,7 +155,7 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 		defer d.txMtx.Unlock()
 		dbTx, ok := d.txMap[req.Request.TxToken]
 		if !ok {
-			return nil, fmt.Errorf("get tx error:%s", req.Request.TxToken)
+			return nil, fmt.Errorf("exec get tx error:%s", req.Request.TxToken)
 		}
 		tx = dbTx
 	} else {
@@ -237,7 +240,7 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 		defer d.txMtx.Unlock()
 		dbTx, ok := d.txMap[req.Request.TxToken]
 		if !ok {
-			return nil, fmt.Errorf("get tx error:%s", req.Request.TxToken)
+			return nil, fmt.Errorf("query get tx error:%s", req.Request.TxToken)
 		}
 		tx = dbTx
 	}
@@ -346,7 +349,7 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	defer d.txMtx.Unlock()
 	tx, ok := d.txMap[req.TxToken]
 	if !ok {
-		return nil, fmt.Errorf("get tx error:%s", req.TxToken)
+		return nil, fmt.Errorf("finishTx get tx error:%s", req.TxToken)
 	}
 	defer func() {
 		delete(d.txMap, req.TxToken)
