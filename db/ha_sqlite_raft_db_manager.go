@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/db/store"
@@ -12,7 +11,6 @@ import (
 
 type HaSqliteRaftDBManager struct {
 	HaSqliteDBManager
-	queueMap map[int64]*HaSqliteCmdQueue
 	raft     *raft.Raft
 	dataPath string
 }
@@ -24,7 +22,6 @@ func NewHaSqliteRaftDBManager(raft *raft.Raft, dataPath string) (*HaSqliteRaftDB
 	}
 	manager := &HaSqliteRaftDBManager{
 		raft:     raft,
-		queueMap: make(map[int64]*HaSqliteCmdQueue),
 		dataPath: dataPath,
 	}
 	manager.store = store
@@ -69,17 +66,5 @@ func (d *HaSqliteRaftDBManager) Open(c context.Context, req *proto.OpenRequest) 
 		return nil
 	})
 	d.dbMap[token] = db
-	d.queueMap[token] = NewHaSqliteCmdQueue(d.raft)
 	return &proto.OpenResponse{DbId: token}, nil
-}
-
-// queueApplyRaftLog 队列应用日志
-func (d *HaSqliteRaftDBManager) queueApplyRaftLog(c context.Context, t cmdType, req *[]byte, dbId int64, txToken string) (interface{}, error) {
-	d.mtx.Lock()
-	queue, ok := d.queueMap[dbId]
-	d.mtx.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("get queue error:%d", dbId)
-	}
-	return queue.queueApplyRaftLog(c, t, req, txToken)
 }
