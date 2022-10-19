@@ -55,7 +55,9 @@ func (store *Store) cloneConn() *Store {
 }
 
 func (store *Store) getDB() (*db.HaSqliteDB, bool) {
-	return store.db.GetDB(store.id)
+	d, ok, err := store.db.GetDB(store.id)
+	assert.NoError(store.t, err)
+	return d, ok
 }
 
 func (store *Store) exec(sql string, args ...driver.Value) *proto.ExecResponse {
