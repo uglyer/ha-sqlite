@@ -178,6 +178,17 @@ func (f *WalFS) VfsPoll(name string) ([]byte, error, bool, func(event WalUnlockE
 	return wal.walTxPoll()
 }
 
+// VfsHasWal 尝试关闭库时返回是否存在 wal 信息 (存在则说明未成功应用不允许关闭)
+func (f *WalFS) VfsHasWal(name string) bool {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	wal, hasFile := f.walMap[name]
+	if !hasFile {
+		return false
+	}
+	return wal.hasWalData()
+}
+
 // VfsApplyLog 应用来自 raft 中的日志
 func (f *WalFS) VfsApplyLog(name string, buffer []byte) error {
 	f.mtx.Lock()
@@ -482,6 +493,13 @@ func (wal *VfsWal) SectorSize() int64 {
 
 func (wal *VfsWal) DeviceCharacteristics() sqlite3.DeviceCharacteristic {
 	return 0
+}
+
+// hasWalData 是否存在未应用的 wal 数据
+func (wal *VfsWal) hasWalData() bool {
+	wal.mtx.Lock()
+	defer wal.mtx.Unlock()
+	return len(wal.tx) > 0 || len(wal.frames) > 0
 }
 
 // walPoll 未提交日志遍历, 返回序列化的指令 (WalCommand, error info, 是否需要提交日志(当值为true但 error != nil 时表示出现重大错误 需要中断服务))
