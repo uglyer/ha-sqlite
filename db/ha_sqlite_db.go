@@ -88,6 +88,10 @@ func (d *HaSqliteDB) TryClose() (bool, error) {
 	if !success {
 		return false, fmt.Errorf("db wal is locked")
 	}
+	hasWal := vfs.rootMemFS.VfsHasWal(d.sourceWalFile)
+	if hasWal {
+		return false, fmt.Errorf("has wal data")
+	}
 	d.onApplyWal = nil
 	err := d.db.Close()
 	d.db = nil
