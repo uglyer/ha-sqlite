@@ -13,6 +13,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type HaSqliteDB struct {
 	sourceWalFile  string
 	txMap          map[string]*sql.Tx
 	onApplyWal     func(b []byte) error
+	useCount       int32
 }
 
 var vfs = NewHaSqliteVFS()
@@ -76,8 +78,21 @@ func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	}, nil
 }
 
+// addUseCount 添加引用次数
+func (d *HaSqliteDB) addUseCount(delta int32) {
+	atomic.AddInt32(&d.useCount, delta)
+}
+
+// hasUsed 是否有正在被引用的请求
+func (d *HaSqliteDB) hasUsed() bool {
+	return atomic.LoadInt32(&d.useCount) > 0
+}
+
 // TryClose 尝试关闭
 func (d *HaSqliteDB) TryClose() (bool, error) {
+	if d.hasUsed() {
+		return false, fmt.Errorf("db has used")
+	}
 	success := d.txMtx.TryLock()
 	defer d.txMtx.Unlock()
 	if !success {
@@ -141,6 +156,8 @@ func (d *HaSqliteDB) checkWal() error {
 
 // Exec 执行数据库命令
 func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
+	d.addUseCount(1)
+	defer d.addUseCount(-1)
 	var allResults []*proto.ExecResult
 	// handleError sets the error field on the given result. It returns
 	// whether the caller should continue processing or break.
@@ -234,6 +251,8 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 
 // Query 查询记录
 func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
+	d.addUseCount(1)
+	defer d.addUseCount(-1)
 	var tx *sql.Tx
 	if req.Request.TxToken != "" {
 		d.txMtx.Lock()
@@ -331,6 +350,8 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+	d.addUseCount(1)
+	defer d.addUseCount(-1)
 	token := uuid.New().String()
 	// 必须调用 begin , 否则返回 tx 会自动回滚
 	tx, err := d.db.Begin()
@@ -345,6 +366,8 @@ func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 
 // FinishTx 结束事务执行
 func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+	d.addUseCount(1)
+	defer d.addUseCount(-1)
 	d.txMtx.Lock()
 	defer d.txMtx.Unlock()
 	tx, ok := d.txMap[req.TxToken]
@@ -379,6 +402,8 @@ func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*p
 
 // ApplyWal 应用 wal 日志 由 raft 触发写日志时,与 checkWal 会有200ms的时间差
 func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
+	d.addUseCount(1)
+	defer d.addUseCount(-1)
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
 	//fmt.Printf("applyWal:时间戳（毫秒）：%v;%d\n", time.Now().UnixMilli(), len(b))
