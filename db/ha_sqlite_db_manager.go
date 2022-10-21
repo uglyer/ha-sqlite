@@ -16,7 +16,8 @@ type HaSqliteDBManager struct {
 	store *store.HaSqliteDBStore
 	//dbIndex            int64
 	//dbFilenameTokenMap map[string]int64
-	dbMap map[int64]*HaSqliteDB
+	dbMap             map[int64]*HaSqliteDB
+	defaultOnApplyWal func(b []byte) error
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
@@ -29,6 +30,21 @@ func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 	return &HaSqliteDBManager{
 		store: store,
 		dbMap: make(map[int64]*HaSqliteDB),
+		defaultOnApplyWal: func(b []byte) error {
+			return nil
+		},
+	}, nil
+}
+
+func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqliteDBManager, error) {
+	store, err := store.NewHaSqliteDBStore()
+	if err != nil {
+		return nil, err
+	}
+	return &HaSqliteDBManager{
+		store:             store,
+		dbMap:             make(map[int64]*HaSqliteDB),
+		defaultOnApplyWal: onApplyWal,
 	}, nil
 }
 
@@ -51,9 +67,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to CreateDBByPath NewHaSqliteDBManager")
 	}
-	db.InitWalHook(func(b []byte) error {
-		return nil
-	})
+	db.InitWalHook(d.defaultOnApplyWal)
 	d.dbMap[token] = db
 	return &proto.OpenResponse{DbId: token}, nil
 }
@@ -77,9 +91,7 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	if err != nil {
 		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
-	db.InitWalHook(func(b []byte) error {
-		return nil
-	})
+	db.InitWalHook(d.defaultOnApplyWal)
 	d.dbMap[dbId] = db
 	return db, true, nil
 }

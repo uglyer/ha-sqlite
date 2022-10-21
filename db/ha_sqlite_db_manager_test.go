@@ -135,6 +135,10 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 
 func openDB(t *testing.T) *Store {
 	store, err := db.NewHaSqliteDBManager()
+	return assertDB(t, store, err)
+}
+
+func assertDB(t *testing.T, store *db.HaSqliteDBManager, err error) *Store {
 	assert.NoError(t, err)
 	tempFile, err := ioutil.TempFile("", "ha-sqlite-db-test")
 	assert.NoError(t, err)
@@ -415,20 +419,18 @@ func Test_DBWalCopy(t *testing.T) {
 }
 
 func Test_DBWalTxSingleThread(t *testing.T) {
-	store1 := openDB(t)
-	db1, ok1 := store1.getDB()
-	assert.Equal(t, true, ok1)
-
 	rowsCount := int32(-1) // 创建表指令也会计数+1
 	needError := true
-	db1.InitWalHook(func(b []byte) error {
+	hook := func(b []byte) error {
 		needError = !needError
 		if needError {
 			return errors.New("mock error")
 		}
 		atomic.AddInt32(&rowsCount, 1)
 		return nil
-	})
+	}
+	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
+	store1 := assertDB(t, store, err)
 
 	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
 	for i := 0; i < 5; i++ {
@@ -442,20 +444,18 @@ func Test_DBWalTxSingleThread(t *testing.T) {
 }
 
 func Test_DBWalTx(t *testing.T) {
-	store1 := openDB(t)
-	db1, ok1 := store1.getDB()
-	assert.Equal(t, true, ok1)
-
 	rowsCount := int32(-1) // 创建表指令也会计数+1
 	needError := true
-	db1.InitWalHook(func(b []byte) error {
+	hook := func(b []byte) error {
 		needError = !needError
 		if needError {
 			return errors.New("mock error")
 		}
 		atomic.AddInt32(&rowsCount, 1)
 		return nil
-	})
+	}
+	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
+	store1 := assertDB(t, store, err)
 
 	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
 	var wg sync.WaitGroup
