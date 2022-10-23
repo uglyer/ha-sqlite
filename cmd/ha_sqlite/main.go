@@ -24,7 +24,7 @@ func main() {
 			ctx.String("version:\n", version)
 			return nil
 		}
-		prefix := fmt.Sprintf("%s>", argv.Address)
+		prefix := fmt.Sprintf("ha_sqlite(%s)>", "default")
 		term, err := prompt.NewTerminal()
 		if err != nil {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
