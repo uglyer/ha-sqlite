@@ -53,6 +53,7 @@ func ParseFlags() (*Config, error) {
 	if err := viperConfig.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("配置文件未找到或解析失败！%v\n", err)
 	}
+	log.Printf("node:%s", viperConfig.GetString("ha_sqlite.raft_id"))
 	// 映射到结构体
 	var config Config
 	// TODO 配置映射解析失败
