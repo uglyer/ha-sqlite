@@ -21,7 +21,7 @@ func main() {
 		log.Fatalf("failed to parse command-line flags: %s", err.Error())
 	}
 	log.Println(config)
-	ctx, err := node.NewHaSqliteContext(config)
+	ctx, err := node.NewHaSqliteContext(&config.HaSqlite)
 	if err != nil {
 		log.Fatalf("failed to start HaSqliteContext: %v", err)
 	}
