@@ -7,9 +7,16 @@ import (
 	"google.golang.org/grpc"
 )
 
+var printCoastTime = false
+
+func SetIsPrintCoastTime(flag bool) {
+	printCoastTime = flag
+}
+
 type DBExecResult struct {
 	rowsAffected int64
 	lastInsertId int64
+	Time         float64
 }
 
 func (result *DBExecResult) LastInsertId() (int64, error) {
@@ -31,6 +38,9 @@ func DBClientExecCheckResult(client DBClient, ctx context.Context, in *ExecReque
 	if resp.Result[0].Error != "" {
 		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
 	}
+	if printCoastTime {
+		fmt.Printf("%v ms", resp.Result[0].Time)
+	}
 	return &DBExecResult{
 		rowsAffected: resp.Result[0].RowsAffected,
 		lastInsertId: resp.Result[0].LastInsertId,
@@ -47,6 +57,9 @@ func DBClientQueryCheckResult(client DBClient, ctx context.Context, in *QueryReq
 	}
 	if resp.Result[0].Error != "" {
 		return nil, fmt.Errorf("exec error:%s", resp.Result[0].Error)
+	}
+	if printCoastTime {
+		fmt.Printf("%v ms\n", resp.Result[0].Time)
 	}
 	return NewHaSqliteRowsFromSingleQueryResult(resp.Result[0]), nil
 }

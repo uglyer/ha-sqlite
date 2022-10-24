@@ -5,18 +5,20 @@ import (
 	"github.com/Bowery/prompt"
 	"github.com/mkideal/cli"
 	_ "github.com/uglyer/ha-sqlite/driver"
+	"github.com/uglyer/ha-sqlite/proto"
 	"strings"
 )
 
 type argT struct {
 	cli.Helper
-	Address string `cli:"a,address" usage:"ha-sqlite address" dft:"multi:///localhost:30051,localhost:30052,localhost:30053/:memory:"`
+	Address string `cli:"a,address" usage:"ha-sqlite address" dft:"multi:///localhost:30051,localhost:30052,localhost:30053/test.db"`
 	Version bool   `cli:"v,version" usage:"display CLI version"`
 }
 
 const version = "0.1.0"
 
 func main() {
+	proto.SetIsPrintCoastTime(true)
 	cli.SetUsageStyle(cli.ManualStyle)
 	cli.Run(new(argT), func(ctx *cli.Context) error {
 		argv := ctx.Argv().(*argT)
