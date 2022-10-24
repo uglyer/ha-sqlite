@@ -7,6 +7,8 @@ import (
 	_ "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
 	"strings"
+	"sync"
+	"time"
 )
 
 type argT struct {
@@ -38,6 +40,20 @@ func main() {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
 			return nil
 		}
+		// todo 连续执行响应过慢, 连续查询存在死锁
+		startT := time.Now()
+		var wg sync.WaitGroup
+		for i := 0; i < 1000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
+				client.db.Query("select * from foo")
+			}()
+		}
+		wg.Wait()
+		tc := time.Since(startT) //计算耗时
+		fmt.Printf("time cost = %v\n", tc)
 	FOR_READ:
 		for {
 			term.Reopen()
