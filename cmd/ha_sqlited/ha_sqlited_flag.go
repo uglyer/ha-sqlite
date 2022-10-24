@@ -6,13 +6,11 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uglyer/ha-sqlite/node"
 	"github.com/uglyer/ha-sqlite/tool"
-	"log"
 	"net"
-	"path"
 )
 
 type Config struct {
-	HaSqlite node.HaSqliteConfig `yaml:"ha_sqlite"`
+	HaSqlite node.HaSqliteConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
 }
 
 // ParseFlags parses the command line, and returns the configuration.
@@ -26,10 +24,6 @@ func ParseFlags() (*Config, error) {
 	flag.BoolVar(&autoGenerateFile, "auto-generate-config", false, "auto generate config yaml file")
 	flag.Parse()
 	viperConfig := viper.New()
-	// 设置配置文件名，没有后缀
-	dir := path.Dir(configFile)
-	filename := path.Base(configFile)
-	log.Printf("config file:%s", configFile)
 	viperConfig.SetConfigFile(configFile)
 	viperConfig.AddConfigPath(".")
 	if !tool.FSPathIsExist(configFile) {
@@ -43,7 +37,7 @@ func ParseFlags() (*Config, error) {
 			"join_address":   "",
 		})
 		if autoGenerateFile {
-			err := viperConfig.WriteConfigAs(path.Join(dir, filename))
+			err := viperConfig.WriteConfig()
 			if err != nil {
 				return nil, fmt.Errorf("自动生成配置文件失败！%v\n", err)
 			}
@@ -53,10 +47,8 @@ func ParseFlags() (*Config, error) {
 	if err := viperConfig.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("配置文件未找到或解析失败！%v\n", err)
 	}
-	log.Printf("node:%s", viperConfig.GetString("ha_sqlite.raft_id"))
 	// 映射到结构体
 	var config Config
-	// TODO 配置映射解析失败
 	if err := viperConfig.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("配置映射错误,%v\n", err)
 	}
