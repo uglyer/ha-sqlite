@@ -223,8 +223,13 @@ func (ctx *HaSqliteContext) Open(c context.Context, req *proto.OpenRequest) (*pr
 	return ctx.fsm.Open(c, req)
 }
 
+func computeCoastTime(t time.Time) float64 {
+	return float64(time.Since(t).Nanoseconds()) / 1e6
+}
+
 // Exec 执行数据库命令
 func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
+	startT := time.Now()
 	if !ctx.IsLeader() {
 		// 如果不是 leader，转发到 leader 执行
 		conn, err := ctx.getLeaderConn()
@@ -233,13 +238,20 @@ func (ctx *HaSqliteContext) Exec(c context.Context, req *proto.ExecRequest) (*pr
 		}
 		defer conn.Close()
 		client := proto.NewDBClient(conn.Value())
-		return client.Exec(context.Background(), req)
+		resp, err := client.Exec(context.Background(), req)
+		if resp != nil {
+			resp.Result[0].Time = computeCoastTime(startT)
+		}
+		return resp, err
 	}
-	return ctx.fsm.Exec(c, req)
+	resp, err := ctx.fsm.Exec(c, req)
+	resp.Result[0].Time = computeCoastTime(startT)
+	return resp, err
 }
 
 // Query 查询记录
 func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
+	startT := time.Now()
 	if req.Request.TxToken != "" && !ctx.IsLeader() {
 		// 事务请求转发到 leader 执行
 		conn, err := ctx.getLeaderConn()
@@ -248,17 +260,29 @@ func (ctx *HaSqliteContext) Query(c context.Context, req *proto.QueryRequest) (*
 		}
 		defer conn.Close()
 		client := proto.NewDBClient(conn.Value())
-		return client.Query(context.Background(), req)
+		resp, err := client.Query(context.Background(), req)
+		if resp != nil {
+			resp.Result[0].Time = computeCoastTime(startT)
+		}
+		return resp, err
 	} else if req.Request.TxToken == "" && ctx.IsLeader() {
 		// 非事务请求, 且有活动的 follow 节点, 转发至 follower
 		if conn, err := ctx.getFollowerConn(); err == nil {
 			defer conn.Close()
 			client := proto.NewDBClient(conn.Value())
-			return client.Query(context.Background(), req)
+			resp, err := client.Query(context.Background(), req)
+			if resp != nil {
+				resp.Result[0].Time = computeCoastTime(startT)
+			}
+			return resp, err
 		}
 		// 无跟随节点, 直接执行
 	}
-	return ctx.fsm.Query(c, req)
+	resp, err := ctx.fsm.Query(context.Background(), req)
+	if resp != nil {
+		resp.Result[0].Time = computeCoastTime(startT)
+	}
+	return resp, err
 }
 
 // BeginTx 开始事务执行
