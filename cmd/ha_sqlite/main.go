@@ -40,15 +40,19 @@ func main() {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
 			return nil
 		}
-		// todo 连续执行响应过慢, 连续查询存在死锁
+		// todo 连续执行插入语句响应过慢
 		startT := time.Now()
 		var wg sync.WaitGroup
 		for i := 0; i < 1000; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
-				client.db.Query("select * from foo")
+				//client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
+				rows, err := client.db.Query("select * from foo")
+				if err != nil {
+					return
+				}
+				rows.Close()
 			}()
 		}
 		wg.Wait()
