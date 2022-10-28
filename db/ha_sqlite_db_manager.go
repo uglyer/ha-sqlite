@@ -66,12 +66,17 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
+	defer func() {
+		closed, _ := db.TryClose()
+		if !closed {
+			db.InitWalHook(d.defaultOnApplyWal)
+			d.dbMap[token] = db
+		}
+	}()
 	token, err = d.store.CreateDBByPath(req.Dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to CreateDBByPath NewHaSqliteDBManager")
 	}
-	db.InitWalHook(d.defaultOnApplyWal)
-	d.dbMap[token] = db
 	return &proto.OpenResponse{DbId: token}, nil
 }
 
