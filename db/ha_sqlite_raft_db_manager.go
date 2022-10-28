@@ -27,6 +27,7 @@ func NewHaSqliteRaftDBManager(raft *raft.Raft, dataPath string) (*HaSqliteRaftDB
 	}
 	manager.store = store
 	manager.dbMap = make(map[int64]*HaSqliteDB)
+	manager.dbLockedMap = make(map[int64]int)
 	return manager, nil
 }
 
@@ -64,6 +65,11 @@ func (d *HaSqliteRaftDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
+		if lockedCount, ok := d.dbLockedMap[dbId]; ok {
+			d.dbLockedMap[dbId] = lockedCount + 1
+		} else {
+			d.dbLockedMap[dbId] = 1
+		}
 		return db, ok, nil
 	}
 	storePath, err := d.store.GetDBPathById(dbId)
@@ -77,6 +83,11 @@ func (d *HaSqliteRaftDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	}
 	d.initWalHook(db, dbId)
 	d.dbMap[dbId] = db
+	if lockedCount, ok := d.dbLockedMap[dbId]; ok {
+		d.dbLockedMap[dbId] = lockedCount + 1
+	} else {
+		d.dbLockedMap[dbId] = 1
+	}
 	return db, true, nil
 }
 

@@ -17,6 +17,7 @@ type HaSqliteDBManager struct {
 	//dbIndex            int64
 	//dbFilenameTokenMap map[string]int64
 	dbMap             map[int64]*HaSqliteDB
+	dbLockedMap       map[int64]int
 	defaultOnApplyWal func(b []byte) error
 }
 
@@ -28,8 +29,9 @@ func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 		return nil, err
 	}
 	return &HaSqliteDBManager{
-		store: store,
-		dbMap: make(map[int64]*HaSqliteDB),
+		store:       store,
+		dbMap:       make(map[int64]*HaSqliteDB),
+		dbLockedMap: make(map[int64]int),
 		defaultOnApplyWal: func(b []byte) error {
 			return nil
 		},
@@ -44,6 +46,7 @@ func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqlite
 	return &HaSqliteDBManager{
 		store:             store,
 		dbMap:             make(map[int64]*HaSqliteDB),
+		dbLockedMap:       make(map[int64]int),
 		defaultOnApplyWal: onApplyWal,
 	}, nil
 }
@@ -81,6 +84,11 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
+		if lockedCount, ok := d.dbLockedMap[dbId]; ok {
+			d.dbLockedMap[dbId] = lockedCount + 1
+		} else {
+			d.dbLockedMap[dbId] = 1
+		}
 		return db, ok, nil
 	}
 	path, err := d.store.GetDBPathById(dbId)
@@ -93,6 +101,11 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	}
 	db.InitWalHook(d.defaultOnApplyWal)
 	d.dbMap[dbId] = db
+	if lockedCount, ok := d.dbLockedMap[dbId]; ok {
+		d.dbLockedMap[dbId] = lockedCount + 1
+	} else {
+		d.dbLockedMap[dbId] = 1
+	}
 	return db, true, nil
 }
 
@@ -100,6 +113,14 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 func (d *HaSqliteDBManager) TryClose(dbId int64) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+	if lockedCount, ok := d.dbLockedMap[dbId]; ok {
+		if lockedCount == 1 {
+			delete(d.dbLockedMap, dbId)
+		} else {
+			d.dbLockedMap[dbId] = lockedCount - 1
+			return
+		}
+	}
 	db, ok := d.dbMap[dbId]
 	if !ok {
 		return
