@@ -98,11 +98,17 @@ func (d *HaSqliteRaftDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 
 func (d *HaSqliteRaftDBManager) initWalHook(db *HaSqliteDB, token int64) {
 	db.InitWalHook(func(b []byte) error {
+		// TODO 应用日志存读取异常信息耗时约 27ms, walhook 在 check wal 中触发阻塞执行, 写入存在性能瓶颈
+		//startTime := time.Now()
+		//defer func() {
+		//	log.Printf("apply:%v", time.Since(startTime))
+		//}()
 		cmdBytes, err := proto.BytesToCommandBytes(proto.Command_COMMAND_TYPE_APPLY_WAL, token, b)
 		if err != nil {
 			return errors.Wrap(err, "error encode wal file")
 		}
 		af := d.raft.Apply(cmdBytes, applyTimeout)
+		//log.Printf("apply:%v", time.Since(startTime))
 		err = af.Error()
 		if err != nil {
 			return err
