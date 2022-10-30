@@ -112,7 +112,9 @@ func (store *HaDB) assertExecCheckEffect(target *proto.ExecResult, sql string, a
 	lastInsertId, err := result.LastInsertId()
 	assert.Nil(store.t, err)
 	assert.Equal(store.t, target.RowsAffected, rowsAffected)
-	assert.Equal(store.t, target.LastInsertId, lastInsertId)
+	if target.LastInsertId > 0 {
+		assert.Equal(store.t, target.LastInsertId, lastInsertId)
+	}
 }
 
 func (store *HaDB) assertQuery(query string, args ...interface{}) *sql.Rows {
@@ -199,9 +201,9 @@ func Test_Exec(t *testing.T) {
 		"INSERT INTO foo(name) VALUES(?)", "test2")
 	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
 		"INSERT INTO foo(name) VALUES(?)", "test3")
-	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: -1},
 		"UPDATE foo set name=? where id = ?", "update test1", 1)
-	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: 3},
+	db.assertExecCheckEffect(&proto.ExecResult{RowsAffected: 1, LastInsertId: -1},
 		"DELETE from foo where id = ?", 3)
 }
 
