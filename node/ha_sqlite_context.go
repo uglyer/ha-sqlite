@@ -7,7 +7,6 @@ import (
 	"github.com/Jille/raftadmin"
 	"github.com/hashicorp/raft"
 	"github.com/shimingyah/pool"
-	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -20,7 +19,7 @@ import (
 type HaSqliteContext struct {
 	// Config 配置参数
 	Config     *HaSqliteConfig
-	fsm        *db.HaSqliteRaftFSM
+	fsm        *HaSqliteRaftFSM
 	Raft       *raft.Raft
 	Sock       net.Listener
 	GrpcServer *grpc.Server
@@ -50,7 +49,7 @@ func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	fsm, err := db.NewHaSqliteRaftFSM(config.NodeDataPath())
+	fsm, err := NewHaSqliteRaftFSM(config.NodeDataPath())
 	if err != nil {
 		return nil, err
 	}

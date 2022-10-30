@@ -47,12 +47,12 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				//client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
-				rows, err := client.db.Query("select * from foo")
-				if err != nil {
-					return
-				}
-				rows.Close()
+				client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
+				//rows, err := client.db.Query("select count(*) from foo")
+				//if err != nil {
+				//	return
+				//}
+				//rows.Close()
 			}()
 		}
 		wg.Wait()
