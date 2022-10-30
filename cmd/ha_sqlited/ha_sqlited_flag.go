@@ -26,6 +26,7 @@ func ParseFlags() (*Config, error) {
 	viperConfig := viper.New()
 	viperConfig.SetConfigFile(configFile)
 	viperConfig.AddConfigPath(".")
+	viperConfig.AutomaticEnv()
 	if !tool.FSPathIsExist(configFile) {
 		// 设置默认值
 		viperConfig.SetDefault("ha_sqlite", map[string]interface{}{
