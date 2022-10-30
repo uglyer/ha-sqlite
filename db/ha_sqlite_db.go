@@ -45,7 +45,7 @@ func init() {
 	}
 }
 
-func newHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
+func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	dir := path.Dir(dataSourceName)
 	if dir != "" {
 		err := os.MkdirAll(dir, os.ModePerm)
@@ -155,7 +155,7 @@ func (d *HaSqliteDB) checkWal() error {
 }
 
 // Exec 执行数据库命令
-func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
+func (d *HaSqliteDB) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
 	d.addUseCount(1)
 	defer d.addUseCount(-1)
 	var allResults []*proto.ExecResult
@@ -250,7 +250,7 @@ func (d *HaSqliteDB) exec(c context.Context, req *proto.ExecRequest) (*proto.Exe
 }
 
 // Query 查询记录
-func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
+func (d *HaSqliteDB) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
 	d.addUseCount(1)
 	defer d.addUseCount(-1)
 	var tx *sql.Tx
@@ -349,7 +349,7 @@ func (d *HaSqliteDB) query(c context.Context, req *proto.QueryRequest) (*proto.Q
 }
 
 // BeginTx 开始事务执行
-func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
+func (d *HaSqliteDB) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
 	d.addUseCount(1)
 	defer d.addUseCount(-1)
 	token := uuid.New().String()
@@ -365,7 +365,7 @@ func (d *HaSqliteDB) beginTx(c context.Context, req *proto.BeginTxRequest) (*pro
 }
 
 // FinishTx 结束事务执行
-func (d *HaSqliteDB) finishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
+func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
 	d.addUseCount(1)
 	defer d.addUseCount(-1)
 	d.txMtx.Lock()

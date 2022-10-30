@@ -62,7 +62,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	if ok {
 		return &proto.OpenResponse{DbId: token}, nil
 	}
-	db, err := newHaSqliteDB(req.Dsn)
+	db, err := NewHaSqliteDB(req.Dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
@@ -100,7 +100,7 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	db, err = newHaSqliteDB(path)
+	db, err = NewHaSqliteDB(path)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
@@ -153,7 +153,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return db.exec(c, req)
+	return db.Exec(c, req)
 }
 
 // Query 查询记录
@@ -163,7 +163,7 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return db.query(c, req)
+	return db.Query(c, req)
 }
 
 // BeginTx 开始事务执行
@@ -172,7 +172,7 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
-	return db.beginTx(c, req)
+	return db.BeginTx(c, req)
 }
 
 // FinishTx 开始事务执行
@@ -182,7 +182,7 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
 	defer d.TryClose(req.DbId)
-	return db.finishTx(c, req)
+	return db.FinishTx(c, req)
 }
 
 // ApplyWal 应用日志
