@@ -8,7 +8,17 @@ https://github.com/uglyer/ha-sqlite
 
 ## 目标
 
-- 基于 raft 实现的 高可用的 sqlite 数据库服务
+- 基于 ~~raft~~ 实现的 高可用的 sqlite 数据库服务
+
+  - > 通过 raft 实现 wal 拷贝性能与预期出入较大, 考虑通过其他方式实现高可用
+    > 
+    > 启用 vfs wal in memory 连续插入每秒约 12000
+    > 
+    > 启用 raft wal replication 连续插入每秒约 35
+    > 
+    > 启用 raft sql statement replication 连续插入每秒约 270
+    >
+    > 以上结果在 apple m1 中执行
 
 - 支持多节点多数据库创建与访问
 
