@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	HaSqlite node.HaSqliteConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
+	HaSqlite node.HaSqliteRaftConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
 }
 
 // ParseFlags parses the command line, and returns the configuration.

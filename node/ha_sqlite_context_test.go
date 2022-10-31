@@ -20,10 +20,10 @@ import (
 
 type Node struct {
 	ctx    *node.HaSqliteContext
-	config *node.HaSqliteConfig
+	config *node.HaSqliteRaftConfig
 }
 
-func NewNode(t *testing.T, config *node.HaSqliteConfig, deleteLog bool) *Node {
+func NewNode(t *testing.T, config *node.HaSqliteRaftConfig, deleteLog bool) *Node {
 	if deleteLog {
 		baseDir := filepath.Join(config.DataPath, config.RaftId)
 		err := os.RemoveAll(baseDir)
@@ -111,7 +111,7 @@ func openSingleNodeDB(t *testing.T, port int, nodeId string, deleteLog bool, joi
 		joinAddress = fmt.Sprintf("localhost:%d", joinPort)
 		bootstrap = false
 	}
-	store := NewNode(t, &node.HaSqliteConfig{
+	store := NewNode(t, &node.HaSqliteRaftConfig{
 		Address:       fmt.Sprintf("localhost:%d", port),
 		RaftBootstrap: bootstrap,
 		RaftId:        nodeId,

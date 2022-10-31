@@ -18,7 +18,7 @@ import (
 
 type HaSqliteContext struct {
 	// Config 配置参数
-	Config     *HaSqliteConfig
+	Config     *HaSqliteRaftConfig
 	fsm        *HaSqliteRaftFSM
 	Raft       *raft.Raft
 	Sock       net.Listener
@@ -29,7 +29,7 @@ type HaSqliteContext struct {
 }
 
 // StartHaSqliteBlockNonBlocking 启动服务非阻运行
-func StartHaSqliteBlockNonBlocking(config *HaSqliteConfig) (*HaSqliteContext, error) {
+func StartHaSqliteBlockNonBlocking(config *HaSqliteRaftConfig) (*HaSqliteContext, error) {
 	ctx, err := NewHaSqliteContext(config)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func StartHaSqliteBlockNonBlocking(config *HaSqliteConfig) (*HaSqliteContext, er
 	return ctx, err
 }
 
-func NewHaSqliteContext(config *HaSqliteConfig) (*HaSqliteContext, error) {
+func NewHaSqliteContext(config *HaSqliteRaftConfig) (*HaSqliteContext, error) {
 	ctx := context.Background()
 	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", config.LocalPort))
 	if err != nil {

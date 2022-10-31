@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 )
 
-func NewRaft(ctx context.Context, config *HaSqliteConfig, fsm raft.FSM) (*raft.Raft, *transport.Manager, error) {
+func NewRaft(ctx context.Context, config *HaSqliteRaftConfig, fsm raft.FSM) (*raft.Raft, *transport.Manager, error) {
 	c := raft.DefaultConfig()
 	c.LocalID = raft.ServerID(config.RaftId)
 

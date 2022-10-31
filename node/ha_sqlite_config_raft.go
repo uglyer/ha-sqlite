@@ -2,7 +2,7 @@ package node
 
 import "path"
 
-type HaSqliteConfig struct {
+type HaSqliteRaftConfig struct {
 	// Address TCP host+port for this node
 	Address string `mapstructure:"address" yaml:"address"`
 	// LocalPort TCP port for this node
@@ -19,6 +19,6 @@ type HaSqliteConfig struct {
 	JoinAddress string `mapstructure:"join-address" yaml:"join-address"`
 }
 
-func (c *HaSqliteConfig) NodeDataPath() string {
+func (c *HaSqliteRaftConfig) NodeDataPath() string {
 	return path.Join(c.DataPath, c.RaftId)
 }
