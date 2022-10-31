@@ -28,10 +28,10 @@ func ParseFlags() (*Config, error) {
 	viperConfig.AutomaticEnv()
 	if !tool.FSPathIsExist(configFile) {
 		// 设置默认值
-		viperConfig.SetDefault("ha_sqlite", map[string]interface{}{
+		viperConfig.SetDefault("ha-sqlite", map[string]interface{}{
 			"address":         "localhost:30051",
-			"data_path":       "data/",
-			"manager_db_path": "manager.db",
+			"data-path":       "data/",
+			"manager-db-path": "manager.db",
 		})
 		if autoGenerateFile {
 			err := viperConfig.WriteConfig()
