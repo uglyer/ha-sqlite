@@ -27,9 +27,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to parse local address (%q): %v", config.HaSqlite.Address, err)
 	}
-	sock, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
-		log.Fatalf("failed to listen (%d): %v", port, err)
+		log.Fatalf("failed to listen (%s): %v", port, err)
 	}
 	store, err := hadb.NewHaSqliteDBManager()
 	if err != nil {
@@ -37,6 +37,9 @@ func main() {
 	}
 	s := grpc.NewServer()
 	proto.RegisterDBServer(s, store)
+	go func() {
+		log.Printf("start server in (%s)", config.HaSqlite.Address)
+	}()
 	err = s.Serve(sock)
 	if err != nil {
 		log.Fatalf("failed to start serve (%q): %v", config.HaSqlite.Address, err)
