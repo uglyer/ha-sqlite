@@ -60,10 +60,10 @@ func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec("PRAGMA synchronous = OFF")
-	if err != nil {
-		return nil, fmt.Errorf("set synchronous = OFF error:%v", err)
-	}
+	//_, err = db.Exec("PRAGMA synchronous = OFF")
+	//if err != nil {
+	//	return nil, fmt.Errorf("set synchronous = OFF error:%v", err)
+	//}
 	_, err = db.Exec("PRAGMA journal_mode=WAL")
 	if err != nil {
 		return nil, fmt.Errorf("set journal_mode = WAL error:%v", err)
