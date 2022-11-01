@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen (%s): %v", port, err)
 	}
-	store, err := hadb.NewHaSqliteDBManager()
+	store, err := hadb.NewHaSqliteDBManagerWithConfig(&config.HaSqlite)
 	if err != nil {
 		log.Fatalf("failed to create db manager: %v", err)
 	}

@@ -19,32 +19,43 @@ type HaSqliteDBManager struct {
 	dbMap             map[int64]*HaSqliteDB
 	dbLockedMap       map[int64]int
 	defaultOnApplyWal func(b []byte) error
+	config            *HaSqliteConfig
 }
 
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
 
 func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
-	store, err := store.NewHaSqliteDBStore()
+	config := &HaSqliteConfig{
+		Address:       "",
+		DataPath:      "data",
+		ManagerDBPath: ":memory:",
+	}
+	return NewHaSqliteDBManagerWithConfig(config)
+}
+
+func NewHaSqliteDBManagerWithConfig(config *HaSqliteConfig) (*HaSqliteDBManager, error) {
+	s, err := store.NewHaSqliteDBStoreWithDataSourceName(config.ManagerDBPath)
 	if err != nil {
 		return nil, err
 	}
 	return &HaSqliteDBManager{
-		store:       store,
+		store:       s,
 		dbMap:       make(map[int64]*HaSqliteDB),
 		dbLockedMap: make(map[int64]int),
 		defaultOnApplyWal: func(b []byte) error {
 			return nil
 		},
+		config: config,
 	}, nil
 }
 
 func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqliteDBManager, error) {
-	store, err := store.NewHaSqliteDBStore()
+	s, err := store.NewHaSqliteDBStore()
 	if err != nil {
 		return nil, err
 	}
 	return &HaSqliteDBManager{
-		store:             store,
+		store:             s,
 		dbMap:             make(map[int64]*HaSqliteDB),
 		dbLockedMap:       make(map[int64]int),
 		defaultOnApplyWal: onApplyWal,
