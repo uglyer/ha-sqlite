@@ -31,12 +31,25 @@ const tableName = "ha_sqlite"
 
 // NewHaSqliteDBStore 创建新的数仓，会自动创建数据库
 func NewHaSqliteDBStore() (*HaSqliteDBStore, error) {
-	db, err := sql.Open("sqlite3", ":memory:")
+	return NewHaSqliteDBStoreWithDataSourceName(":memory:")
+}
+
+// NewHaSqliteDBStoreWithDataSourceName 创建新的数仓，会自动创建数据库
+func NewHaSqliteDBStoreWithDataSourceName(dataSourceName string) (*HaSqliteDBStore, error) {
+	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
+	_, err = db.Exec("PRAGMA synchronous = OFF")
+	if err != nil {
+		return nil, fmt.Errorf("set synchronous = OFF error:%v", err)
+	}
+	_, err = db.Exec("PRAGMA journal_mode=WAL")
+	if err != nil {
+		return nil, fmt.Errorf("set journal_mode = WAL error:%v", err)
+	}
 	return (&HaSqliteDBStore{db: db}).init()
 }
 
@@ -120,7 +133,11 @@ func (s *HaSqliteDBStore) init() (*HaSqliteDBStore, error) {
 	input := HaSqliteDBStoreDBItem{}
 	vType := reflect.TypeOf(input)
 	var fields []string
-	var indexSqlArray []string
+	var indexSqlArray []*struct {
+		sqlText   string
+		name      string
+		tableName string
+	}
 	for i := 0; i < vType.NumField(); i++ {
 		fieldValue := vType.Field(i).Tag.Get("sqlite3_field")
 		if fieldValue == "" || fieldValue == "-" {
@@ -141,15 +158,33 @@ func (s *HaSqliteDBStore) init() (*HaSqliteDBStore, error) {
 			continue
 		}
 		indexSql := fmt.Sprintf("CREATE %s \"%s_%s\" ON \"%s\" (\"%s\");", fieldIndex, tableName, fieldValue, tableName, fieldValue)
-		indexSqlArray = append(indexSqlArray, indexSql)
+		indexSqlArray = append(indexSqlArray, &struct {
+			sqlText   string
+			name      string
+			tableName string
+		}{sqlText: indexSql, name: fmt.Sprintf("%s_%s", tableName, fieldValue), tableName: tableName})
 	}
-	sqlText := fmt.Sprintf("CREATE TABLE %s (%s)", tableName, strings.Join(fields, ","))
+	sqlText := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, strings.Join(fields, ","))
 	_, err := s.db.Exec(sqlText)
 	if err != nil {
 		return nil, err
 	}
-	for _, sqlText := range indexSqlArray {
-		_, err := s.db.Exec(sqlText)
+	var indexCount int64
+	for _, indexSql := range indexSqlArray {
+		if err := s.db.QueryRow("select count(*) from sqlite_master where type = ? and name = ? and tbl_name = ?", "index", indexSql.name, indexSql.tableName).Scan(&indexCount); err != nil {
+			if err == sql.ErrNoRows {
+				_, err := s.db.Exec(indexSql.sqlText)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return nil, err
+		}
+		if indexCount != 0 {
+			continue
+		}
+		_, err := s.db.Exec(indexSql.sqlText)
 		if err != nil {
 			return nil, err
 		}
@@ -205,12 +240,12 @@ func (s *HaSqliteDBStore) CreateDBByPath(path string) (int64, error) {
 
 // RefDBUpdateTimeById 通过 id 刷新更新时间
 func (s *HaSqliteDBStore) RefDBUpdateTimeById(id int64) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	unix := time.Now().UnixMilli()
-	_, err := s.db.Exec("UPDATE ha_sqlite SET update_time = ? WHERE id = ?", unix, id)
-	if err != nil {
-		return fmt.Errorf("RefDBUpdateTimeById exec error:%v", err)
-	}
+	//s.mtx.Lock()
+	//defer s.mtx.Unlock()
+	//unix := time.Now().UnixMilli()
+	//_, err := s.db.Exec("UPDATE ha_sqlite SET update_time = ? WHERE id = ?", unix, id)
+	//if err != nil {
+	//	return fmt.Errorf("RefDBUpdateTimeById exec error:%v", err)
+	//}
 	return nil
 }
