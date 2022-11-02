@@ -81,7 +81,8 @@ func NewTeeWithRotate(topts []TeeOption, opts ...Option) *Logger {
 		})
 
 		core := zapcore.NewCore(
-			zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			//zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
 			zapcore.AddSync(w),
 			lv,
 		)
