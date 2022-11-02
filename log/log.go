@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -203,7 +204,22 @@ var (
 	DPanic = std.l.DPanic
 	Panic  = std.l.Panic
 	Fatal  = std.l.Fatal
-	Debug  = std.l.Debug
+	Infof  = func(format string, v ...interface{}) {
+		std.l.Info(fmt.Sprintf(format, v...))
+	}
+	Warnf = func(format string, v ...interface{}) {
+		std.l.Warn(fmt.Sprintf(format, v...))
+	}
+	Errorf = func(format string, v ...interface{}) {
+		std.l.Error(fmt.Sprintf(format, v...))
+	}
+	Panicf = func(format string, v ...interface{}) {
+		std.l.Panic(fmt.Sprintf(format, v...))
+	}
+	Fatalf = func(format string, v ...interface{}) {
+		std.l.Fatal(fmt.Sprintf(format, v...))
+	}
+	Debug = std.l.Debug
 
 	SugarDebug  = sugarStd.Debug
 	SugarInfo   = sugarStd.Info
