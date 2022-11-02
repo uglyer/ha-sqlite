@@ -15,27 +15,27 @@ func main() {
 	log.SetDefaultLogMode()
 	config, err := ParseFlags()
 	if err != nil {
-		log.Fatalf("failed to parse command-line flags: %s", err.Error())
+		log.Fatal(fmt.Sprintf("failed to parse command-line flags: %s", err.Error()))
 	}
 	_, port, err := net.SplitHostPort(config.HaSqlite.Address)
 	if err != nil {
-		log.Fatalf("failed to parse local address (%q): %v", config.HaSqlite.Address, err)
+		log.Fatal(fmt.Sprintf("failed to parse local address (%q): %v", config.HaSqlite.Address, err))
 	}
 	sock, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
-		log.Fatalf("failed to listen (%s): %v", port, err)
+		log.Fatal(fmt.Sprintf("failed to listen (%s): %v", port, err))
 	}
 	store, err := hadb.NewHaSqliteDBManagerWithConfig(&config.HaSqlite)
 	if err != nil {
-		log.Fatalf("failed to create db manager: %v", err)
+		log.Fatal(fmt.Sprintf("failed to create db manager: %v", err))
 	}
 	s := grpc.NewServer()
 	proto.RegisterDBServer(s, store)
 	go func() {
-		log.Infof("start server in (%s)", config.HaSqlite.Address)
+		log.Info(fmt.Sprintf("start server in (%s)", config.HaSqlite.Address))
 	}()
 	err = s.Serve(sock)
 	if err != nil {
-		log.Fatalf("failed to start serve (%q): %v", config.HaSqlite.Address, err)
+		log.Fatal(fmt.Sprintf("failed to start serve (%q): %v", config.HaSqlite.Address, err))
 	}
 }
