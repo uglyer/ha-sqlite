@@ -18,10 +18,13 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mkideal/cli v0.2.7
 	github.com/mkideal/pkg v0.1.3
+	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/shimingyah/pool v1.0.0
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.0
 	github.com/uglyer/go-sqlite3 v1.14.26
+	go.uber.org/zap v1.17.0
 	google.golang.org/protobuf v1.28.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
