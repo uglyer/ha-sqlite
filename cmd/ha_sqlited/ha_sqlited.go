@@ -3,22 +3,16 @@ package main
 import (
 	"fmt"
 	hadb "github.com/uglyer/ha-sqlite/db"
+	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/proto"
 	"google.golang.org/grpc"
-	"log"
 	"net"
-	"os"
 )
 
 const name = `ha-sqlited`
 
-func init() {
-	log.SetFlags(log.LstdFlags)
-	log.SetOutput(os.Stderr)
-	log.SetPrefix(fmt.Sprintf("[%s] ", name))
-}
-
 func main() {
+	log.SetDefaultLogMode()
 	config, err := ParseFlags()
 	if err != nil {
 		log.Fatalf("failed to parse command-line flags: %s", err.Error())
@@ -38,7 +32,7 @@ func main() {
 	s := grpc.NewServer()
 	proto.RegisterDBServer(s, store)
 	go func() {
-		log.Printf("start server in (%s)", config.HaSqlite.Address)
+		log.Infof("start server in (%s)", config.HaSqlite.Address)
 	}()
 	err = s.Serve(sock)
 	if err != nil {
