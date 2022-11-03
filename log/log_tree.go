@@ -67,9 +67,7 @@ func NewTeeWithRotate(topts []TeeOption, opts ...Option) *Logger {
 
 	for _, topt := range topts {
 		topt := topt
-		lv := zap.LevelEnablerFunc(func(lvl Level) bool {
-			return topt.Lef(lvl)
-		})
+		lv := zap.LevelEnablerFunc(topt.Lef)
 
 		w := zapcore.AddSync(&lumberjack.Logger{
 			Filename:   topt.Filename,
