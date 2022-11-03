@@ -12,11 +12,11 @@ import (
 const name = `ha-sqlited`
 
 func main() {
-	log.SetDefaultLogMode()
 	config, err := ParseFlags()
 	if err != nil {
 		log.Fatal(fmt.Sprintf("failed to parse command-line flags: %s", err.Error()))
 	}
+	log.SetDefaultLogMode(config.Log)
 	_, port, err := net.SplitHostPort(config.HaSqlite.Address)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("failed to parse local address (%q): %v", config.HaSqlite.Address, err))
@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Sprintf("failed to listen (%s): %v", port, err))
 	}
-	store, err := hadb.NewHaSqliteDBManagerWithConfig(&config.HaSqlite)
+	store, err := hadb.NewHaSqliteDBManagerWithConfig(config.HaSqlite)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("failed to create db manager: %v", err))
 	}

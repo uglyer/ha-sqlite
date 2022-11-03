@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"github.com/uglyer/ha-sqlite/db"
+	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/tool"
 )
 
 type Config struct {
-	HaSqlite db.HaSqliteConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
+	HaSqlite *db.HaSqliteConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
+	Log      *log.LogConfig     `mapstructure:"log" yaml:"log"`
 }
 
 // ParseFlags parses the command line, and returns the configuration.
@@ -26,13 +28,28 @@ func ParseFlags() (*Config, error) {
 	viperConfig.SetConfigFile(configFile)
 	viperConfig.AddConfigPath(".")
 	viperConfig.AutomaticEnv()
+	// 设置默认值
+	viperConfig.SetDefault("ha-sqlite", map[string]interface{}{
+		"address":         "localhost:30051",
+		"data-path":       "data/",
+		"manager-db-path": "manager.db",
+	})
+	viperConfig.SetDefault("log", map[string]interface{}{
+		"path": "log",
+		"access-option": map[string]interface{}{
+			"max-size":    1,
+			"max-age":     1,
+			"max-backups": 3,
+			"compress":    true,
+		},
+		"error-option": map[string]interface{}{
+			"max-size":    1,
+			"max-age":     1,
+			"max-backups": 3,
+			"compress":    true,
+		},
+	})
 	if !tool.FSPathIsExist(configFile) {
-		// 设置默认值
-		viperConfig.SetDefault("ha-sqlite", map[string]interface{}{
-			"address":         "localhost:30051",
-			"data-path":       "data/",
-			"manager-db-path": "manager.db",
-		})
 		if autoGenerateFile {
 			err := viperConfig.WriteConfig()
 			if err != nil {
