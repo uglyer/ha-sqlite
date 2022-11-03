@@ -12,10 +12,10 @@ import (
 type LevelEnableFunc func(lvl Level) bool
 
 type RotateOption struct {
-	MaxSize    int
-	MaxAge     int
-	MaxBackups int
-	Compress   bool
+	MaxSize    int  `mapstructure:"max-size" yaml:"max-size"`
+	MaxAge     int  `mapstructure:"max-age" yaml:"max-age"`
+	MaxBackups int  `mapstructure:"max-backups" yaml:"max-backups"`
+	Compress   bool `mapstructure:"compress" yaml:"compress"`
 }
 
 type TeeOption struct {
