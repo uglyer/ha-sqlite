@@ -35,7 +35,8 @@ func ParseFlags() (*Config, error) {
 		"manager-db-path": "manager.db",
 	})
 	viperConfig.SetDefault("log", map[string]interface{}{
-		"path": "log",
+		"path":          "log",
+		"console-level": "info",
 		"access-option": map[string]interface{}{
 			"max-size":    1,
 			"max-age":     1,
