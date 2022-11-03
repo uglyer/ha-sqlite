@@ -16,28 +16,37 @@ type LogConfig struct {
 // SetDefaultLogMode 设置默认大日志模式
 func SetDefaultLogMode(config *LogConfig) {
 	var consoleLevel Level
+	var accessLogLevel Level
+	var errorLogLevel Level
 	err := consoleLevel.Set(config.ConsoleLevel)
 	if err != nil {
 		log.Fatalf("consoleLevel set error:%v", err)
 	}
-	log.Printf("consoleLevel:%v", consoleLevel)
+	err = accessLogLevel.Set(config.AccessOption.Level)
+	if err != nil {
+		log.Fatalf("accessLogLevel set error:%v", err)
+	}
+	err = errorLogLevel.Set(config.ErrorOption.Level)
+	if err != nil {
+		log.Fatalf("errorLogLevel set error:%v", err)
+	}
 	var tops = []TeeOption{
 		{
 			Filename: path.Join(config.Path, "access.log"),
 			Ropt:     *config.AccessOption,
 			Lef: func(lvl Level) bool {
-				return lvl <= InfoLevel
+				return lvl <= accessLogLevel
 			},
 		},
 		{
 			Filename: path.Join(config.Path, "error.log"),
 			Ropt:     *config.ErrorOption,
 			Lef: func(lvl Level) bool {
-				return lvl > InfoLevel
+				return lvl > errorLogLevel
 			},
 		},
 	}
 
-	logger := NewTeeWithRotate(tops)
+	logger := NewTeeWithRotate(tops, consoleLevel)
 	ResetDefault(logger)
 }

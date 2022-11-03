@@ -38,12 +38,14 @@ func ParseFlags() (*Config, error) {
 		"path":          "log",
 		"console-level": "info",
 		"access-option": map[string]interface{}{
+			"level":       "info",
 			"max-size":    1,
 			"max-age":     1,
 			"max-backups": 3,
 			"compress":    true,
 		},
 		"error-option": map[string]interface{}{
+			"level":       "warn",
 			"max-size":    1,
 			"max-age":     1,
 			"max-backups": 3,
