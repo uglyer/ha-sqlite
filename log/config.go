@@ -11,7 +11,6 @@ type LogConfig struct {
 
 // SetDefaultLogMode 设置默认大日志模式
 func SetDefaultLogMode(config *LogConfig) {
-	println(config.ErrorOption.MaxAge)
 	var tops = []TeeOption{
 		{
 			Filename: path.Join(config.Path, "access.log"),
