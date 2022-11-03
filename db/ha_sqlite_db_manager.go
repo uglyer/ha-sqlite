@@ -174,7 +174,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	log.Debug(fmt.Sprintf("Exec(%d):%v", req.Request.DbId, req.Request.Statements))
 	resp, err := db.Exec(c, req)
 	if err != nil {
-		log.Warn(fmt.Sprintf("Exec error(%d):%v", req.Request.DbId, req.Request.Statements))
+		log.Error(fmt.Sprintf("Exec error(%d):%v", req.Request.DbId, req.Request.Statements))
 	}
 	return resp, err
 }
@@ -187,7 +187,11 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 	}
 	defer d.TryClose(req.Request.DbId)
 	log.Debug(fmt.Sprintf("Query(%d):%v", req.Request.DbId, req.Request.Statements))
-	return db.Query(c, req)
+	resp, err := db.Query(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.Request.DbId, req.Request.Statements))
+	}
+	return resp, err
 }
 
 // BeginTx 开始事务执行
@@ -197,7 +201,11 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
 	log.Debug(fmt.Sprintf("BeginTx(%d):%v", req.DbId, req.Type))
-	return db.BeginTx(c, req)
+	resp, err := db.BeginTx(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+	}
+	return resp, err
 }
 
 // FinishTx 开始事务执行
@@ -208,7 +216,11 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 	}
 	defer d.TryClose(req.DbId)
 	log.Debug(fmt.Sprintf("FinishTx(%d):%v", req.DbId, req.Type))
-	return db.FinishTx(c, req)
+	resp, err := db.FinishTx(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+	}
+	return resp, err
 }
 
 // ApplyWal 应用日志
@@ -217,6 +229,7 @@ func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) er
 	if !ok || err != nil {
 		return fmt.Errorf("get db error : %d,err:%v", dbId, err)
 	}
+	log.Debug(fmt.Sprintf("ApplyWal(%d):%v", dbId, len(b)))
 	defer d.TryClose(dbId)
 	return db.ApplyWal(c, b)
 }
