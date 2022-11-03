@@ -175,6 +175,8 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 	resp, err := db.Exec(c, req)
 	if err != nil {
 		log.Error(fmt.Sprintf("Exec error(%d):%v", req.Request.DbId, req.Request.Statements))
+	} else if len(resp.Result) > 0 && resp.Result[0].Error != "" {
+		log.Warn(fmt.Sprintf("Exec failed(%d):%v resp:%s", req.Request.DbId, req.Request.Statements, resp.Result[0].Error))
 	}
 	return resp, err
 }
@@ -190,6 +192,8 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 	resp, err := db.Query(c, req)
 	if err != nil {
 		log.Error(fmt.Sprintf("Query error(%d):%v", req.Request.DbId, req.Request.Statements))
+	} else if len(resp.Result) > 0 && resp.Result[0].Error != "" {
+		log.Warn(fmt.Sprintf("Query failed(%d):%v resp:%s", req.Request.DbId, req.Request.Statements, resp.Result[0].Error))
 	}
 	return resp, err
 }
