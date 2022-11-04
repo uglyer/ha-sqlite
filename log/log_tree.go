@@ -12,10 +12,11 @@ import (
 type LevelEnableFunc func(lvl Level) bool
 
 type RotateOption struct {
-	MaxSize    int
-	MaxAge     int
-	MaxBackups int
-	Compress   bool
+	MaxSize    int    `mapstructure:"max-size" yaml:"max-size"`
+	MaxAge     int    `mapstructure:"max-age" yaml:"max-age"`
+	MaxBackups int    `mapstructure:"max-backups" yaml:"max-backups"`
+	Compress   bool   `mapstructure:"compress" yaml:"compress"`
+	Level      string `mapstructure:"level" yaml:"level"`
 }
 
 type TeeOption struct {
@@ -58,7 +59,7 @@ func NewTee(topts []TeeOption, opts ...Option) *Logger {
 	return logger
 }
 
-func NewTeeWithRotate(topts []TeeOption, opts ...Option) *Logger {
+func NewTeeWithRotate(topts []TeeOption, consoleLevel Level, opts ...Option) *Logger {
 	var zcores []zapcore.Core
 	cfg := zap.NewProductionConfig()
 	cfg.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
@@ -67,9 +68,7 @@ func NewTeeWithRotate(topts []TeeOption, opts ...Option) *Logger {
 
 	for _, topt := range topts {
 		topt := topt
-		lv := zap.LevelEnablerFunc(func(lvl Level) bool {
-			return topt.Lef(lvl)
-		})
+		lv := zap.LevelEnablerFunc(topt.Lef)
 
 		w := zapcore.AddSync(&lumberjack.Logger{
 			Filename:   topt.Filename,
@@ -92,7 +91,7 @@ func NewTeeWithRotate(topts []TeeOption, opts ...Option) *Logger {
 		//zapcore.NewJSONEncoder(cfg.EncoderConfig),
 		zapcore.NewConsoleEncoder(cfg.EncoderConfig),
 		zapcore.AddSync(os.Stderr),
-		zapcore.Level(InfoLevel),
+		zapcore.Level(consoleLevel),
 	)
 	zcores = append(zcores, core)
 	opts = append(opts, WithCaller(true))

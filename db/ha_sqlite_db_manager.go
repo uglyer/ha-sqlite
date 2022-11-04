@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/uglyer/ha-sqlite/db/store"
+	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/proto"
-	"log"
 	"sync"
 	"time"
 )
@@ -68,6 +68,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	defer d.mtx.Unlock()
 	token, ok, err := d.store.GetDBIdByPath(req.Dsn)
 	if err != nil {
+		log.Error(fmt.Sprintf("failed to GetDBIdByPath(%s):%v", req.Dsn, err))
 		return nil, errors.Wrap(err, "failed to GetDBIdByPath NewHaSqliteDBManager")
 	}
 	if ok {
@@ -75,17 +76,20 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	}
 	db, err := NewHaSqliteDB(req.Dsn)
 	if err != nil {
+		log.Error(fmt.Sprintf("failed to Open NewHaSqliteDBManager(%s):%v", req.Dsn, err))
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
 	defer func() {
 		closed, _ := db.TryClose()
 		if !closed {
+			log.Warn(fmt.Sprintf("failed to Open TryClose(%s):%v", req.Dsn, err))
 			db.InitWalHook(d.defaultOnApplyWal)
 			d.dbMap[token] = db
 		}
 	}()
 	token, err = d.store.CreateDBByPath(req.Dsn)
 	if err != nil {
+		log.Error(fmt.Sprintf("failed to Open CreateDBByPath(%s):%v", req.Dsn, err))
 		return nil, errors.Wrap(err, "failed to CreateDBByPath NewHaSqliteDBManager")
 	}
 	return &proto.OpenResponse{DbId: token}, nil
@@ -98,6 +102,7 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	if ok {
 		err := d.store.RefDBUpdateTimeById(dbId)
 		if err != nil {
+			log.Error(fmt.Sprintf("failed to RefDBUpdateTimeById(%d):%v", dbId, err))
 			return nil, false, err
 		}
 		if lockedCount, ok := d.dbLockedMap[dbId]; ok {
@@ -109,10 +114,12 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 	}
 	path, err := d.store.GetDBPathById(dbId)
 	if err != nil {
+		log.Error(fmt.Sprintf("failed to GetDBPathById(%d):%v", dbId, err))
 		return nil, false, err
 	}
 	db, err = NewHaSqliteDB(path)
 	if err != nil {
+		log.Error(fmt.Sprintf("failed to open database NewHaSqliteDBManager(%s):%v", path, err))
 		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
 	db.InitWalHook(d.defaultOnApplyWal)
@@ -145,7 +152,7 @@ func (d *HaSqliteDBManager) TryClose(dbId int64) {
 	if ok {
 		delete(d.dbMap, dbId)
 		if err != nil {
-			log.Printf("TryClose error(%d):%v", dbId, err)
+			log.Warn(fmt.Sprintf("TryClose error(%d):%v", dbId, err))
 		}
 	}
 }
@@ -164,7 +171,14 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return db.Exec(c, req)
+	log.Debug(fmt.Sprintf("Exec(%d):%v", req.Request.DbId, req.Request.Statements))
+	resp, err := db.Exec(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Exec error(%d):%v", req.Request.DbId, req.Request.Statements))
+	} else if len(resp.Result) > 0 && resp.Result[0].Error != "" {
+		log.Warn(fmt.Sprintf("Exec failed(%d):%v resp:%s", req.Request.DbId, req.Request.Statements, resp.Result[0].Error))
+	}
+	return resp, err
 }
 
 // Query 查询记录
@@ -174,7 +188,14 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return db.Query(c, req)
+	log.Debug(fmt.Sprintf("Query(%d):%v", req.Request.DbId, req.Request.Statements))
+	resp, err := db.Query(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.Request.DbId, req.Request.Statements))
+	} else if len(resp.Result) > 0 && resp.Result[0].Error != "" {
+		log.Warn(fmt.Sprintf("Query failed(%d):%v resp:%s", req.Request.DbId, req.Request.Statements, resp.Result[0].Error))
+	}
+	return resp, err
 }
 
 // BeginTx 开始事务执行
@@ -183,7 +204,12 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
-	return db.BeginTx(c, req)
+	log.Debug(fmt.Sprintf("BeginTx(%d):%v", req.DbId, req.Type))
+	resp, err := db.BeginTx(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+	}
+	return resp, err
 }
 
 // FinishTx 开始事务执行
@@ -193,7 +219,12 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
 	}
 	defer d.TryClose(req.DbId)
-	return db.FinishTx(c, req)
+	log.Debug(fmt.Sprintf("FinishTx(%d):%v", req.DbId, req.Type))
+	resp, err := db.FinishTx(c, req)
+	if err != nil {
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+	}
+	return resp, err
 }
 
 // ApplyWal 应用日志
@@ -202,6 +233,7 @@ func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) er
 	if !ok || err != nil {
 		return fmt.Errorf("get db error : %d,err:%v", dbId, err)
 	}
+	log.Debug(fmt.Sprintf("ApplyWal(%d):%v", dbId, len(b)))
 	defer d.TryClose(dbId)
 	return db.ApplyWal(c, b)
 }
