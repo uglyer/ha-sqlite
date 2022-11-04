@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/uglyer/ha-sqlite/proto";
+
+service StreamTest {
+  rpc PingDoubleStream(stream StreamPingRequest) returns (stream StreamPingResponse) {}
+  rpc PingStream(StreamPingRequest) returns (stream StreamPingResponse) {}
+}
+
+message StreamPingRequest {
+  int64 timestamp = 1;
+}
+
+message StreamPingResponse {
+  int64 timestamp = 1;
+}
