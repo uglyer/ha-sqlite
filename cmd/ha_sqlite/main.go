@@ -15,6 +15,7 @@ type argT struct {
 	cli.Helper
 	Address string `cli:"a,address" usage:"ha-sqlite address" dft:"multi:///localhost:30051,localhost:30052,localhost:30053/test.db"`
 	Version bool   `cli:"v,version" usage:"display CLI version"`
+	Debug   bool   `cli:"d,debug" usage:"debug"`
 }
 
 const version = "0.1.0"
@@ -40,24 +41,26 @@ func main() {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
 			return nil
 		}
-		// todo 连续执行插入语句响应过慢
-		startT := time.Now()
-		var wg sync.WaitGroup
-		for i := 0; i < 1000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
-				//rows, err := client.db.Query("select count(*) from foo")
-				//if err != nil {
-				//	return
-				//}
-				//rows.Close()
-			}()
+		if argv.Debug {
+			// todo 连续执行插入语句响应过慢
+			startT := time.Now()
+			var wg sync.WaitGroup
+			for i := 0; i < 1000; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					client.exec(ctx, "INSERT INTO foo(name) VALUES(\"xxx\")")
+					//rows, err := client.db.Query("select count(*) from foo")
+					//if err != nil {
+					//	return
+					//}
+					//rows.Close()
+				}()
+			}
+			wg.Wait()
+			tc := time.Since(startT) //计算耗时
+			fmt.Printf("time cost = %v\n", tc)
 		}
-		wg.Wait()
-		tc := time.Since(startT) //计算耗时
-		fmt.Printf("time cost = %v\n", tc)
 	FOR_READ:
 		for {
 			term.Reopen()
