@@ -7,6 +7,7 @@ import (
 	"github.com/uglyer/ha-sqlite/db/store"
 	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/proto"
+	"path"
 	"sync"
 	"time"
 )
@@ -74,7 +75,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	if ok {
 		return &proto.OpenResponse{DbId: token}, nil
 	}
-	db, err := NewHaSqliteDB(req.Dsn)
+	db, err := NewHaSqliteDB(path.Join(d.config.DataPath, req.Dsn))
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to Open NewHaSqliteDBManager(%s):%v", req.Dsn, err))
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
@@ -112,14 +113,14 @@ func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
 		}
 		return db, ok, nil
 	}
-	path, err := d.store.GetDBPathById(dbId)
+	dsn, err := d.store.GetDBPathById(dbId)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to GetDBPathById(%d):%v", dbId, err))
 		return nil, false, err
 	}
-	db, err = NewHaSqliteDB(path)
+	db, err = NewHaSqliteDB(path.Join(d.config.DataPath, dsn))
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to open database NewHaSqliteDBManager(%s):%v", path, err))
+		log.Error(fmt.Sprintf("failed to open database NewHaSqliteDBManager(%s):%v", dsn, err))
 		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
 	db.InitWalHook(d.defaultOnApplyWal)
