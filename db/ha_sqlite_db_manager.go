@@ -203,29 +203,29 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	db, ok, err := d.GetDB(req.DbId)
+	db, ok, err := d.GetDB(req.Request.DbId)
 	if !ok || err != nil {
-		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
-	log.Debug(fmt.Sprintf("BeginTx(%d):%v", req.DbId, req.Type))
+	log.Debug(fmt.Sprintf("BeginTx(%d):%v", req.Request.DbId, req.Type))
 	resp, err := db.BeginTx(c, req)
 	if err != nil {
-		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.Request.DbId, req.Type))
 	}
 	return resp, err
 }
 
 // FinishTx 开始事务执行
 func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	db, ok, err := d.GetDB(req.DbId)
+	db, ok, err := d.GetDB(req.Request.DbId)
 	if !ok || err != nil {
-		return nil, fmt.Errorf("get db error : %d,err:%v", req.DbId, err)
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
-	defer d.TryClose(req.DbId)
-	log.Debug(fmt.Sprintf("FinishTx(%d):%v", req.DbId, req.Type))
+	defer d.TryClose(req.Request.DbId)
+	log.Debug(fmt.Sprintf("FinishTx(%d):%v", req.Request.DbId, req.Type))
 	resp, err := db.FinishTx(c, req)
 	if err != nil {
-		log.Error(fmt.Sprintf("Query error(%d):%v", req.DbId, req.Type))
+		log.Error(fmt.Sprintf("Query error(%d):%v", req.Request.DbId, req.Type))
 	}
 	return resp, err
 }

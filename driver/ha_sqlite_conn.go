@@ -142,7 +142,9 @@ func (c *HaSqliteConn) Begin() (driver.Tx, error) {
 func (c *HaSqliteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	resp, err := c.Client.BeginTx(ctx, &proto.BeginTxRequest{
 		Type: proto.BeginTxRequest_TX_TYPE_BEGIN_LevelLinearizable,
-		DbId: c.dbId,
+		Request: &proto.Request{
+			DbId: c.dbId,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("BeginTx error: %v", err)
@@ -156,9 +158,11 @@ func (tx *HaSqliteConn) finishTx(finishType proto.FinishTxRequest_Type) error {
 		tx.txToken = ""
 	}()
 	req := &proto.FinishTxRequest{
-		Type:    finishType,
-		TxToken: tx.txToken,
-		DbId:    tx.dbId,
+		Type: finishType,
+		Request: &proto.Request{
+			DbId:    tx.dbId,
+			TxToken: tx.txToken,
+		},
 	}
 	_, err := tx.Client.FinishTx(context.Background(), req)
 	return err

@@ -87,7 +87,9 @@ func (store *Store) beginTx() {
 	resp, err := store.db.BeginTx(context.Background(),
 		&proto.BeginTxRequest{
 			Type: proto.BeginTxRequest_TX_TYPE_BEGIN_LevelDefault,
-			DbId: store.id,
+			Request: &proto.Request{
+				DbId: store.id,
+			},
 		},
 	)
 	assert.Nil(store.t, err)
@@ -98,9 +100,11 @@ func (store *Store) beginTx() {
 func (store *Store) finishTx(txType proto.FinishTxRequest_Type) {
 	_, err := store.db.FinishTx(context.Background(),
 		&proto.FinishTxRequest{
-			Type:    txType,
-			DbId:    store.id,
-			TxToken: store.txToken,
+			Type: txType,
+			Request: &proto.Request{
+				DbId:    store.id,
+				TxToken: store.txToken,
+			},
 		},
 	)
 	assert.Nil(store.t, err)

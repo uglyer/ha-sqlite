@@ -370,12 +370,12 @@ func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*p
 	defer d.addUseCount(-1)
 	d.txMtx.Lock()
 	defer d.txMtx.Unlock()
-	tx, ok := d.txMap[req.TxToken]
+	tx, ok := d.txMap[req.Request.TxToken]
 	if !ok {
-		return nil, fmt.Errorf("finishTx get tx error:%s", req.TxToken)
+		return nil, fmt.Errorf("finishTx get tx error:%s", req.Request.TxToken)
 	}
 	defer func() {
-		delete(d.txMap, req.TxToken)
+		delete(d.txMap, req.Request.TxToken)
 	}()
 	if req.Type == proto.FinishTxRequest_TX_TYPE_COMMIT {
 		err := tx.Commit()
