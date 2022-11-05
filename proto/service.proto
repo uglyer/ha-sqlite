@@ -5,6 +5,7 @@ option go_package = "github.com/uglyer/ha-sqlite/proto";
 service DB {
   rpc Ping(PingRequest) returns (PingResponse) {}
   rpc Open(OpenRequest) returns (OpenResponse) {}
+  rpc DBInfo(DBInfoRequest) returns (DBInfoResponse) {}
   rpc Exec(ExecRequest) returns (ExecResponse) {}
   rpc Query(QueryRequest) returns (QueryResponse) {}
   rpc BeginTx(BeginTxRequest) returns (BeginTxResponse) {}
@@ -73,6 +74,20 @@ message OpenRequest {
 
 message OpenResponse {
   int64 db_id = 1;
+}
+
+message DBInfoRequest {
+  //  db_id > 0 时候优先使用 db_id 查询
+  int64 db_id = 1;
+  string dsn = 2;
+}
+
+message DBInfoResponse {
+  int64 db_id = 1;
+  string dsn = 2;
+  int64 version = 3;
+  int64 create_time = 4;
+  int64 update_time = 5;
 }
 
 message ExecRequest {
