@@ -28,7 +28,7 @@ type HaSqliteDBManager struct {
 func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 	config := &HaSqliteConfig{
 		Address:       "",
-		DataPath:      "data",
+		DataPath:      "",
 		ManagerDBPath: ":memory:",
 	}
 	return NewHaSqliteDBManagerWithConfig(config)
