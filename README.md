@@ -95,7 +95,7 @@ sqlite 为库级锁，通常单场景的同时写入并发不会太大，一个�
 ### 为什么基于sqlite
 
 - sqlite足够轻量且高性能
-- 前端可以基于sqlite实现 Store (类似 redux/mobx.js)
+- 前端可以基于sqlite实现状态管理 [StoreLite.js](https://github.com/uglyer/storelite.js) (类似 redux/mobx.js)
 
 ### 有什么好处
 
