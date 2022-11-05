@@ -67,6 +67,7 @@ func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqlite
 func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+	log.Info(fmt.Sprintf("db open:%v", req.Dsn))
 	token, ok, err := d.store.GetDBIdByPath(req.Dsn)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to GetDBIdByPath(%s):%v", req.Dsn, err))
