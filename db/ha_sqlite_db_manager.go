@@ -23,15 +23,16 @@ type HaSqliteDBManager struct {
 	config            *HaSqliteConfig
 }
 
+var defaultHaSqliteConfig = &HaSqliteConfig{
+	Address:       "",
+	DataPath:      "",
+	ManagerDBPath: ":memory:",
+}
+
 // TODO 使用系统信息管理 db(memory or disk) 用于存放dsn、dbId、本地文件路径、拉取状态(本地、S3远端)、版本号、最后一次更新时间、最后一次查询时间、快照版本 等信息
 
 func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
-	config := &HaSqliteConfig{
-		Address:       "",
-		DataPath:      "",
-		ManagerDBPath: ":memory:",
-	}
-	return NewHaSqliteDBManagerWithConfig(config)
+	return NewHaSqliteDBManagerWithConfig(defaultHaSqliteConfig)
 }
 
 func NewHaSqliteDBManagerWithConfig(config *HaSqliteConfig) (*HaSqliteDBManager, error) {
@@ -60,6 +61,7 @@ func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqlite
 		dbMap:             make(map[int64]*HaSqliteDB),
 		dbLockedMap:       make(map[int64]int),
 		defaultOnApplyWal: onApplyWal,
+		config:            defaultHaSqliteConfig,
 	}, nil
 }
 
@@ -67,7 +69,8 @@ func NewHaSqliteDBManagerWithDefault(onApplyWal func(b []byte) error) (*HaSqlite
 func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*proto.OpenResponse, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	log.Info(fmt.Sprintf("db open:%v", req.Dsn))
+	dbPath := path.Join(d.config.DataPath, req.Dsn)
+	log.Info(fmt.Sprintf("db open:%v,path:%v", req.Dsn, dbPath))
 	token, ok, err := d.store.GetDBIdByPath(req.Dsn)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to GetDBIdByPath(%s):%v", req.Dsn, err))
@@ -76,7 +79,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	if ok {
 		return &proto.OpenResponse{DbId: token}, nil
 	}
-	db, err := NewHaSqliteDB(path.Join(d.config.DataPath, req.Dsn))
+	db, err := NewHaSqliteDB(dbPath)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to Open NewHaSqliteDBManager(%s):%v", req.Dsn, err))
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
