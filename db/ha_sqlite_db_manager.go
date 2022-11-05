@@ -89,6 +89,7 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 			d.dbMap[token] = db
 		}
 	}()
+	log.Info(fmt.Sprintf("db create:%v", req.Dsn))
 	token, err = d.store.CreateDBByPath(req.Dsn)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to Open CreateDBByPath(%s):%v", req.Dsn, err))
