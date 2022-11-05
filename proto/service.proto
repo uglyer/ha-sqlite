@@ -124,7 +124,7 @@ message BeginTxRequest {
   }
   Type type = 1;
   bool readonly = 2;
-  int64 db_id = 3;
+  Request request = 3;
 }
 
 message BeginTxResponse {
@@ -137,8 +137,7 @@ message FinishTxRequest {
     TX_TYPE_ROLLBACK = 1;
   }
   Type type = 1;
-  string tx_token = 2;
-  int64 db_id = 3;
+  Request request = 2;
 }
 
 message FinishTxResponse {
