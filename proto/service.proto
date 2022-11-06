@@ -64,8 +64,9 @@ message Statement {
 
 message Request {
   int64 db_id = 1;
-  string tx_token = 2;
-  repeated Statement statements = 3;
+  string dsn = 2;
+  string tx_token = 3;
+  repeated Statement statements = 4;
 }
 
 message OpenRequest {
