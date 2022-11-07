@@ -126,14 +126,17 @@ func (d *HaSqliteDBManager) GetDB(req *proto.Request) (*HaSqliteDB, bool, error)
 		}
 		return db, ok, nil
 	}
-	dsn, err := d.store.GetDBPathById(dbId)
-	if err != nil {
-		log.Error(fmt.Sprintf("failed to GetDBPathById(%d):%v", dbId, err))
-		return nil, false, err
+	if req.Dsn == "" {
+		dsn, err := d.store.GetDBPathById(dbId)
+		if err != nil {
+			log.Error(fmt.Sprintf("failed to GetDBPathById(%d):%v", dbId, err))
+			return nil, false, err
+		}
+		req.Dsn = dsn
 	}
-	db, err = NewHaSqliteDB(path.Join(d.config.DataPath, dsn))
+	db, err := NewHaSqliteDB(path.Join(d.config.DataPath, req.Dsn))
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to open database NewHaSqliteDBManager(%s):%v", dsn, err))
+		log.Error(fmt.Sprintf("failed to open database NewHaSqliteDBManager(%s):%v", req.Dsn, err))
 		return nil, false, errors.Wrap(err, "failed to open database NewHaSqliteDBManager")
 	}
 	db.InitWalHook(d.defaultOnApplyWal)
