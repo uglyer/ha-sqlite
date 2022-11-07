@@ -235,11 +235,12 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 
 // ApplyWal 应用日志
 func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) error {
-	db, ok, err := d.GetDB(dbId)
-	if !ok || err != nil {
-		return fmt.Errorf("get db error : %d,err:%v", dbId, err)
-	}
-	log.Debug(fmt.Sprintf("ApplyWal(%d):%v", dbId, len(b)))
-	defer d.TryClose(dbId)
-	return db.ApplyWal(c, b)
+	return fmt.Errorf("ApplyWal is deprecated")
+	//db, ok, err := d.GetDB(dbId)
+	//if !ok || err != nil {
+	//	return fmt.Errorf("get db error : %d,err:%v", dbId, err)
+	//}
+	//log.Debug(fmt.Sprintf("ApplyWal(%d):%v", dbId, len(b)))
+	//defer d.TryClose(dbId)
+	//return db.ApplyWal(c, b)
 }
