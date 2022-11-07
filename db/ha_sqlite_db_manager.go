@@ -101,9 +101,17 @@ func (d *HaSqliteDBManager) Open(c context.Context, req *proto.OpenRequest) (*pr
 	return &proto.OpenResponse{DbId: token}, nil
 }
 
-func (d *HaSqliteDBManager) GetDB(dbId int64) (*HaSqliteDB, bool, error) {
+func (d *HaSqliteDBManager) GetDB(req *proto.Request) (*HaSqliteDB, bool, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+	var dbId = req.DbId
+	if req.Dsn != "" {
+		id, ok, err := d.store.GetDBIdByPath(req.Dsn)
+		if !ok {
+			return nil, false, fmt.Errorf("get db id by path error:%v", err)
+		}
+		dbId = id
+	}
 	db, ok := d.dbMap[dbId]
 	if ok {
 		err := d.store.RefDBUpdateTimeById(dbId)
@@ -172,7 +180,7 @@ func (ctx *HaSqliteDBManager) Ping(c context.Context, req *proto.PingRequest) (*
 
 // Exec 执行数据库命令
 func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {
-	db, ok, err := d.GetDB(req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
@@ -189,7 +197,7 @@ func (d *HaSqliteDBManager) Exec(c context.Context, req *proto.ExecRequest) (*pr
 
 // Query 查询记录
 func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*proto.QueryResponse, error) {
-	db, ok, err := d.GetDB(req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
@@ -206,7 +214,7 @@ func (d *HaSqliteDBManager) Query(c context.Context, req *proto.QueryRequest) (*
 
 // BeginTx 开始事务执行
 func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest) (*proto.BeginTxResponse, error) {
-	db, ok, err := d.GetDB(req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
@@ -220,7 +228,7 @@ func (d *HaSqliteDBManager) BeginTx(c context.Context, req *proto.BeginTxRequest
 
 // FinishTx 开始事务执行
 func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxRequest) (*proto.FinishTxResponse, error) {
-	db, ok, err := d.GetDB(req.Request.DbId)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
