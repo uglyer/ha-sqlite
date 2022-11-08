@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
+	"github.com/uglyer/ha-sqlite/proto"
 	"reflect"
 	"strings"
 	"sync"
@@ -248,4 +249,13 @@ func (s *HaSqliteDBStore) RefDBUpdateTimeById(id int64) error {
 	//	return fmt.Errorf("RefDBUpdateTimeById exec error:%v", err)
 	//}
 	return nil
+}
+
+// GetDBInfo 获取数据库信息
+func (s *HaSqliteDBStore) GetDBInfo(request *proto.DBInfoRequest) (resp *proto.DBInfoResponse, err error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	query := "select id,path,version,create_time,update_time from ha_sqlite where id = ? or path = ? limit 1 "
+	err = s.db.QueryRow(query, request.GetDbId(), request.GetDsn()).Scan(&resp.DbId, &resp.Dsn, &resp.Version, &resp.CreateTime, &resp.UpdateTime)
+	return
 }

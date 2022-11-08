@@ -255,3 +255,7 @@ func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) er
 	//defer d.TryClose(dbId)
 	//return db.ApplyWal(c, b)
 }
+
+func (d *HaSqliteDBManager) DBInfo(ctx context.Context, request *proto.DBInfoRequest) (*proto.DBInfoResponse, error) {
+	return d.store.GetDBInfo(request)
+}
