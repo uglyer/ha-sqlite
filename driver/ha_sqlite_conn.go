@@ -206,6 +206,10 @@ func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, er
 
 // QueryContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	row, err, ok := c.parseHAQuerySql(query, args)
+	if ok {
+		return row, err
+	}
 	if c.dbId == 0 {
 		return nil, fmt.Errorf("query db id is zero")
 	}
@@ -228,4 +232,21 @@ func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId int64, que
 		Statements: statements,
 	}}
 	return proto.DBClientQueryCheckResult(c.Client, ctx, req)
+}
+
+// parseHAQuerySql 解析 以 HA 开头的私有 sql 指令
+func (c *HaSqliteConn) parseHAQuerySql(query string, args []driver.NamedValue) (driver.Rows, error, bool) {
+	if !strings.HasPrefix(query, "HA ") {
+		return nil, nil, false
+	}
+	if query == "HA CREATE DB ?" {
+		if len(args) != 1 {
+			return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#0, but got %v", args), true
+		}
+		if dbName, ok := args[0].Value.(string); ok {
+			return nil, fmt.Errorf("TODO HA CREATE DB %s", dbName), true
+		}
+		return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#1, but got %v", args), true
+	}
+	return nil, nil, false
 }
