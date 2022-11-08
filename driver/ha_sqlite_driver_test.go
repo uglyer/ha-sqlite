@@ -83,6 +83,31 @@ func openDB(t *testing.T, port uint16) *HaDB {
 	}
 }
 
+func openDBWithoutName(t *testing.T, port uint16) *HaDB {
+	store := NewRPCStore(t, port)
+	go func() {
+		store.Serve()
+	}()
+	url := fmt.Sprintf("multi:///localhost:%d/", port)
+	db, err := sql.Open("ha-sqlite", url)
+	assert.Nil(t, err)
+	db.SetMaxIdleConns(runtime.NumCPU() * 2)
+	db.SetMaxOpenConns(runtime.NumCPU() * 2)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*800)
+	defer cancel()
+	go func() {
+		err = db.PingContext(ctx)
+		assert.Nil(t, err)
+	}()
+	select {
+	case <-ctx.Done():
+		return &HaDB{db: db, t: t, Store: store, url: url}
+	case <-time.After(time.Millisecond * 900):
+		t.Fatalf("connect %s timeout", url)
+		return &HaDB{db: db, t: t, url: url}
+	}
+}
+
 func (store *HaDB) cloneConn() *HaDB {
 	db, err := sql.Open("ha-sqlite", store.url)
 	assert.Nil(store.t, err)
@@ -320,4 +345,11 @@ func Test_TxBatch(t *testing.T) {
 	wg.Wait()
 	store.assertExec("INSERT INTO foo(name) VALUES(?)", "data 1")
 	store.assertQueryCount(1, store.assertQuery("SELECT * FROM foo WHERE name = ?", "data 1"), &id, &name)
+}
+
+func Test_CreateDB(t *testing.T) {
+	db := openDBWithoutName(t, 30330)
+	defer db.Store.Close()
+	_, err := db.db.Query("HA CREATE DB ?", "test.db")
+	assert.NoError(t, err)
 }
