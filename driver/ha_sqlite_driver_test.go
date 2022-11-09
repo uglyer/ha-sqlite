@@ -8,6 +8,7 @@ import (
 	hadb "github.com/uglyer/ha-sqlite/db"
 	_ "github.com/uglyer/ha-sqlite/driver"
 	"github.com/uglyer/ha-sqlite/proto"
+	"github.com/uglyer/ha-sqlite/tool"
 	"google.golang.org/grpc"
 	"io/ioutil"
 	"log"
@@ -350,6 +351,20 @@ func Test_TxBatch(t *testing.T) {
 func Test_CreateDB(t *testing.T) {
 	db := openDBWithoutName(t, 30330)
 	defer db.Store.Close()
-	_, err := db.db.Query("HA CREATE DB ?", "test.db")
+	dbName := "data/crate_db.db"
+	rows, err := db.db.Query("HA CREATE DB ?", dbName)
+	assert.NoError(t, err)
+	defer func() {
+		err := rows.Close()
+		assert.NoError(t, err)
+	}()
+	var dbId int64
+	hasNext := rows.Next()
+	assert.True(t, hasNext)
+	err = rows.Scan(&dbId)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, dbId)
+	assert.True(t, tool.FSPathIsExist(dbName))
+	err = os.Remove(dbName)
 	assert.NoError(t, err)
 }
