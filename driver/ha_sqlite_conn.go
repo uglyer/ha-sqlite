@@ -206,7 +206,7 @@ func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, er
 
 // QueryContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	row, err, ok := c.parseHAQuerySql(query, args)
+	row, err, ok := c.parseHAQuerySql(ctx, query, args)
 	if ok {
 		return row, err
 	}
@@ -235,7 +235,7 @@ func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId int64, que
 }
 
 // parseHAQuerySql 解析 以 HA 开头的私有 sql 指令
-func (c *HaSqliteConn) parseHAQuerySql(query string, args []driver.NamedValue) (driver.Rows, error, bool) {
+func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error, bool) {
 	if !strings.HasPrefix(query, "HA ") {
 		return nil, nil, false
 	}
@@ -244,9 +244,34 @@ func (c *HaSqliteConn) parseHAQuerySql(query string, args []driver.NamedValue) (
 			return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#0, but got %v", args), true
 		}
 		if dbName, ok := args[0].Value.(string); ok {
-			return nil, fmt.Errorf("TODO HA CREATE DB %s", dbName), true
+			rows, err := c.runHAQuerySqlCreateDB(ctx, dbName)
+			return rows, err, true
 		}
 		return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#1, but got %v", args), true
 	}
 	return nil, nil, false
+}
+
+// runHAQuerySqlCreateDB 执行 以 HA 开头的私有 sql 指令（创建库）
+func (c *HaSqliteConn) runHAQuerySqlCreateDB(ctx context.Context, dbName string) (driver.Rows, error) {
+	resp, err := c.Client.Open(ctx, &proto.OpenRequest{Dsn: dbName})
+	if err != nil {
+		return nil, err
+	}
+	result := &proto.QueryResult{
+		Columns: []string{"dbId"},
+		Types:   []string{"BIGINT"},
+		Values: []*proto.QueryResult_Values{
+			{
+				Parameters: []*proto.Parameter{
+					{
+						Value: &proto.Parameter_I{
+							I: resp.GetDbId(),
+						},
+					},
+				},
+			},
+		},
+	}
+	return proto.NewHaSqliteRowsFromSingleQueryResult(result), nil
 }
