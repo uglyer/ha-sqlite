@@ -195,6 +195,9 @@ func (s *HaSqliteDBStore) init() (*HaSqliteDBStore, error) {
 
 // GetDBIdByPath 通过路径获取数据库 id
 func (s *HaSqliteDBStore) GetDBIdByPath(path string) (int64, bool, error) {
+	if path == "" {
+		return 0, false, fmt.Errorf("CreateDBByPath path len is zero")
+	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	var id int64
@@ -225,6 +228,9 @@ func (s *HaSqliteDBStore) GetDBUpdateTimeById(id int64) (updateTime int64, err e
 
 // CreateDBByPath 通过路径创建数据库并返回 id
 func (s *HaSqliteDBStore) CreateDBByPath(path string) (int64, error) {
+	if path == "" {
+		return 0, fmt.Errorf("CreateDBByPath path len is zero")
+	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	unix := time.Now().UnixMilli()
