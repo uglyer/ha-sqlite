@@ -59,11 +59,19 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	defer close(done)
 	defer close(errCh)
 	go func() {
-		resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
-		if err != nil {
-			errCh <- err
+		if dbDSN == "" {
+			_, err := client.Ping(ctx, &proto.PingRequest{Timestamp: time.Now().UnixMilli()})
+			if err != nil {
+				errCh <- err
+			}
+			done <- &proto.OpenResponse{DbId: 0}
+		} else {
+			resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
+			if err != nil {
+				errCh <- err
+			}
+			done <- resp
 		}
-		done <- resp
 	}()
 	select {
 	case err := <-errCh:
