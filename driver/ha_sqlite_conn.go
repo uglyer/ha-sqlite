@@ -182,11 +182,11 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 	if c.dbId == 0 {
 		return nil, fmt.Errorf("exec db id is zero")
 	}
-	return c.ExecContextWithDbId(ctx, c.dbId, query, args)
+	return c.ExecContextWithDbName(ctx, "", query, args)
 }
 
-// ExecContextWithDbId 通过外部的数据库id执行sql语句
-func (c *HaSqliteConn) ExecContextWithDbId(ctx context.Context, dbId int64, query string, args []driver.NamedValue) (driver.Result, error) {
+// ExecContextWithDbName 通过外部的数据库名称执行sql语句
+func (c *HaSqliteConn) ExecContextWithDbName(ctx context.Context, dbName string, query string, args []driver.NamedValue) (driver.Result, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
@@ -195,12 +195,17 @@ func (c *HaSqliteConn) ExecContextWithDbId(ctx context.Context, dbId int64, quer
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
-	req := &proto.ExecRequest{Request: &proto.Request{
+	req := &proto.Request{
 		TxToken:    c.txToken,
-		DbId:       dbId,
 		Statements: statements,
-	}}
-	return proto.DBClientExecCheckResult(c.Client, ctx, req)
+	}
+	if dbName == "" {
+		req.DbId = c.dbId
+	} else {
+		req.Dsn = dbName
+	}
+	execReq := &proto.ExecRequest{Request: req}
+	return proto.DBClientExecCheckResult(c.Client, ctx, execReq)
 }
 
 // Query is an optional interface that may be implemented by a Conn.
@@ -243,6 +248,24 @@ func (c *HaSqliteConn) QueryContextWithDbName(ctx context.Context, dbName string
 	return proto.DBClientQueryCheckResult(c.Client, ctx, queryReq)
 }
 
+// parseHAExecSql 解析 以 HA 开头的私有 sql 指令
+func (c *HaSqliteConn) parseHAExecSql(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error, bool) {
+	if !strings.HasPrefix(query, "HA ") {
+		return nil, nil, false
+	}
+	if strings.HasPrefix(query, haUseSql) {
+		if len(args) == 0 {
+			return nil, fmt.Errorf("exec `HA USE ?;` sql only need one string db name#0, but got %v", args), true
+		}
+		if dbName, ok := args[0].Value.(string); ok {
+			rows, err := c.ExecContextWithDbName(ctx, query[haUseSqlLen:], dbName, args[1:])
+			return rows, err, true
+		}
+		return nil, fmt.Errorf("exec `HA USE ?;` sql only need one string arg#1, but got %v", args), true
+	}
+	return nil, nil, false
+}
+
 // parseHAQuerySql 解析 以 HA 开头的私有 sql 指令
 func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error, bool) {
 	if !strings.HasPrefix(query, "HA ") {
@@ -261,13 +284,13 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 
 	if strings.HasPrefix(query, haUseSql) {
 		if len(args) == 0 {
-			return nil, fmt.Errorf("HA USE ? sql only need one string db name#0, but got %v", args), true
+			return nil, fmt.Errorf("query `HA USE ?;` sql only need one string db name#0, but got %v", args), true
 		}
 		if dbName, ok := args[0].Value.(string); ok {
 			rows, err := c.QueryContextWithDbName(ctx, query[haUseSqlLen:], dbName, args[1:])
 			return rows, err, true
 		}
-		return nil, fmt.Errorf("HA CREATE DB ? sql only need one string arg#1, but got %v", args), true
+		return nil, fmt.Errorf("query `HA USE ?;` sql only need one string arg#1, but got %v", args), true
 	}
 	return nil, nil, false
 }
