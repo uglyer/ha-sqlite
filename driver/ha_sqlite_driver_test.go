@@ -368,3 +368,26 @@ func Test_CreateDB(t *testing.T) {
 	err = os.Remove(dbName)
 	assert.NoError(t, err)
 }
+
+func Test_UseDB(t *testing.T) {
+	db := openDBWithoutName(t, 30330)
+	defer db.Store.Close()
+	dbName1 := "data/use_db_1.db"
+	dbName2 := "data/use_db_2.db"
+	rows, err := db.db.Query("HA CREATE DB ?", dbName1)
+	assert.NoError(t, err)
+	assert.NoError(t, rows.Close())
+	rows, err = db.db.Query("HA CREATE DB ?", dbName2)
+	assert.NoError(t, err)
+	assert.NoError(t, rows.Close())
+	db.assertExec("HA USE ?;CREATE TABLE foo1 (id integer not null primary key, name text)", dbName1)
+	db.assertExec("HA USE ?;CREATE TABLE foo2 (id integer not null primary key, name text)", dbName2)
+	var typeName string
+	var name string
+	db.assertQueryCount(1, db.assertQuery("HA USE ?;SELECT type,name FROM `sqlite_master`", dbName1), &typeName, &name)
+	assert.Equal(t, "table", typeName)
+	assert.Equal(t, "foo1", name)
+	db.assertQueryCount(1, db.assertQuery("HA USE ?;SELECT type,name FROM `sqlite_master`", dbName2), &typeName, &name)
+	assert.Equal(t, "table", typeName)
+	assert.Equal(t, "foo2", name)
+}
