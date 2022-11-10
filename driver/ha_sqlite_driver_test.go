@@ -390,4 +390,8 @@ func Test_UseDB(t *testing.T) {
 	db.assertQueryCount(1, db.assertQuery("HA USE ?;SELECT type,name FROM `sqlite_master`", dbName2), &typeName, &name)
 	assert.Equal(t, "table", typeName)
 	assert.Equal(t, "foo2", name)
+	err = os.Remove(dbName1)
+	assert.NoError(t, err)
+	err = os.Remove(dbName1)
+	assert.NoError(t, err)
 }
