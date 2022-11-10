@@ -179,6 +179,10 @@ func (c *HaSqliteConn) Exec(query string, args []driver.Value) (driver.Result, e
 
 // ExecContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	res, err, ok := c.parseHAExecSql(ctx, query, args)
+	if ok {
+		return res, err
+	}
 	if c.dbId == 0 {
 		return nil, fmt.Errorf("exec db id is zero")
 	}
@@ -258,7 +262,7 @@ func (c *HaSqliteConn) parseHAExecSql(ctx context.Context, query string, args []
 			return nil, fmt.Errorf("exec `HA USE ?;` sql only need one string db name#0, but got %v", args), true
 		}
 		if dbName, ok := args[0].Value.(string); ok {
-			rows, err := c.ExecContextWithDbName(ctx, query[haUseSqlLen:], dbName, args[1:])
+			rows, err := c.ExecContextWithDbName(ctx, dbName, query[haUseSqlLen:], args[1:])
 			return rows, err, true
 		}
 		return nil, fmt.Errorf("exec `HA USE ?;` sql only need one string arg#1, but got %v", args), true
@@ -287,7 +291,7 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 			return nil, fmt.Errorf("query `HA USE ?;` sql only need one string db name#0, but got %v", args), true
 		}
 		if dbName, ok := args[0].Value.(string); ok {
-			rows, err := c.QueryContextWithDbName(ctx, query[haUseSqlLen:], dbName, args[1:])
+			rows, err := c.QueryContextWithDbName(ctx, dbName, query[haUseSqlLen:], args[1:])
 			return rows, err, true
 		}
 		return nil, fmt.Errorf("query `HA USE ?;` sql only need one string arg#1, but got %v", args), true
