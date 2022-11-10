@@ -200,9 +200,9 @@ func (s *HaSqliteDBStore) GetDBIdByPath(path string) (int64, bool, error) {
 	var id int64
 	if err := s.db.QueryRow("select id from ha_sqlite where path = ? order by id asc limit 1 ", path).Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
-			return 0, false, nil
+			return 0, false, fmt.Errorf("GetDBIdByPath(%s) no rows", path)
 		}
-		return id, false, fmt.Errorf("GetDBIdByPath error:%v", err)
+		return id, false, fmt.Errorf("GetDBIdByPath(%s) error:%v", path, err)
 	}
 	return id, true, nil
 }
