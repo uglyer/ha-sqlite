@@ -36,7 +36,7 @@ https://github.com/uglyer/ha-sqlite
 ## 进度
 
 - [x] Open
-- [ ] Multi db (Developing)
+- [x] Multi db
 - [x] Exec
 - [x] Query
 - [x] Driver
@@ -47,7 +47,8 @@ https://github.com/uglyer/ha-sqlite
 - [ ] Snapshot
 - [ ] Restore
 - [ ] S3
-- [ ] `use` sql statement
+- [x] `HA USE ?;` sql statement
+- [x] `HA CREATE DB ?;` sql statement
 - [ ] Trigger
 
 ## 为什么需要再造一个数据库的轮子
