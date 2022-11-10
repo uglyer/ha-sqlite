@@ -28,6 +28,10 @@ type HaSqliteConn struct {
 }
 
 const MaxTupleParams = 255
+const haCreateDBSql1 = "HA CREATE DB ?"
+const haCreateDBSql2 = "HA CREATE DB ?;"
+const haUseSql = "HA USE ?;"
+const haUseSqlLen = len(haUseSql)
 
 func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	var o grpc.DialOption = grpc.EmptyDialOption{}
@@ -213,11 +217,11 @@ func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []dr
 	if c.dbId == 0 {
 		return nil, fmt.Errorf("query db id is zero")
 	}
-	return c.QueryContextWithDbId(ctx, c.dbId, query, args)
+	return c.QueryContextWithDbName(ctx, "", query, args)
 }
 
-// QueryContextWithDbId 通过外部的数据库id查询sql语句
-func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId int64, query string, args []driver.NamedValue) (driver.Rows, error) {
+// QueryContextWithDbName 通过外部的数据库名称执行查询sql语句
+func (c *HaSqliteConn) QueryContextWithDbName(ctx context.Context, dbName string, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if len(args) > MaxTupleParams {
 		return nil, fmt.Errorf("too many parameters (%d) max = %d", len(args), MaxTupleParams)
 	}
@@ -226,12 +230,17 @@ func (c *HaSqliteConn) QueryContextWithDbId(ctx context.Context, dbId int64, que
 		return nil, fmt.Errorf("convert named value to parameters error %v", err)
 	}
 	statements := []*proto.Statement{{Sql: query, Parameters: parameters}}
-	req := &proto.QueryRequest{Request: &proto.Request{
+	req := &proto.Request{
 		TxToken:    c.txToken,
-		DbId:       dbId,
 		Statements: statements,
-	}}
-	return proto.DBClientQueryCheckResult(c.Client, ctx, req)
+	}
+	if dbName == "" {
+		req.DbId = c.dbId
+	} else {
+		req.Dsn = dbName
+	}
+	queryReq := &proto.QueryRequest{Request: req}
+	return proto.DBClientQueryCheckResult(c.Client, ctx, queryReq)
 }
 
 // parseHAQuerySql 解析 以 HA 开头的私有 sql 指令
@@ -239,7 +248,7 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 	if !strings.HasPrefix(query, "HA ") {
 		return nil, nil, false
 	}
-	if query == "HA CREATE DB ?" {
+	if query == haCreateDBSql1 || query == haCreateDBSql2 {
 		if len(args) != 1 {
 			return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#0, but got %v", args), true
 		}
@@ -248,6 +257,17 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 			return rows, err, true
 		}
 		return nil, fmt.Errorf("HA CREATE DB ? sql only allow one string arg#1, but got %v", args), true
+	}
+
+	if strings.HasPrefix(query, haUseSql) {
+		if len(args) == 0 {
+			return nil, fmt.Errorf("HA USE ? sql only need one string db name#0, but got %v", args), true
+		}
+		if dbName, ok := args[0].Value.(string); ok {
+			rows, err := c.QueryContextWithDbName(ctx, query[haUseSqlLen:], dbName, args[1:])
+			return rows, err, true
+		}
+		return nil, fmt.Errorf("HA CREATE DB ? sql only need one string arg#1, but got %v", args), true
 	}
 	return nil, nil, false
 }
