@@ -371,9 +371,13 @@ func Test_CreateDB(t *testing.T) {
 
 func Test_UseDB(t *testing.T) {
 	db := openDBWithoutName(t, 30330)
-	defer db.Store.Close()
 	dbName1 := "data/use_db_1.db"
 	dbName2 := "data/use_db_2.db"
+	defer func() {
+		os.Remove(dbName1)
+		os.Remove(dbName1)
+	}()
+	defer db.Store.Close()
 	rows, err := db.db.Query("HA CREATE DB ?", dbName1)
 	assert.NoError(t, err)
 	assert.NoError(t, rows.Close())
@@ -390,8 +394,4 @@ func Test_UseDB(t *testing.T) {
 	db.assertQueryCount(1, db.assertQuery("HA USE ?;SELECT type,name FROM `sqlite_master`", dbName2), &typeName, &name)
 	assert.Equal(t, "table", typeName)
 	assert.Equal(t, "foo2", name)
-	err = os.Remove(dbName1)
-	assert.NoError(t, err)
-	err = os.Remove(dbName1)
-	assert.NoError(t, err)
 }
