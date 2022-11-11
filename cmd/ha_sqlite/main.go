@@ -13,7 +13,7 @@ import (
 
 type argT struct {
 	cli.Helper
-	Address string `cli:"a,address" usage:"ha-sqlite address" dft:"multi:///localhost:30051,localhost:30052,localhost:30053/test.db"`
+	Address string `cli:"a,address" usage:"ha-sqlite address" dft:"multi:///localhost:30051,localhost:30052,localhost:30053/"`
 	Version bool   `cli:"v,version" usage:"display CLI version"`
 	Debug   bool   `cli:"d,debug" usage:"debug"`
 }
