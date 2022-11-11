@@ -36,8 +36,8 @@ func newHaClient(url string) (*HaClient, error) {
 	}
 }
 
-func (c *HaClient) query(ctx *cli.Context, q string) {
-	rows, err := c.db.Query(q)
+func (c *HaClient) query(ctx *cli.Context, q string, v ...interface{}) {
+	rows, err := c.db.Query(q, v...)
 	if err != nil {
 		ctx.String("query error:%v\n", err)
 		return
@@ -50,8 +50,8 @@ func (c *HaClient) query(ctx *cli.Context, q string) {
 	textutil.WriteTable(ctx, result, &textutil.DefaultStyle{})
 }
 
-func (c *HaClient) exec(ctx *cli.Context, q string) {
-	result, err := c.db.Exec(q)
+func (c *HaClient) exec(ctx *cli.Context, q string, v ...interface{}) {
+	result, err := c.db.Exec(q, v)
 	if err != nil {
 		ctx.String("exec error:%v\n", err)
 		return
