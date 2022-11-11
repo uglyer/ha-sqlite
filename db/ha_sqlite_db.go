@@ -26,6 +26,7 @@ type HaSqliteDB struct {
 	txMap          map[string]*sql.Tx
 	onApplyWal     func(b []byte) error
 	useCount       int32
+	enabledVFS     bool
 }
 
 var vfs = NewHaSqliteVFS()
@@ -53,7 +54,11 @@ func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 			return nil, errors.Wrap(err, "failed to create dir")
 		}
 	}
-	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF&vfs=ha_sqlite_vfs", dataSourceName)
+	enabledVFS := false
+	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
+	if enabledVFS {
+		url = fmt.Sprintf("%s&vfs=ha_sqlite_vfs", url)
+	}
 	db, err := sql.Open("sqlite3", url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database NewHaSqliteDB")
@@ -75,6 +80,7 @@ func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 		sourceWalFile:  sourceWalFile,
 		db:             db,
 		txMap:          make(map[string]*sql.Tx),
+		enabledVFS:     enabledVFS,
 	}, nil
 }
 
@@ -123,6 +129,9 @@ func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 
 // checkWal 调用前需要确保 wal 持有锁
 func (d *HaSqliteDB) checkWal() error {
+	if !d.enabledVFS {
+		return nil
+	}
 	buffer, err, needApplyLog, unlockFunc := vfs.rootMemFS.VfsPoll(d.sourceWalFile)
 	if !needApplyLog {
 		unlockFunc(walfs.WAL_UNLOCK_EVENT_NONE)
@@ -402,6 +411,9 @@ func (d *HaSqliteDB) FinishTx(c context.Context, req *proto.FinishTxRequest) (*p
 
 // ApplyWal 应用 wal 日志 由 raft 触发写日志时,与 checkWal 会有200ms的时间差
 func (d *HaSqliteDB) ApplyWal(c context.Context, b []byte) error {
+	if d.enabledVFS {
+		return fmt.Errorf("vfs is off")
+	}
 	d.addUseCount(1)
 	defer d.addUseCount(-1)
 	d.walMtx.Lock()
