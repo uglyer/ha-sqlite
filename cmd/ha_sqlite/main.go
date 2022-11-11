@@ -94,6 +94,8 @@ func main() {
 				client.queryWithDBName(ctx, `SELECT * FROM sqlite_master WHERE type="table"`)
 			case ".INDEXES":
 				client.queryWithDBName(ctx, `SELECT * FROM sqlite_master WHERE type="index"`)
+			case ".USE":
+				client.setDbName(ctx, line[5:])
 			case "SELECT", "PRAGMA":
 				client.queryWithDBName(ctx, line)
 			default:
