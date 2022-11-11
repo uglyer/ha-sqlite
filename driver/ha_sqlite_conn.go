@@ -63,12 +63,19 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 			_, err := client.Ping(ctx, &proto.PingRequest{Timestamp: time.Now().UnixMilli()})
 			if err != nil {
 				errCh <- err
+				return
 			}
 			done <- &proto.OpenResponse{DbId: 0}
 		} else {
+			err := checkDbName(dbDSN)
+			if err != nil {
+				errCh <- err
+				return
+			}
 			resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
 			if err != nil {
 				errCh <- err
+				return
 			}
 			done <- resp
 		}
@@ -309,6 +316,10 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 
 // runHAQuerySqlCreateDB 执行 以 HA 开头的私有 sql 指令（创建库）
 func (c *HaSqliteConn) runHAQuerySqlCreateDB(ctx context.Context, dbName string) (driver.Rows, error) {
+	err := checkDbName(dbName)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Client.Open(ctx, &proto.OpenRequest{Dsn: dbName})
 	if err != nil {
 		return nil, err
@@ -329,4 +340,23 @@ func (c *HaSqliteConn) runHAQuerySqlCreateDB(ctx context.Context, dbName string)
 		},
 	}
 	return proto.NewHaSqliteRowsFromSingleQueryResult(result), nil
+}
+
+// checkDbName 校验库名是否合法
+func checkDbName(name string) error {
+	if strings.Contains(name, " ") {
+		return fmt.Errorf("db name dont allow `Space`")
+	}
+	if strings.Contains(name, "\"") ||
+		strings.Contains(name, "*") ||
+		strings.Contains(name, "`") ||
+		strings.Contains(name, "<") ||
+		strings.Contains(name, ">") ||
+		strings.Contains(name, "?") ||
+		strings.Contains(name, "\\") ||
+		strings.Contains(name, "|") ||
+		strings.Contains(name, ":") {
+		return fmt.Errorf("db name dont allow \"（双引号）、*（星号）、<（小于）、>（大于）、?（问号）、\\（反斜杠）、|（竖线）、/ (正斜杠)、 : (冒号)`")
+	}
+	return nil
 }
