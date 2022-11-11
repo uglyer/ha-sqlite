@@ -11,8 +11,9 @@ import (
 )
 
 type HaClient struct {
-	db  *sql.DB
-	url string
+	db     *sql.DB
+	url    string
+	dbName string
 }
 
 func newHaClient(url string) (*HaClient, error) {
@@ -36,6 +37,19 @@ func newHaClient(url string) (*HaClient, error) {
 	}
 }
 
+func (c *HaClient) prefix() string {
+	return fmt.Sprintf("ha_sqlite(%s)>", c.dbName)
+}
+
+func (c *HaClient) setDbName(ctx *cli.Context, dbName string) {
+	c.dbName = dbName
+	c.query(ctx, "HA CREATE DB ?", dbName)
+}
+
+func (c *HaClient) queryWithDBName(ctx *cli.Context, q string) {
+	c.query(ctx, fmt.Sprintf("HA USE ?;%s", q), c.dbName)
+}
+
 func (c *HaClient) query(ctx *cli.Context, q string, v ...interface{}) {
 	rows, err := c.db.Query(q, v...)
 	if err != nil {
@@ -48,6 +62,10 @@ func (c *HaClient) query(ctx *cli.Context, q string, v ...interface{}) {
 		return
 	}
 	textutil.WriteTable(ctx, result, &textutil.DefaultStyle{})
+}
+
+func (c *HaClient) execWithDBName(ctx *cli.Context, q string) {
+	c.query(ctx, fmt.Sprintf("HA USE ?;%s", q), c.dbName)
 }
 
 func (c *HaClient) exec(ctx *cli.Context, q string, v ...interface{}) {

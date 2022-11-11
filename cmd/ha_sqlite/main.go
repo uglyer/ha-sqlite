@@ -29,7 +29,11 @@ func main() {
 			ctx.String("version:\n", version)
 			return nil
 		}
-		prefix := fmt.Sprintf("ha_sqlite(%s)>", "default")
+		dbName := "default"
+		dbNameStartIndex := strings.LastIndex(argv.Address, "/")
+		if !strings.HasSuffix(argv.Address, "/") {
+			dbName = argv.Address[dbNameStartIndex+1:]
+		}
 		term, err := prompt.NewTerminal()
 		if err != nil {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
@@ -41,6 +45,7 @@ func main() {
 			ctx.String("%s %v\n", ctx.Color().Red("ERR!"), err)
 			return nil
 		}
+		client.setDbName(ctx, dbName)
 		if argv.Debug {
 			// todo 连续执行插入语句响应过慢
 			startT := time.Now()
@@ -64,7 +69,7 @@ func main() {
 	FOR_READ:
 		for {
 			term.Reopen()
-			line, err := term.Basic(prefix, false)
+			line, err := term.Basic(client.prefix(), false)
 			term.Close()
 			if err != nil {
 				return err
@@ -86,13 +91,13 @@ func main() {
 			case ".QUIT", "QUIT", "EXIT":
 				break FOR_READ
 			case ".TABLES":
-				client.query(ctx, `SELECT * FROM sqlite_master WHERE type="table"`)
+				client.queryWithDBName(ctx, `SELECT * FROM sqlite_master WHERE type="table"`)
 			case ".INDEXES":
-				client.query(ctx, `SELECT * FROM sqlite_master WHERE type="index"`)
+				client.queryWithDBName(ctx, `SELECT * FROM sqlite_master WHERE type="index"`)
 			case "SELECT", "PRAGMA":
-				client.query(ctx, line)
+				client.queryWithDBName(ctx, line)
 			default:
-				client.exec(ctx, line)
+				client.execWithDBName(ctx, line)
 			}
 		}
 		ctx.String("bye~\n")
