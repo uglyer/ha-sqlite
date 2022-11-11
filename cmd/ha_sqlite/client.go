@@ -42,26 +42,29 @@ func (c *HaClient) prefix() string {
 }
 
 func (c *HaClient) setDbName(ctx *cli.Context, dbName string) {
+	if !(c.query(ctx, "HA CREATE DB ?", dbName)) {
+		return
+	}
 	c.dbName = dbName
-	c.query(ctx, "HA CREATE DB ?", dbName)
 }
 
 func (c *HaClient) queryWithDBName(ctx *cli.Context, q string) {
 	c.query(ctx, fmt.Sprintf("HA USE ?;%s", q), c.dbName)
 }
 
-func (c *HaClient) query(ctx *cli.Context, q string, v ...interface{}) {
+func (c *HaClient) query(ctx *cli.Context, q string, v ...interface{}) bool {
 	rows, err := c.db.Query(q, v...)
 	if err != nil {
 		ctx.String("query error:%v\n", err)
-		return
+		return false
 	}
 	result, err := parseSqlRows(rows)
 	if err != nil {
 		ctx.String("query error:%v\n", err)
-		return
+		return false
 	}
 	textutil.WriteTable(ctx, result, &textutil.DefaultStyle{})
+	return true
 }
 
 func (c *HaClient) execWithDBName(ctx *cli.Context, q string) {
