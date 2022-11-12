@@ -6,12 +6,14 @@ import (
 	"github.com/spf13/viper"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/log"
+	"github.com/uglyer/ha-sqlite/s3"
 	"github.com/uglyer/ha-sqlite/tool"
 )
 
 type Config struct {
 	HaSqlite *db.HaSqliteConfig `mapstructure:"ha-sqlite" yaml:"ha-sqlite"`
 	Log      *log.LogConfig     `mapstructure:"log" yaml:"log"`
+	S3       *s3.S3Config       `mapstructure:"s3" yaml:"s3"`
 }
 
 // ParseFlags parses the command line, and returns the configuration.
@@ -51,6 +53,16 @@ func ParseFlags() (*Config, error) {
 			"max-backups": 3,
 			"compress":    true,
 		},
+	})
+	viperConfig.SetDefault("s3", map[string]interface{}{
+		"enabled":     false,
+		"access-key":  "",
+		"secret-key":  "",
+		"endpoint":    "",
+		"region":      "",
+		"disable-ssl": false,
+		"bucket":      "",
+		"prefix-path": "",
 	})
 	if !tool.FSPathIsExist(configFile) {
 		if autoGenerateFile {
