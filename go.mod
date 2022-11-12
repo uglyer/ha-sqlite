@@ -16,6 +16,7 @@ require (
 	github.com/Bowery/prompt v0.0.0-20190916142128-fa8279994f75
 	github.com/Jille/grpc-multi-resolver v1.1.0
 	github.com/google/uuid v1.3.0
+	github.com/minio/minio-go/v6 v6.0.57
 	github.com/mkideal/cli v0.2.7
 	github.com/mkideal/pkg v0.1.3
 	github.com/natefinch/lumberjack v2.0.0+incompatible
