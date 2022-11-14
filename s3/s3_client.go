@@ -3,6 +3,8 @@ package s3
 import (
 	"fmt"
 	"github.com/minio/minio-go/v6"
+	"github.com/uglyer/ha-sqlite/log"
+	"path"
 )
 
 type S3Client struct {
@@ -27,4 +29,19 @@ func NewS3Client(config *S3Config) (*S3Client, error) {
 		client: client,
 		config: config,
 	}, nil
+}
+
+//Snapshot 快照操作, remotePath 不包含 PrefixPath
+func (c *S3Client) Snapshot(dbPath string, remotePath string) error {
+	objectName := path.Join(c.config.PrefixPath, remotePath)
+	log.Info(fmt.Sprintf("S3[minio] Snapshot:%s->%s", dbPath, objectName))
+	_, err := c.client.FPutObject(c.config.Bucket, objectName, dbPath, minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	return err
+}
+
+//Restore 恢复操作, remotePath 不包含 PrefixPath
+func (c *S3Client) Restore(dbPath string, remotePath string) error {
+	objectName := path.Join(c.config.PrefixPath, remotePath)
+	log.Info(fmt.Sprintf("S3[minio] Restore:%s<-%s", dbPath, objectName))
+	return c.client.FGetObject(c.config.Bucket, objectName, dbPath, minio.GetObjectOptions{})
 }
