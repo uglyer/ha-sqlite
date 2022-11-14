@@ -45,3 +45,9 @@ func (c *S3Client) Restore(dbPath string, remotePath string) error {
 	log.Info(fmt.Sprintf("S3[minio] Restore:%s<-%s", dbPath, objectName))
 	return c.client.FGetObject(c.config.Bucket, objectName, dbPath, minio.GetObjectOptions{})
 }
+
+//StatObject 获取远端状态信息, remotePath 不包含 PrefixPath
+func (c *S3Client) StatObject(remotePath string) (minio.ObjectInfo, error) {
+	objectName := path.Join(c.config.PrefixPath, remotePath)
+	return c.client.StatObject(c.config.Bucket, objectName, minio.StatObjectOptions{})
+}
