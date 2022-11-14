@@ -10,6 +10,8 @@ service DB {
   rpc Query(QueryRequest) returns (QueryResponse) {}
   rpc BeginTx(BeginTxRequest) returns (BeginTxResponse) {}
   rpc FinishTx(FinishTxRequest) returns (FinishTxResponse) {}
+  rpc Snapshot(SnapshotRequest) returns (SnapshotResponse) {}
+  rpc Restore(RestoreRequest) returns (RestoreResponse) {}
 }
 
 message Command {
@@ -158,4 +160,22 @@ message FinishTxRequest {
 
 message FinishTxResponse {
 
+}
+
+message SnapshotRequest {
+  Request request = 1;
+  string remote_path = 2;
+}
+
+message SnapshotResponse {
+  int64 size = 1;
+}
+
+message RestoreRequest {
+  Request request = 1;
+  string remote_path = 2;
+}
+
+message RestoreResponse {
+  int64 size = 1;
 }

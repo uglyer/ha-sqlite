@@ -1517,6 +1517,210 @@ func (*FinishTxResponse) Descriptor() ([]byte, []int) {
 	return file_service_proto_rawDescGZIP(), []int{21}
 }
 
+type SnapshotRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Request    *Request `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	RemotePath string   `protobuf:"bytes,2,opt,name=remote_path,json=remotePath,proto3" json:"remote_path,omitempty"`
+}
+
+func (x *SnapshotRequest) Reset() {
+	*x = SnapshotRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SnapshotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotRequest) ProtoMessage() {}
+
+func (x *SnapshotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotRequest.ProtoReflect.Descriptor instead.
+func (*SnapshotRequest) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SnapshotRequest) GetRequest() *Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *SnapshotRequest) GetRemotePath() string {
+	if x != nil {
+		return x.RemotePath
+	}
+	return ""
+}
+
+type SnapshotResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Size int64 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"`
+}
+
+func (x *SnapshotResponse) Reset() {
+	*x = SnapshotResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[23]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnapshotResponse) ProtoMessage() {}
+
+func (x *SnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[23]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnapshotResponse.ProtoReflect.Descriptor instead.
+func (*SnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SnapshotResponse) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type RestoreRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Request    *Request `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	RemotePath string   `protobuf:"bytes,2,opt,name=remote_path,json=remotePath,proto3" json:"remote_path,omitempty"`
+}
+
+func (x *RestoreRequest) Reset() {
+	*x = RestoreRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RestoreRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreRequest) ProtoMessage() {}
+
+func (x *RestoreRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreRequest.ProtoReflect.Descriptor instead.
+func (*RestoreRequest) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RestoreRequest) GetRequest() *Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *RestoreRequest) GetRemotePath() string {
+	if x != nil {
+		return x.RemotePath
+	}
+	return ""
+}
+
+type RestoreResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Size int64 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"`
+}
+
+func (x *RestoreResponse) Reset() {
+	*x = RestoreResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_service_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RestoreResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreResponse) ProtoMessage() {}
+
+func (x *RestoreResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreResponse.ProtoReflect.Descriptor instead.
+func (*RestoreResponse) Descriptor() ([]byte, []int) {
+	return file_service_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RestoreResponse) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
 type QueryResult_Values struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1528,7 +1732,7 @@ type QueryResult_Values struct {
 func (x *QueryResult_Values) Reset() {
 	*x = QueryResult_Values{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_service_proto_msgTypes[22]
+		mi := &file_service_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1541,7 +1745,7 @@ func (x *QueryResult_Values) String() string {
 func (*QueryResult_Values) ProtoMessage() {}
 
 func (x *QueryResult_Values) ProtoReflect() protoreflect.Message {
-	mi := &file_service_proto_msgTypes[22]
+	mi := &file_service_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1717,29 +1921,51 @@ var file_service_proto_rawDesc = []byte{
 	0x5f, 0x43, 0x4f, 0x4d, 0x4d, 0x49, 0x54, 0x10, 0x00, 0x12, 0x14, 0x0a, 0x10, 0x54, 0x58, 0x5f,
 	0x54, 0x59, 0x50, 0x45, 0x5f, 0x52, 0x4f, 0x4c, 0x4c, 0x42, 0x41, 0x43, 0x4b, 0x10, 0x01, 0x22,
 	0x12, 0x0a, 0x10, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x32, 0xb3, 0x02, 0x0a, 0x02, 0x44, 0x42, 0x12, 0x25, 0x0a, 0x04, 0x50, 0x69,
-	0x6e, 0x67, 0x12, 0x0c, 0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x0d, 0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x00, 0x12, 0x25, 0x0a, 0x04, 0x4f, 0x70, 0x65, 0x6e, 0x12, 0x0c, 0x2e, 0x4f, 0x70, 0x65, 0x6e,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0d, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x2b, 0x0a, 0x06, 0x44, 0x42, 0x49, 0x6e,
-	0x66, 0x6f, 0x12, 0x0e, 0x2e, 0x44, 0x42, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x0f, 0x2e, 0x44, 0x42, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x25, 0x0a, 0x04, 0x45, 0x78, 0x65, 0x63, 0x12, 0x0c, 0x2e,
-	0x45, 0x78, 0x65, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0d, 0x2e, 0x45, 0x78,
-	0x65, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x28, 0x0a, 0x05,
-	0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x0d, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x2e, 0x0a, 0x07, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54,
-	0x78, 0x12, 0x0f, 0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x10, 0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x08, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68,
-	0x54, 0x78, 0x12, 0x10, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x11, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x23, 0x5a, 0x21, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x75, 0x67, 0x6c, 0x79, 0x65, 0x72, 0x2f, 0x68,
-	0x61, 0x2d, 0x73, 0x71, 0x6c, 0x69, 0x74, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6e, 0x73, 0x65, 0x22, 0x56, 0x0a, 0x0f, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x22, 0x0a, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x08, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x52, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x72, 0x65,
+	0x6d, 0x6f, 0x74, 0x65, 0x5f, 0x70, 0x61, 0x74, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x0a, 0x72, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x50, 0x61, 0x74, 0x68, 0x22, 0x26, 0x0a, 0x10, 0x53,
+	0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x12, 0x0a, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x73,
+	0x69, 0x7a, 0x65, 0x22, 0x55, 0x0a, 0x0e, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x22, 0x0a, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x08, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x52, 0x07, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x72, 0x65, 0x6d,
+	0x6f, 0x74, 0x65, 0x5f, 0x70, 0x61, 0x74, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a,
+	0x72, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x50, 0x61, 0x74, 0x68, 0x22, 0x25, 0x0a, 0x0f, 0x52, 0x65,
+	0x73, 0x74, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a,
+	0x04, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x73, 0x69, 0x7a,
+	0x65, 0x32, 0x96, 0x03, 0x0a, 0x02, 0x44, 0x42, 0x12, 0x25, 0x0a, 0x04, 0x50, 0x69, 0x6e, 0x67,
+	0x12, 0x0c, 0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0d,
+	0x2e, 0x50, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12,
+	0x25, 0x0a, 0x04, 0x4f, 0x70, 0x65, 0x6e, 0x12, 0x0c, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0d, 0x2e, 0x4f, 0x70, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x2b, 0x0a, 0x06, 0x44, 0x42, 0x49, 0x6e, 0x66, 0x6f,
+	0x12, 0x0e, 0x2e, 0x44, 0x42, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x0f, 0x2e, 0x44, 0x42, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x25, 0x0a, 0x04, 0x45, 0x78, 0x65, 0x63, 0x12, 0x0c, 0x2e, 0x45, 0x78,
+	0x65, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0d, 0x2e, 0x45, 0x78, 0x65, 0x63,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x28, 0x0a, 0x05, 0x51, 0x75,
+	0x65, 0x72, 0x79, 0x12, 0x0d, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x00, 0x12, 0x2e, 0x0a, 0x07, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x12,
+	0x0f, 0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x10, 0x2e, 0x42, 0x65, 0x67, 0x69, 0x6e, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x08, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78,
+	0x12, 0x10, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x11, 0x2e, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x54, 0x78, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x08, 0x53, 0x6e, 0x61, 0x70, 0x73,
+	0x68, 0x6f, 0x74, 0x12, 0x10, 0x2e, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x11, 0x2e, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x2e, 0x0a, 0x07, 0x52, 0x65,
+	0x73, 0x74, 0x6f, 0x72, 0x65, 0x12, 0x0f, 0x2e, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x10, 0x2e, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x23, 0x5a, 0x21, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x75, 0x67, 0x6c, 0x79, 0x65, 0x72, 0x2f,
+	0x68, 0x61, 0x2d, 0x73, 0x71, 0x6c, 0x69, 0x74, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1755,7 +1981,7 @@ func file_service_proto_rawDescGZIP() []byte {
 }
 
 var file_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_service_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_service_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_service_proto_goTypes = []interface{}{
 	(Command_Type)(0),          // 0: Command.Type
 	(BeginTxRequest_Type)(0),   // 1: BeginTxRequest.Type
@@ -1782,7 +2008,11 @@ var file_service_proto_goTypes = []interface{}{
 	(*BeginTxResponse)(nil),    // 22: BeginTxResponse
 	(*FinishTxRequest)(nil),    // 23: FinishTxRequest
 	(*FinishTxResponse)(nil),   // 24: FinishTxResponse
-	(*QueryResult_Values)(nil), // 25: QueryResult.Values
+	(*SnapshotRequest)(nil),    // 25: SnapshotRequest
+	(*SnapshotResponse)(nil),   // 26: SnapshotResponse
+	(*RestoreRequest)(nil),     // 27: RestoreRequest
+	(*RestoreResponse)(nil),    // 28: RestoreResponse
+	(*QueryResult_Values)(nil), // 29: QueryResult.Values
 }
 var file_service_proto_depIdxs = []int32{
 	0,  // 0: Command.type:type_name -> Command.Type
@@ -1792,32 +2022,38 @@ var file_service_proto_depIdxs = []int32{
 	10, // 4: ExecRequest.request:type_name -> Request
 	16, // 5: ExecResponse.result:type_name -> ExecResult
 	10, // 6: QueryRequest.request:type_name -> Request
-	25, // 7: QueryResult.values:type_name -> QueryResult.Values
+	29, // 7: QueryResult.values:type_name -> QueryResult.Values
 	19, // 8: QueryResponse.result:type_name -> QueryResult
 	1,  // 9: BeginTxRequest.type:type_name -> BeginTxRequest.Type
 	10, // 10: BeginTxRequest.request:type_name -> Request
 	2,  // 11: FinishTxRequest.type:type_name -> FinishTxRequest.Type
 	10, // 12: FinishTxRequest.request:type_name -> Request
-	8,  // 13: QueryResult.Values.parameters:type_name -> Parameter
-	6,  // 14: DB.Ping:input_type -> PingRequest
-	11, // 15: DB.Open:input_type -> OpenRequest
-	13, // 16: DB.DBInfo:input_type -> DBInfoRequest
-	15, // 17: DB.Exec:input_type -> ExecRequest
-	18, // 18: DB.Query:input_type -> QueryRequest
-	21, // 19: DB.BeginTx:input_type -> BeginTxRequest
-	23, // 20: DB.FinishTx:input_type -> FinishTxRequest
-	7,  // 21: DB.Ping:output_type -> PingResponse
-	12, // 22: DB.Open:output_type -> OpenResponse
-	14, // 23: DB.DBInfo:output_type -> DBInfoResponse
-	17, // 24: DB.Exec:output_type -> ExecResponse
-	20, // 25: DB.Query:output_type -> QueryResponse
-	22, // 26: DB.BeginTx:output_type -> BeginTxResponse
-	24, // 27: DB.FinishTx:output_type -> FinishTxResponse
-	21, // [21:28] is the sub-list for method output_type
-	14, // [14:21] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	10, // 13: SnapshotRequest.request:type_name -> Request
+	10, // 14: RestoreRequest.request:type_name -> Request
+	8,  // 15: QueryResult.Values.parameters:type_name -> Parameter
+	6,  // 16: DB.Ping:input_type -> PingRequest
+	11, // 17: DB.Open:input_type -> OpenRequest
+	13, // 18: DB.DBInfo:input_type -> DBInfoRequest
+	15, // 19: DB.Exec:input_type -> ExecRequest
+	18, // 20: DB.Query:input_type -> QueryRequest
+	21, // 21: DB.BeginTx:input_type -> BeginTxRequest
+	23, // 22: DB.FinishTx:input_type -> FinishTxRequest
+	25, // 23: DB.Snapshot:input_type -> SnapshotRequest
+	27, // 24: DB.Restore:input_type -> RestoreRequest
+	7,  // 25: DB.Ping:output_type -> PingResponse
+	12, // 26: DB.Open:output_type -> OpenResponse
+	14, // 27: DB.DBInfo:output_type -> DBInfoResponse
+	17, // 28: DB.Exec:output_type -> ExecResponse
+	20, // 29: DB.Query:output_type -> QueryResponse
+	22, // 30: DB.BeginTx:output_type -> BeginTxResponse
+	24, // 31: DB.FinishTx:output_type -> FinishTxResponse
+	26, // 32: DB.Snapshot:output_type -> SnapshotResponse
+	28, // 33: DB.Restore:output_type -> RestoreResponse
+	25, // [25:34] is the sub-list for method output_type
+	16, // [16:25] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_service_proto_init() }
@@ -2091,6 +2327,54 @@ func file_service_proto_init() {
 			}
 		}
 		file_service_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SnapshotRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SnapshotResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RestoreRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RestoreResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_service_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueryResult_Values); i {
 			case 0:
 				return &v.state
@@ -2116,7 +2400,7 @@ func file_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_service_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   23,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -2150,6 +2434,8 @@ type DBClient interface {
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
 	BeginTx(ctx context.Context, in *BeginTxRequest, opts ...grpc.CallOption) (*BeginTxResponse, error)
 	FinishTx(ctx context.Context, in *FinishTxRequest, opts ...grpc.CallOption) (*FinishTxResponse, error)
+	Snapshot(ctx context.Context, in *SnapshotRequest, opts ...grpc.CallOption) (*SnapshotResponse, error)
+	Restore(ctx context.Context, in *RestoreRequest, opts ...grpc.CallOption) (*RestoreResponse, error)
 }
 
 type dBClient struct {
@@ -2223,6 +2509,24 @@ func (c *dBClient) FinishTx(ctx context.Context, in *FinishTxRequest, opts ...gr
 	return out, nil
 }
 
+func (c *dBClient) Snapshot(ctx context.Context, in *SnapshotRequest, opts ...grpc.CallOption) (*SnapshotResponse, error) {
+	out := new(SnapshotResponse)
+	err := c.cc.Invoke(ctx, "/DB/Snapshot", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dBClient) Restore(ctx context.Context, in *RestoreRequest, opts ...grpc.CallOption) (*RestoreResponse, error) {
+	out := new(RestoreResponse)
+	err := c.cc.Invoke(ctx, "/DB/Restore", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DBServer is the server API for DB service.
 type DBServer interface {
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
@@ -2232,6 +2536,8 @@ type DBServer interface {
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
 	BeginTx(context.Context, *BeginTxRequest) (*BeginTxResponse, error)
 	FinishTx(context.Context, *FinishTxRequest) (*FinishTxResponse, error)
+	Snapshot(context.Context, *SnapshotRequest) (*SnapshotResponse, error)
+	Restore(context.Context, *RestoreRequest) (*RestoreResponse, error)
 }
 
 // UnimplementedDBServer can be embedded to have forward compatible implementations.
@@ -2258,6 +2564,12 @@ func (*UnimplementedDBServer) BeginTx(context.Context, *BeginTxRequest) (*BeginT
 }
 func (*UnimplementedDBServer) FinishTx(context.Context, *FinishTxRequest) (*FinishTxResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FinishTx not implemented")
+}
+func (*UnimplementedDBServer) Snapshot(context.Context, *SnapshotRequest) (*SnapshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Snapshot not implemented")
+}
+func (*UnimplementedDBServer) Restore(context.Context, *RestoreRequest) (*RestoreResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Restore not implemented")
 }
 
 func RegisterDBServer(s *grpc.Server, srv DBServer) {
@@ -2390,6 +2702,42 @@ func _DB_FinishTx_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DB_Snapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SnapshotRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBServer).Snapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DB/Snapshot",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBServer).Snapshot(ctx, req.(*SnapshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DB_Restore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBServer).Restore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DB/Restore",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBServer).Restore(ctx, req.(*RestoreRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _DB_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "DB",
 	HandlerType: (*DBServer)(nil),
@@ -2421,6 +2769,14 @@ var _DB_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FinishTx",
 			Handler:    _DB_FinishTx_Handler,
+		},
+		{
+			MethodName: "Snapshot",
+			Handler:    _DB_Snapshot_Handler,
+		},
+		{
+			MethodName: "Restore",
+			Handler:    _DB_Restore_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
