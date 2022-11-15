@@ -244,6 +244,26 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 	return resp, err
 }
 
+// Snapshot 快照
+func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotRequest) (*proto.FinishTxResponse, error) {
+	_, ok, err := d.GetDB(req.Request)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
+	}
+	defer d.TryClose(req.Request.DbId)
+	return nil, fmt.Errorf("todo impl Snapshot")
+}
+
+// Restore 恢复
+func (d *HaSqliteDBManager) Restore(c context.Context, req *proto.RestoreRequest) (*proto.RestoreResponse, error) {
+	_, ok, err := d.GetDB(req.Request)
+	if !ok || err != nil {
+		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
+	}
+	defer d.TryClose(req.Request.DbId)
+	return nil, fmt.Errorf("todo impl Restore")
+}
+
 // ApplyWal 应用日志
 func (d *HaSqliteDBManager) ApplyWal(c context.Context, dbId int64, b []byte) error {
 	return fmt.Errorf("ApplyWal is deprecated")
