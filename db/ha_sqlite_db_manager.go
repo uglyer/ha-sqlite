@@ -111,6 +111,7 @@ func (d *HaSqliteDBManager) GetDB(req *proto.Request) (*HaSqliteDB, bool, error)
 			return nil, false, fmt.Errorf("get db id by path error:%v", err)
 		}
 		dbId = id
+		req.DbId = id
 	}
 	db, ok := d.dbMap[dbId]
 	if ok {
