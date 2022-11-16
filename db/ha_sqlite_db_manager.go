@@ -246,7 +246,7 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 }
 
 // Snapshot 快照
-func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotRequest) (*proto.FinishTxResponse, error) {
+func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotRequest) (*proto.SnapshotResponse, error) {
 	_, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
