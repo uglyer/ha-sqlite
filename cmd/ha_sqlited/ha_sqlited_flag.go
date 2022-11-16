@@ -84,5 +84,19 @@ func ParseFlags() (*Config, error) {
 	if config.HaSqlite.DataPath == "" {
 		return nil, fmt.Errorf("yaml data-path is required")
 	}
+	if config.S3.Enabled {
+		if config.S3.AccessKey == "" {
+			return nil, fmt.Errorf("yaml s3:AccessKey is empty")
+		}
+		if config.S3.SecretKey == "" {
+			return nil, fmt.Errorf("yaml s3:SecretKey is empty")
+		}
+		if config.S3.Endpoint == "" {
+			return nil, fmt.Errorf("yaml s3:Endpoint is empty")
+		}
+		if config.S3.Bucket == "" {
+			return nil, fmt.Errorf("yaml s3:Bucket is empty")
+		}
+	}
 	return &config, nil
 }
