@@ -7,6 +7,7 @@ import (
 	"github.com/uglyer/ha-sqlite/db/store"
 	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/proto"
+	"github.com/uglyer/ha-sqlite/s3"
 	"path"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ type HaSqliteDBManager struct {
 	dbLockedMap       map[int64]int
 	defaultOnApplyWal func(b []byte) error
 	config            *HaSqliteConfig
+	s3Store           s3.S3Store
 }
 
 var defaultHaSqliteConfig = &HaSqliteConfig{
@@ -36,6 +38,10 @@ func NewHaSqliteDBManager() (*HaSqliteDBManager, error) {
 }
 
 func NewHaSqliteDBManagerWithConfig(config *HaSqliteConfig) (*HaSqliteDBManager, error) {
+	return NewHaSqliteDBManagerWithConfigAndS3(config, nil)
+}
+
+func NewHaSqliteDBManagerWithConfigAndS3(config *HaSqliteConfig, s3Store s3.S3Store) (*HaSqliteDBManager, error) {
 	s, err := store.NewHaSqliteDBStoreWithDataSourceName(config.ManagerDBPath)
 	if err != nil {
 		return nil, err
@@ -47,7 +53,8 @@ func NewHaSqliteDBManagerWithConfig(config *HaSqliteConfig) (*HaSqliteDBManager,
 		defaultOnApplyWal: func(b []byte) error {
 			return nil
 		},
-		config: config,
+		config:  config,
+		s3Store: s3Store,
 	}, nil
 }
 
