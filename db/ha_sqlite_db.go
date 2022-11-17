@@ -122,6 +122,18 @@ func (d *HaSqliteDB) TryClose() (bool, error) {
 	return true, err
 }
 
+// WalCheckpoint WAL 日志执行检查点
+func (d *HaSqliteDB) WalCheckpoint() error {
+	var row [3]int
+	// 应用 wal_checkpoint 失败不影响数据一致性, todo 提交至 frame 内容需要快照
+	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error")
+	} else if row[0] != 0 {
+		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
+	}
+	return nil
+}
+
 // InitWalHook 执行数据库命令
 func (d *HaSqliteDB) InitWalHook(onApplyWal func(b []byte) error) {
 	d.onApplyWal = onApplyWal
