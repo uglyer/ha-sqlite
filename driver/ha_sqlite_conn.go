@@ -325,7 +325,8 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 		if !ok {
 			return nil, fmt.Errorf("query `HA SNAPSHOT ? TO ?;` parse s3 key error %v", args), true
 		}
-		return nil, fmt.Errorf("todo impl snapshot %v->%v", dbName, s3Key), true
+		rows, err := c.runHAQuerySqlSnapshotDB(ctx, dbName, s3Key)
+		return rows, err, true
 	}
 	return nil, nil, false
 }
@@ -349,6 +350,37 @@ func (c *HaSqliteConn) runHAQuerySqlCreateDB(ctx context.Context, dbName string)
 					{
 						Value: &proto.Parameter_I{
 							I: resp.GetDbId(),
+						},
+					},
+				},
+			},
+		},
+	}
+	return proto.NewHaSqliteRowsFromSingleQueryResult(result), nil
+}
+
+// runHAQuerySqlSnapshotDB 执行 以 HA 开头的私有 sql 指令（快照）
+func (c *HaSqliteConn) runHAQuerySqlSnapshotDB(ctx context.Context, dbName string, s3Key string) (driver.Rows, error) {
+	err := checkDbName(dbName)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Client.Snapshot(ctx, &proto.SnapshotRequest{
+		Request:    &proto.Request{Dsn: dbName},
+		RemotePath: s3Key,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := &proto.QueryResult{
+		Columns: []string{"size"},
+		Types:   []string{"BIGINT"},
+		Values: []*proto.QueryResult_Values{
+			{
+				Parameters: []*proto.Parameter{
+					{
+						Value: &proto.Parameter_I{
+							I: resp.GetSize(),
 						},
 					},
 				},
