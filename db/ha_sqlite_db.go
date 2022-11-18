@@ -9,6 +9,7 @@ import (
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/db/walfs"
 	"github.com/uglyer/ha-sqlite/proto"
+	"github.com/uglyer/ha-sqlite/s3"
 	"os"
 	"path"
 	"strings"
@@ -137,6 +138,17 @@ func (d *HaSqliteDB) WalCheckpoint() error {
 		return errors.Wrap(err, "wal_checkpoint TRUNCATE error#1")
 	}
 	return nil
+}
+
+// Snapshot 执行快照
+func (d *HaSqliteDB) Snapshot(s3Store s3.S3Store, remotePath string) error {
+	d.walMtx.Lock()
+	defer d.walMtx.Unlock()
+	err := d.WalCheckpoint()
+	if err != nil {
+		return fmt.Errorf("Snapshot error:%v", err)
+	}
+	return s3Store.Snapshot(d.dataSourceName, remotePath)
 }
 
 // InitWalHook 执行数据库命令
