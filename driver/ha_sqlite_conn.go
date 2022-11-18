@@ -31,6 +31,7 @@ const MaxTupleParams = 255
 const haCreateDBSql1 = "HA CREATE DB ?"
 const haCreateDBSql2 = "HA CREATE DB ?;"
 const haUseSql = "HA USE ?;"
+const haSnapshotSql = "HA SNAPSHOT ? TO ?;"
 const haUseSqlLen = len(haUseSql)
 
 func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
@@ -310,6 +311,21 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 			return rows, err, true
 		}
 		return nil, fmt.Errorf("query `HA USE ?;` sql only need one string arg#1, but got %v", args), true
+	}
+
+	if strings.HasPrefix(query, haSnapshotSql) {
+		if len(args) != 2 {
+			return nil, fmt.Errorf("query `HA SNAPSHOT ? TO ?;` sql need db name and s3 key, but got %v", args), true
+		}
+		dbName, ok := args[0].Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("query `HA SNAPSHOT ? TO ?;` parse db name error %v", args), true
+		}
+		s3Key, ok := args[1].Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("query `HA SNAPSHOT ? TO ?;` parse s3 key error %v", args), true
+		}
+		return nil, fmt.Errorf("todo impl snapshot %v->%v", dbName, s3Key), true
 	}
 	return nil, nil, false
 }
