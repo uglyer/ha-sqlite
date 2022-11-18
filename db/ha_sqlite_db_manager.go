@@ -255,15 +255,19 @@ func (d *HaSqliteDBManager) FinishTx(c context.Context, req *proto.FinishTxReque
 // Snapshot 快照
 func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotRequest) (*proto.SnapshotResponse, error) {
 	if d.s3Store == nil {
+		log.Warn(fmt.Sprintf("Snapshot(%v) error: s3 is disabled", req.Request.Dsn))
 		return nil, fmt.Errorf("s3 is disabled")
 	}
 	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
+		log.Warn(fmt.Sprintf("Snapshot(%v) error: get db error", req.Request.Dsn))
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
+	log.Info(fmt.Sprintf("Snapshot(%d):%v", req.Request.DbId, req.RemotePath))
 	defer d.TryClose(req.Request.DbId)
 	size, err := db.Snapshot(d.s3Store, req.RemotePath)
 	if err != nil {
+		log.Warn(fmt.Sprintf("Snapshot(%v) error: %v", req.Request.DbId, err))
 		return nil, err
 	}
 	return &proto.SnapshotResponse{Size: size}, nil
