@@ -124,6 +124,11 @@ func (d *HaSqliteDB) TryClose() (bool, error) {
 
 // WalCheckpoint WAL 日志执行检查点
 func (d *HaSqliteDB) WalCheckpoint() error {
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	if len(d.txMap) > 0 {
+		return fmt.Errorf("WalCheckpoint error : has tx")
+	}
 	var row [3]int
 	// 应用 wal_checkpoint 失败不影响数据一致性, todo 提交至 frame 内容需要快照
 	if err := d.db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE);`).Scan(&row[0], &row[1], &row[2]); err != nil {
