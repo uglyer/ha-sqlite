@@ -263,13 +263,14 @@ func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotReque
 		log.Warn(fmt.Sprintf("Snapshot(%v) error: get db error", req.Request.Dsn))
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
-	log.Info(fmt.Sprintf("Snapshot(%d):%v", req.Request.DbId, req.RemotePath))
+	log.Info(fmt.Sprintf("Snapshot(%d) start:%v", req.Request.DbId, req.RemotePath))
 	defer d.TryClose(req.Request.DbId)
 	size, err := db.Snapshot(d.s3Store, req.RemotePath)
 	if err != nil {
 		log.Warn(fmt.Sprintf("Snapshot(%v) error: %v", req.Request.DbId, err))
 		return nil, err
 	}
+	log.Info(fmt.Sprintf("Snapshot(%d) success:%v,size:%d", req.Request.DbId, req.RemotePath, size))
 	return &proto.SnapshotResponse{Size: size}, nil
 }
 
