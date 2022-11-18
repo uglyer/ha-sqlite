@@ -141,14 +141,26 @@ func (d *HaSqliteDB) WalCheckpoint() error {
 }
 
 // Snapshot 执行快照
-func (d *HaSqliteDB) Snapshot(s3Store s3.S3Store, remotePath string) error {
+func (d *HaSqliteDB) Snapshot(s3Store s3.S3Store, remotePath string) (int64, error) {
 	d.walMtx.Lock()
 	defer d.walMtx.Unlock()
 	err := d.WalCheckpoint()
 	if err != nil {
-		return fmt.Errorf("Snapshot error:%v", err)
+		return 0, fmt.Errorf("Snapshot error:%v", err)
 	}
-	return s3Store.Snapshot(d.dataSourceName, remotePath)
+	fileInfo, err := os.Stat(d.dataSourceName)
+	if err != nil {
+		return 0, fmt.Errorf("Snapshot get db file stat error:%v", err)
+	}
+	err = s3Store.Snapshot(d.dataSourceName, remotePath)
+	if err != nil {
+		return 0, fmt.Errorf("Snapshot upload error:%v", err)
+	}
+	info, err := s3Store.StatObject(remotePath)
+	if fileInfo.Size() != info.Size {
+		return 0, fmt.Errorf("Snapshot upload error(size):%v", err)
+	}
+	return info.Size, nil
 }
 
 // InitWalHook 执行数据库命令
