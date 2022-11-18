@@ -257,12 +257,16 @@ func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotReque
 	if d.s3Store == nil {
 		return nil, fmt.Errorf("s3 is disabled")
 	}
-	_, ok, err := d.GetDB(req.Request)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return nil, fmt.Errorf("todo impl Snapshot")
+	size, err := db.Snapshot(d.s3Store, req.RemotePath)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.SnapshotResponse{Size: size}, nil
 }
 
 // Restore 恢复
