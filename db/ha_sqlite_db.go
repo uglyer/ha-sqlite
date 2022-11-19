@@ -154,9 +154,12 @@ func (d *HaSqliteDB) Snapshot(s3Store s3.S3Store, remotePath string) (int64, err
 	}
 	err = s3Store.Snapshot(d.dataSourceName, remotePath)
 	if err != nil {
-		return 0, fmt.Errorf("Snapshot upload error:%v", err)
+		return 0, fmt.Errorf("Snapshot upload error#1:%v", err)
 	}
 	info, err := s3Store.StatObject(remotePath)
+	if err != nil {
+		return 0, fmt.Errorf("Snapshot upload error#2:%v", err)
+	}
 	if fileInfo.Size() != info.Size {
 		return 0, fmt.Errorf("Snapshot upload error(size):%v", err)
 	}
