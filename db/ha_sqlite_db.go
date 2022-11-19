@@ -10,6 +10,8 @@ import (
 	"github.com/uglyer/ha-sqlite/db/walfs"
 	"github.com/uglyer/ha-sqlite/proto"
 	"github.com/uglyer/ha-sqlite/s3"
+	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -164,6 +166,76 @@ func (d *HaSqliteDB) Snapshot(s3Store s3.S3Store, remotePath string) (int64, err
 		return 0, fmt.Errorf("Snapshot upload error(size):%v", err)
 	}
 	return info.Size, nil
+}
+
+// Restore 执行恢复
+func (d *HaSqliteDB) Restore(s3Store s3.S3Store, remotePath string) (int64, error) {
+	d.walMtx.Lock()
+	defer d.walMtx.Unlock()
+	d.txMtx.Lock()
+	defer d.txMtx.Unlock()
+	if len(d.txMap) > 0 {
+		return 0, fmt.Errorf("restore error : has tx")
+	}
+	info, err := s3Store.StatObject(remotePath)
+	if err != nil {
+		return 0, fmt.Errorf("restore get remote stat error:%v", err)
+	}
+	file, err := ioutil.TempFile("ha_sqlite_db_restore", "restore")
+	if err != nil {
+		return 0, fmt.Errorf("restore create temp restore file error:%v", err)
+	}
+	fileBackup, err := ioutil.TempFile("ha_sqlite_db_restore", "backup")
+	if err != nil {
+		return 0, fmt.Errorf("restore create temp backup file error:%v", err)
+	}
+	err = file.Close()
+	if err != nil {
+		return 0, fmt.Errorf("restore close temp file error:%v", err)
+	}
+	err = s3Store.Restore(file.Name(), remotePath)
+	if err != nil {
+		return 0, fmt.Errorf("restore copy file error:%v", err)
+	}
+	fileInfo, err := os.Stat(file.Name())
+	if err != nil {
+		return 0, fmt.Errorf("restore get db temp file stat error:%v", err)
+	}
+	if fileInfo.Size() != info.Size {
+		return 0, fmt.Errorf("restore write error(size):%v,%v", fileInfo.Size(), info.Size)
+	}
+	dbFile, err := os.Open(d.dataSourceName)
+	if err != nil {
+		return 0, fmt.Errorf("restore open db file error:%v", err)
+	}
+	err = d.db.Close()
+	if err != nil {
+		return 0, fmt.Errorf("restore close db error:%v", err)
+	}
+	// TODO reopen db
+	_, err = io.Copy(fileBackup, dbFile)
+	if err != nil {
+		return 0, fmt.Errorf("restore backup db file error:%v", err)
+	}
+	file, err = os.Open(file.Name())
+	if err != nil {
+		return 0, fmt.Errorf("restore open remote file error:%v", err)
+	}
+	rollback := func() {
+		// 重试5次
+		for i := 0; i < 5; i++ {
+			_, err = io.Copy(dbFile, fileBackup)
+			if err != nil {
+				break
+			}
+		}
+	}
+	size, err := io.Copy(dbFile, file)
+	if err != nil {
+		rollback()
+		return 0, fmt.Errorf("restore copy remote file to db file error:%v", err)
+	}
+	return size, nil
 }
 
 // InitWalHook 执行数据库命令
