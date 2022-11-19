@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	sqlite "github.com/uglyer/go-sqlite3" // Go SQLite bindings with wal hook
 	"github.com/uglyer/ha-sqlite/db/walfs"
+	"github.com/uglyer/ha-sqlite/log"
 	"github.com/uglyer/ha-sqlite/proto"
 	"github.com/uglyer/ha-sqlite/s3"
 	"io"
@@ -57,6 +58,23 @@ func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 			return nil, errors.Wrap(err, "failed to create dir")
 		}
 	}
+	db, err := openDB(dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceWalFile := fmt.Sprintf("%s-wal", dataSourceName)
+	return &HaSqliteDB{
+		dataSourceName: dataSourceName,
+		sourceWalFile:  sourceWalFile,
+		db:             db,
+		txMap:          make(map[string]*sql.Tx),
+		enabledVFS:     false,
+	}, nil
+}
+
+// openDB 打开数据库
+func openDB(dataSourceName string) (*sql.DB, error) {
 	enabledVFS := false
 	url := fmt.Sprintf("file:%s?_txlock=exclusive&_busy_timeout=30000&_synchronous=OFF", dataSourceName)
 	if enabledVFS {
@@ -74,17 +92,10 @@ func NewHaSqliteDB(dataSourceName string) (*HaSqliteDB, error) {
 	//}
 	_, err = db.Exec("PRAGMA journal_mode=WAL")
 	if err != nil {
+		db.Close()
 		return nil, fmt.Errorf("set journal_mode = WAL error:%v", err)
 	}
-
-	sourceWalFile := fmt.Sprintf("%s-wal", dataSourceName)
-	return &HaSqliteDB{
-		dataSourceName: dataSourceName,
-		sourceWalFile:  sourceWalFile,
-		db:             db,
-		txMap:          make(map[string]*sql.Tx),
-		enabledVFS:     enabledVFS,
-	}, nil
+	return db, nil
 }
 
 // addUseCount 添加引用次数
@@ -212,7 +223,18 @@ func (d *HaSqliteDB) Restore(s3Store s3.S3Store, remotePath string) (int64, erro
 	if err != nil {
 		return 0, fmt.Errorf("restore close db error:%v", err)
 	}
-	// TODO reopen db
+	// reopen db
+	defer func() {
+		for i := 0; i < 5; i++ {
+			db, err := openDB(d.dataSourceName)
+			if err != nil {
+				log.Error(fmt.Sprintf("Restore reopen db error(%d):%v(%s)", i, err, d.dataSourceName))
+				continue
+			}
+			d.db = db
+			break
+		}
+	}()
 	_, err = io.Copy(fileBackup, dbFile)
 	if err != nil {
 		return 0, fmt.Errorf("restore backup db file error:%v", err)
@@ -228,6 +250,7 @@ func (d *HaSqliteDB) Restore(s3Store s3.S3Store, remotePath string) (int64, erro
 			if err != nil {
 				break
 			}
+			log.Error(fmt.Sprintf("Restore rollback db error(%d):%v(%s)", i, err, d.dataSourceName))
 		}
 	}
 	size, err := io.Copy(dbFile, file)
