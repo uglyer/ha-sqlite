@@ -279,12 +279,16 @@ func (d *HaSqliteDBManager) Restore(c context.Context, req *proto.RestoreRequest
 	if d.s3Store == nil {
 		return nil, fmt.Errorf("s3 is disabled")
 	}
-	_, ok, err := d.GetDB(req.Request)
+	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
-	return nil, fmt.Errorf("todo impl Restore")
+	size, err := db.Restore(d.s3Store, req.RemotePath)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.RestoreResponse{Size: size}, nil
 }
 
 // ApplyWal 应用日志
