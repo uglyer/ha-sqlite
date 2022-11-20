@@ -277,17 +277,21 @@ func (d *HaSqliteDBManager) Snapshot(c context.Context, req *proto.SnapshotReque
 // Restore 恢复
 func (d *HaSqliteDBManager) Restore(c context.Context, req *proto.RestoreRequest) (*proto.RestoreResponse, error) {
 	if d.s3Store == nil {
+		log.Warn(fmt.Sprintf("Restore(%v) error: s3 is disabled", req.Request.Dsn))
 		return nil, fmt.Errorf("s3 is disabled")
 	}
 	db, ok, err := d.GetDB(req.Request)
 	if !ok || err != nil {
+		log.Warn(fmt.Sprintf("Restore(%v) error: get db error", req.Request.Dsn))
 		return nil, fmt.Errorf("get db error : %d,err:%v", req.Request.DbId, err)
 	}
 	defer d.TryClose(req.Request.DbId)
 	size, err := db.Restore(d.s3Store, req.RemotePath)
 	if err != nil {
+		log.Warn(fmt.Sprintf("Restore(%v) error: %v", req.Request.DbId, err))
 		return nil, err
 	}
+	log.Info(fmt.Sprintf("Snapshot(%d) success:%v,size:%d", req.Request.DbId, req.RemotePath, size))
 	return &proto.RestoreResponse{Size: size}, nil
 }
 
