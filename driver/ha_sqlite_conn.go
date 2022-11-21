@@ -32,6 +32,7 @@ const haCreateDBSql1 = "HA CREATE DB ?"
 const haCreateDBSql2 = "HA CREATE DB ?;"
 const haUseSql = "HA USE ?;"
 const haSnapshotSql = "HA SNAPSHOT ? TO ?;"
+const haRestoreSql = "HA RESTORE ? FROM ?;"
 const haUseSqlLen = len(haUseSql)
 
 func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
@@ -328,6 +329,21 @@ func (c *HaSqliteConn) parseHAQuerySql(ctx context.Context, query string, args [
 		rows, err := c.runHAQuerySqlSnapshotDB(ctx, dbName, s3Key)
 		return rows, err, true
 	}
+	if strings.HasPrefix(query, haRestoreSql) {
+		if len(args) != 2 {
+			return nil, fmt.Errorf("query `HA RESTORE ? FORM ?;` sql need db name and s3 key, but got %v", args), true
+		}
+		dbName, ok := args[0].Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("query `HA RESTORE ? FORM ?;` parse db name error %v", args), true
+		}
+		s3Key, ok := args[1].Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("query `HA RESTORE ? FORM ?;` parse s3 key error %v", args), true
+		}
+		rows, err := c.runHAQuerySqlRestoreDB(ctx, dbName, s3Key)
+		return rows, err, true
+	}
 	return nil, nil, false
 }
 
@@ -366,6 +382,37 @@ func (c *HaSqliteConn) runHAQuerySqlSnapshotDB(ctx context.Context, dbName strin
 		return nil, err
 	}
 	resp, err := c.Client.Snapshot(ctx, &proto.SnapshotRequest{
+		Request:    &proto.Request{Dsn: dbName},
+		RemotePath: s3Key,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := &proto.QueryResult{
+		Columns: []string{"size"},
+		Types:   []string{"BIGINT"},
+		Values: []*proto.QueryResult_Values{
+			{
+				Parameters: []*proto.Parameter{
+					{
+						Value: &proto.Parameter_I{
+							I: resp.GetSize(),
+						},
+					},
+				},
+			},
+		},
+	}
+	return proto.NewHaSqliteRowsFromSingleQueryResult(result), nil
+}
+
+// runHAQuerySqlRestoreDB 执行 以 HA 开头的私有 sql 指令（从快照恢复）
+func (c *HaSqliteConn) runHAQuerySqlRestoreDB(ctx context.Context, dbName string, s3Key string) (driver.Rows, error) {
+	err := checkDbName(dbName)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Client.Restore(ctx, &proto.RestoreRequest{
 		Request:    &proto.Request{Dsn: dbName},
 		RemotePath: s3Key,
 	})
