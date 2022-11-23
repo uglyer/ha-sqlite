@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
@@ -13,7 +12,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -422,58 +420,59 @@ func Test_DBWalCopy(t *testing.T) {
 	}
 }
 
-func Test_DBWalTxSingleThread(t *testing.T) {
-	rowsCount := int32(-1) // 创建表指令也会计数+1
-	needError := true
-	hook := func(b []byte) error {
-		needError = !needError
-		if needError {
-			return errors.New("mock error")
-		}
-		atomic.AddInt32(&rowsCount, 1)
-		return nil
-	}
-	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
-	store1 := assertDB(t, store, err)
-
-	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
-	for i := 0; i < 5; i++ {
-		req := store1.buildRequest("INSERT INTO foo(name) VALUES(?)", "test")
-		// 不校验错误
-		store1.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
-		resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
-		count := atomic.LoadInt32(&rowsCount)
-		assert.Equal(t, count, int32(len(resp.Result[0].Values)))
-	}
-}
-
-func Test_DBWalTx(t *testing.T) {
-	rowsCount := int32(-1) // 创建表指令也会计数+1
-	needError := true
-	hook := func(b []byte) error {
-		needError = !needError
-		if needError {
-			return errors.New("mock error")
-		}
-		atomic.AddInt32(&rowsCount, 1)
-		return nil
-	}
-	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
-	store1 := assertDB(t, store, err)
-
-	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
-	var wg sync.WaitGroup
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			req := store1.buildRequest("INSERT INTO foo(name) VALUES(?)", "test")
-			// 不校验错误
-			store1.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
-		}()
-	}
-	wg.Wait()
-	resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
-	count := atomic.LoadInt32(&rowsCount)
-	assert.Equal(t, count, int32(len(resp.Result[0].Values)))
-}
+//目前关闭 mem wal 暂时移除测试
+//func Test_DBWalTxSingleThread(t *testing.T) {
+//	rowsCount := int32(-1) // 创建表指令也会计数+1
+//	needError := true
+//	hook := func(b []byte) error {
+//		needError = !needError
+//		if needError {
+//			return errors.New("mock error")
+//		}
+//		atomic.AddInt32(&rowsCount, 1)
+//		return nil
+//	}
+//	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
+//	store1 := assertDB(t, store, err)
+//
+//	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+//	for i := 0; i < 5; i++ {
+//		req := store1.buildRequest("INSERT INTO foo(name) VALUES(?)", "test")
+//		// 不校验错误
+//		store1.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+//		resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
+//		count := atomic.LoadInt32(&rowsCount)
+//		assert.Equal(t, count, int32(len(resp.Result[0].Values)))
+//	}
+//}
+//
+//func Test_DBWalTx(t *testing.T) {
+//	rowsCount := int32(-1) // 创建表指令也会计数+1
+//	needError := true
+//	hook := func(b []byte) error {
+//		needError = !needError
+//		if needError {
+//			return errors.New("mock error")
+//		}
+//		atomic.AddInt32(&rowsCount, 1)
+//		return nil
+//	}
+//	store, err := db.NewHaSqliteDBManagerWithDefault(hook)
+//	store1 := assertDB(t, store, err)
+//
+//	store1.exec("CREATE TABLE foo (id integer not null primary key, name text)")
+//	var wg sync.WaitGroup
+//	for i := 0; i < 5; i++ {
+//		wg.Add(1)
+//		go func() {
+//			defer wg.Done()
+//			req := store1.buildRequest("INSERT INTO foo(name) VALUES(?)", "test")
+//			// 不校验错误
+//			store1.db.Exec(context.Background(), &proto.ExecRequest{Request: req})
+//		}()
+//	}
+//	wg.Wait()
+//	resp := store1.query("SELECT * FROM foo WHERE name = ?", "test")
+//	count := atomic.LoadInt32(&rowsCount)
+//	assert.Equal(t, count, int32(len(resp.Result[0].Values)))
+//}
