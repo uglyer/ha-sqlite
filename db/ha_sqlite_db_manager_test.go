@@ -55,7 +55,7 @@ func (store *Store) cloneConn() *Store {
 }
 
 func (store *Store) getDB() (*db.HaSqliteDB, bool) {
-	d, ok, err := store.db.GetDB(store.id)
+	d, ok, err := store.db.GetDB(&proto.Request{DbId: store.id})
 	assert.NoError(store.t, err)
 	return d, ok
 }
