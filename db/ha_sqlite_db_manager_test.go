@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uglyer/ha-sqlite/db"
 	"github.com/uglyer/ha-sqlite/proto"
+	"github.com/uglyer/ha-sqlite/s3"
 	"io/ioutil"
 	"log"
 	"os"
@@ -22,6 +23,26 @@ type Store struct {
 	t        *testing.T
 	txToken  string
 	fileName string
+}
+
+func newClient(t *testing.T) *s3.S3Client {
+	config := &s3.S3Config{
+		Enabled:    true,
+		AccessKey:  os.Getenv("AccessKey"),
+		SecretKey:  os.Getenv("SecretKey"),
+		Endpoint:   os.Getenv("Endpoint"),
+		Region:     os.Getenv("Region"),
+		DisableSSL: true,
+		Bucket:     os.Getenv("Bucket"),
+		PrefixPath: "s3-store-dev",
+	}
+	assert.NotEmpty(t, config.AccessKey)
+	assert.NotEmpty(t, config.SecretKey)
+	assert.NotEmpty(t, config.Endpoint)
+	assert.NotEmpty(t, config.Bucket)
+	client, err := s3.NewS3Client(config)
+	assert.NoError(t, err)
+	return client
 }
 
 func (store *Store) buildRequest(sql string, args ...driver.Value) *proto.Request {
@@ -136,7 +157,12 @@ func (store *Store) assertExecCheckEffect(target *proto.ExecResult, sql string, 
 }
 
 func openDB(t *testing.T) *Store {
-	store, err := db.NewHaSqliteDBManager()
+	s3Store := newClient(t)
+	store, err := db.NewHaSqliteDBManagerWithConfigAndS3(&db.HaSqliteConfig{
+		Address:       "",
+		DataPath:      "",
+		ManagerDBPath: ":memory:",
+	}, s3Store)
 	return assertDB(t, store, err)
 }
 
