@@ -28,4 +28,5 @@ require (
 	go.uber.org/zap v1.17.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
+	gorm.io/gorm v1.24.3
 )
