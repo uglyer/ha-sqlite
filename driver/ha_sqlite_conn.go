@@ -62,25 +62,19 @@ func NewHaSqliteConn(ctx context.Context, dsn string) (*HaSqliteConn, error) {
 	defer close(errCh)
 	go func() {
 		if dbDSN == "" {
-			_, err := client.Ping(ctx, &proto.PingRequest{Timestamp: time.Now().UnixMilli()})
-			if err != nil {
-				errCh <- err
-				return
-			}
-			done <- &proto.OpenResponse{DbId: 0}
-		} else {
-			err := checkDbName(dbDSN)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
-			if err != nil {
-				errCh <- err
-				return
-			}
-			done <- resp
+			dbDSN = "default"
 		}
+		err := checkDbName(dbDSN)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		resp, err := client.Open(ctx, &proto.OpenRequest{Dsn: dbDSN})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		done <- resp
 	}()
 	select {
 	case err := <-errCh:
@@ -201,7 +195,8 @@ func (c *HaSqliteConn) ExecContext(ctx context.Context, query string, args []dri
 		return res, err
 	}
 	if c.dbId == 0 {
-		return nil, fmt.Errorf("exec db id is zero")
+		// 使用默认库
+		c.dbId = 1
 	}
 	return c.ExecContextWithDbName(ctx, "", query, args)
 }
@@ -236,12 +231,12 @@ func (c *HaSqliteConn) Query(query string, args []driver.Value) (driver.Rows, er
 
 // QueryContext is an optional interface that may be implemented by a Conn.
 func (c *HaSqliteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	row, err, ok := c.parseHAQuerySql(ctx, query, args)
-	if ok {
+	if row, err, ok := c.parseHAQuerySql(ctx, query, args); ok {
 		return row, err
 	}
 	if c.dbId == 0 {
-		return nil, fmt.Errorf("query db id is zero")
+		// 使用默认库
+		c.dbId = 1
 	}
 	return c.QueryContextWithDbName(ctx, "", query, args)
 }
