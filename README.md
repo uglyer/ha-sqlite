@@ -44,12 +44,13 @@ https://github.com/uglyer/ha-sqlite
 - [x] Transaction isolation
 - [x] CI
 - [x] Wal copy
-- [ ] Snapshot (Developing)
-- [ ] Restore (Developing)
-- [ ] S3 (Developing)
+- [x] Snapshot
+- [x] Restore
+- [x] S3
 - [x] `HA USE ?;` sql statement
 - [x] `HA CREATE DB ?;` sql statement
 - [ ] Trigger
+- [ ] Gorm driver (Developing)
 - [ ] High availability
 
 ## 为什么需要再造一个数据库的轮子
