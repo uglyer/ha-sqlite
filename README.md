@@ -50,7 +50,7 @@ https://github.com/uglyer/ha-sqlite
 - [x] `HA USE ?;` sql statement
 - [x] `HA CREATE DB ?;` sql statement
 - [ ] Trigger
-- [ ] Gorm driver (Developing)
+- [ ] Gorm driver (Developing)w 
 - [ ] High availability
 
 ## 为什么需要再造一个数据库的轮子
